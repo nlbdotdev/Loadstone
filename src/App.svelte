@@ -36,6 +36,7 @@
   } from '@lucide/svelte';
   import Logo from './Logo.svelte';
   import LiveCatalog from './LiveCatalog.svelte';
+  import EngineSettings from './EngineSettings.svelte';
   import { catalog } from './data';
   import type { AppState, Page, Setup, Job } from './types';
 
@@ -848,6 +849,7 @@
           </div>
           <div class="settings-layout">
             <div class="settings-main">
+              <EngineSettings />
               <section class="settings-section">
                 <div class="section-heading">
                   <FlaskConical size={20} />

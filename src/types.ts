@@ -61,6 +61,10 @@ export interface AppState {
   logs: string[];
 }
 export interface Bridge {
+  runtime(): Promise<RuntimeStatus>;
+  installRuntime(): Promise<RuntimeStatus>;
+  verifyRuntime(): Promise<RuntimeStatus>;
+  cancelRuntime(): Promise<RuntimeStatus>;
   liveInstallRoot(): Promise<string>;
   liveCatalog(): Promise<Manifest[]>;
   importManifest(): Promise<Manifest[] | null>;
@@ -91,6 +95,14 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface RuntimeStatus {
+  status: 'missing' | 'installing' | 'checking' | 'ready' | 'error';
+  version: string;
+  phase: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  error: string | null;
 }
 export interface Manifest {
   schemaVersion: 1;
