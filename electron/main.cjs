@@ -38,7 +38,11 @@ else {
     .whenReady()
     .then(() => {
       store = new Store(app.getPath('userData'));
-      live = new LiveCatalog(app.getPath('userData'));
+      live = new LiveCatalog(app.getPath('userData'), [
+        app.isPackaged
+          ? path.dirname(process.execPath)
+          : path.resolve(__dirname, '..'),
+      ]);
       runtime = new Runtime(app.getPath('userData'));
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);

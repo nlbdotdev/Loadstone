@@ -24,3 +24,13 @@ jobs:
       - run: pnpm notices
       - run: git diff --exit-code -- notices
       - run: git diff --check
+      - name: Build Steam depot preview
+        run: pnpm package:steam
+      - name: Verify staged executable
+        shell: pwsh
+        run: |
+          $kit = Get-ChildItem -LiteralPath release/steam -Directory | Select-Object -First 1
+          node scripts/steam-depot.mjs --verify $kit.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:LOADSTONE_TEST_EXE = Join-Path $kit.FullName 'content/Loadstone.exe'
+          node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs

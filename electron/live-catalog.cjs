@@ -27,7 +27,8 @@ function contains(parent, child) {
   );
 }
 class LiveCatalog {
-  constructor(root) {
+  constructor(root, applicationRoots = []) {
+    this.applicationRoots = applicationRoots;
     this.file = path.join(root, 'live-catalog.json');
     this.entries = [];
     if (fs.existsSync(this.file)) {
@@ -187,6 +188,7 @@ class LiveCatalog {
           'Choose a separate folder outside the game installation.',
         );
       const protectedRoots = [
+        ...this.applicationRoots,
         process.env.WINDIR,
         process.env.ProgramFiles,
         process.env['ProgramFiles(x86)'],

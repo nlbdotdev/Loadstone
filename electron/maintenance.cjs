@@ -23,9 +23,10 @@ async function assertGamesClosed() {
 function recoveryPath(job) {
   return `${job.destination}.loadstone-recovery-${job.id}`;
 }
-function protectedPath(job, root, userData) {
+function protectedPath(job, root, userData, applicationRoots = []) {
   const game = canonical(job.gameFolder);
   const protectedRoots = [
+    ...applicationRoots,
     game,
     userData,
     process.env.WINDIR,
@@ -111,7 +112,12 @@ class Maintenance {
       ...job,
       destination: moved ? recovery : job.destination,
     });
-    protectedPath(job, root, path.dirname(this.installer.file));
+    protectedPath(
+      job,
+      root,
+      path.dirname(this.installer.file),
+      this.installer.catalog?.applicationRoots,
+    );
     if (
       canonical(recovery).toLowerCase() !== path.resolve(recovery).toLowerCase()
     )
