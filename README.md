@@ -51,6 +51,8 @@ Current source also supports a separate live manifest catalog, Steam game discov
 
 Settings now prepares a pinned official Wabbajack runtime, with download/cancel/repair controls, archive and full runtime integrity checks, and a real CLI capability check. See [runtime integration notes](docs/runtime.md). Preparing the engine does not install a modlist.
 
+Settings also validates a Nexus personal API key for private testing, stores it with Windows encryption, and displays account membership and the last verification time. [Account integration notes](docs/nexus.md) describe the credential handling and remaining Wabbajack connection work. This is not yet a registered public Nexus application.
+
 ## Persistence and desktop behavior
 
 Settings and demo state live in `%APPDATA%\Loadstone\state.json` in the packaged app. Active installs are restored paused after a restart. Disabling demo mode preserves its state and pauses its jobs. Resetting demo data preserves preferences. Unreadable state is backed up before recovery. Native Windows folder/save dialogs, window controls, a single-instance guard, and offline artwork are included.

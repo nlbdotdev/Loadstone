@@ -1,11 +1,18 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  safeStorage,
+} = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { Store } = require('./store.cjs');
 const { LiveCatalog } = require('./live-catalog.cjs');
 const { steamRoots, discoverGames } = require('./game-discovery.cjs');
 const { Runtime } = require('./runtime.cjs');
-let window, store, timer, live, runtime;
+const { NexusAccount } = require('./nexus.cjs');
+let window, store, timer, live, runtime, nexus;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
 const locked = app.requestSingleInstanceLock();
@@ -23,6 +30,7 @@ else {
       store = new Store(app.getPath('userData'));
       live = new LiveCatalog(app.getPath('userData'));
       runtime = new Runtime(app.getPath('userData'));
+      nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       void runtime.verify();
       window = new BrowserWindow({
         width: 1480,
@@ -82,6 +90,10 @@ else {
       });
       handle('live:games', async () => discoverGames(await steamRoots()));
       handle('runtime:get', () => runtime.status());
+      handle('nexus:get', () => nexus.status());
+      handle('nexus:connect', (key) => nexus.connect(key));
+      handle('nexus:verify', () => nexus.verify());
+      handle('nexus:disconnect', () => nexus.disconnect());
       handle('runtime:verify', () => runtime.verify());
       handle('runtime:install', () => runtime.install());
       handle('runtime:cancel', () => runtime.cancel());

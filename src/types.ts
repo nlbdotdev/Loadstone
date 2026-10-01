@@ -61,6 +61,10 @@ export interface AppState {
   logs: string[];
 }
 export interface Bridge {
+  nexus(): Promise<NexusStatus>;
+  connectNexus(key: string): Promise<NexusStatus>;
+  verifyNexus(): Promise<NexusStatus>;
+  disconnectNexus(): Promise<NexusStatus>;
   runtime(): Promise<RuntimeStatus>;
   installRuntime(): Promise<RuntimeStatus>;
   verifyRuntime(): Promise<RuntimeStatus>;
@@ -95,6 +99,14 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface NexusStatus {
+  available: boolean;
+  connected: boolean;
+  name: string | null;
+  premium: boolean | null;
+  verifiedAt: string | null;
+  error: string | null;
 }
 export interface RuntimeStatus {
   status: 'missing' | 'installing' | 'checking' | 'ready' | 'error';
