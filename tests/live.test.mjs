@@ -261,7 +261,7 @@ test(
               setupId: 'test-setup',
               name: 'Completed fixture',
               destination,
-              gameFolder: root,
+              gameFolder: path.join(root, 'missing-game'),
               manifest: fixtureManifest(),
               status: 'installed',
               logs: ['Controlled test output'],
@@ -297,6 +297,12 @@ test(
         .getByRole('button', { name: 'My library', exact: true })
         .click();
       await page.getByRole('heading', { name: 'Completed fixture' }).waitFor();
+      assert.equal(
+        await page
+          .getByRole('button', { name: 'Remove setup', exact: true })
+          .isEnabled(),
+        true,
+      );
       await page
         .getByRole('button', { name: 'Check profile', exact: true })
         .click();
@@ -420,7 +426,62 @@ test(
           { exact: true },
         )
         .waitFor();
+      await app.evaluate(({ dialog }) => {
+        dialog.showMessageBox = async () => ({
+          response: 0,
+          checkboxChecked: false,
+        });
+      });
+      await page
+        .getByRole('button', { name: 'Remove setup', exact: true })
+        .click();
+      await page.waitForFunction(
+        () => !document.querySelector('.live-job button')?.disabled,
+      );
+      assert.ok(fs.existsSync(path.join(output, 'ModOrganizer.exe')));
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.liveJobs()))[0].status,
+        'installed',
+      );
+      await app.evaluate(({ dialog }) => {
+        dialog.showMessageBox = async (_window, options) => {
+          globalThis.removalDialog = options;
+          return { response: 1, checkboxChecked: false };
+        };
+      });
+      await page
+        .getByRole('button', { name: 'Remove setup', exact: true })
+        .click();
+      await page
+        .getByRole('heading', {
+          name: 'No live setups installed yet',
+          exact: true,
+        })
+        .waitFor();
+      const removed = (
+        await page.evaluate(() => window.loadstone.liveJobs())
+      )[0];
+      assert.equal(removed.status, 'removed');
+      assert.equal(fs.existsSync(destination), false);
+      assert.equal(
+        fs.readFileSync(
+          path.join(
+            removed.removalRecoveryPath,
+            'profile/profiles/Fixture/modlist.txt',
+          ),
+          'utf8',
+        ),
+        '#fixture',
+      );
+      assert.match(
+        (await app.evaluate(() => globalThis.removalDialog)).detail,
+        /Other files inside the profile folder, including custom mods/,
+      );
       await page.evaluate(() => window.loadstone.settings({ dummyData: true }));
+      await assert.rejects(
+        page.evaluate((id) => window.loadstone.removeLive(id), jobId),
+        /live workspace/,
+      );
       await assert.rejects(
         page.evaluate((id) => window.loadstone.launchLive(id), jobId),
         /live workspace/,

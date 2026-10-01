@@ -8,7 +8,11 @@
     error = $state(''),
     busy = $state(false);
   const shown = $derived(
-    library ? jobs.filter((job) => job.status === 'installed') : jobs,
+    library
+      ? jobs.filter((job) =>
+          ['installed', 'removing', 'removal-failed'].includes(job.status),
+        )
+      : jobs,
   );
   onMount(() => {
     let mounted = true;
@@ -77,6 +81,24 @@
       </div>
       <p>{job.destination}</p>
       {#if job.error}<p class="error">{job.error}</p>{/if}
+      {#if job.removalRecoveryPath}<p>
+          Preserved data: {job.removalRecoveryPath}
+        </p>{/if}
+      {#if job.status === 'removing'}<p role="status">
+          Removing installed files and keeping profiles, saves and downloads.
+        </p>{/if}
+      {#if job.status === 'removed'}<p>
+          Installed files removed. Your retained data is in the recovery folder
+          shown above. Review any remaining desktop or Steam shortcuts.
+        </p>{/if}
+      {#if ['installed', 'removal-failed'].includes(job.status)}<button
+          class="secondary"
+          disabled={busy}
+          onclick={() => action(() => window.loadstone.removeLive(job.id))}
+          >{job.status === 'removal-failed'
+            ? 'Resume removal'
+            : 'Remove setup'}</button
+        >{/if}
       {#if ['preparing', 'installing', 'verifying'].includes(job.status)}<p>
           Wabbajack is working. Progress below comes from the installer.
         </p>

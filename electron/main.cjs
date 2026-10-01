@@ -18,6 +18,7 @@ const { Launcher } = require('./launcher.cjs');
 const { createDesktopShortcut } = require('./shortcuts.cjs');
 const { SteamShortcuts } = require('./steam-shortcuts.cjs');
 const { diagnostics } = require('./diagnostics.cjs');
+const { Maintenance } = require('./maintenance.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -39,6 +40,7 @@ else {
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
       launcher = new Launcher(installer);
+      const maintenance = new Maintenance(installer);
       const steamShortcuts = new SteamShortcuts();
       const steamShortcut = async (id, accountId) => {
         const result = await steamShortcuts.create(
@@ -146,6 +148,27 @@ else {
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
       handle('live:jobs', () => launcher.list());
+      handle('live:remove', async (id) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before removing a setup.',
+          );
+        const plan = await maintenance.preview(id);
+        const result = await dialog.showMessageBox(window, {
+          type: 'warning',
+          title: 'Remove installed setup files?',
+          message: `Remove ${plan.files} installed files (${(plan.bytes / 1e9).toFixed(2)} GB)?`,
+          detail: `Setup: ${plan.destination}\n\nProfiles, saves folders, overwrite files, ModOrganizer.ini, downloads and files outside the profile folder are retained here:\n${plan.recovery}\n\nOther files inside the profile folder, including custom mods, will be deleted. Global game saves are not changed. Desktop and Steam shortcuts may need to be removed manually.`,
+          buttons: ['Cancel', 'Remove installed files'],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        if (result.response !== 1) return launcher.list();
+        if (store.state.settings.dummyData)
+          throw new Error('Return to the live workspace to continue.');
+        return maintenance.remove(id);
+      });
       handle('steam:accounts', () => steamShortcuts.list());
       handle('live:steam-shortcut', (id, accountId) => {
         if (store.state.settings.dummyData)

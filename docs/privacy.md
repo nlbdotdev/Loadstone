@@ -8,7 +8,7 @@ Packaged app settings and workspace data live in `%APPDATA%\Loadstone`. They inc
 
 `nexus.bin` contains the key and validated account metadata encrypted through Electron safeStorage/Windows DPAPI. Public status exposes the display name, Premium flag and verification time; the key remains in the main process. Disconnect removes Loadstone's credential files. It does not revoke the provider key or change Wabbajack's account. Same-user software can potentially access credentials; encryption is not a defense against malware in the same Windows account.
 
-Installation destinations contain the list snapshot, downloaded archives, MO2 output and engine logs. Steam shortcut backups remain beside Steam's `shortcuts.vdf`. Desktop links point to the installed manager. Resetting demo data does not remove those files or live installations. Save-safe removal is still in development; do not delete an installation folder without preserving your saves and custom changes.
+Installation destinations contain the list snapshot, downloaded archives, MO2 output and engine logs. Steam shortcut backups remain beside Steam's `shortcuts.vdf`. Desktop links point to the installed manager. Resetting demo data does not remove those files or live installations. Library removal retains profiles, saves folders, overwrite files, MO2 settings, downloads and files outside the profile directory in a sibling recovery folder. Other profile files, including custom mods, are deleted only after the removal dialog is accepted. See [removal behavior](installation.md#removing-a-setup) before manually deleting retained data.
 
 ## Network activity
 
