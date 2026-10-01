@@ -76,3 +76,5 @@ Real install-to-play and Steam-client acceptance testing, plus save-safe mainten
 ## Distribution
 
 This repository is private and currently unlicensed. No Wabbajack, MO2, or other GPL application code is incorporated in this MVP. Third-party JavaScript packages retain their respective licenses. The portable Windows preview is unsigned and is not a Steam release.
+
+See [contributor setup](CONTRIBUTING.md), [security reporting](SECURITY.md), [privacy and local data](docs/privacy.md), and [open-source publication gates](docs/open-source.md). Generated [third-party notices](notices/THIRD-PARTY.txt) and the [dependency inventory](notices/dependencies.json) ship with new packages. Two upstream packages currently lack standalone license texts; the inventory records those unresolved notice gaps. GPL-3.0-or-later remains a candidate pending the project license decision and release review.
