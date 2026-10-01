@@ -33,4 +33,4 @@ jobs:
           node scripts/steam-depot.mjs --verify $kit.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:LOADSTONE_TEST_EXE = Join-Path $kit.FullName 'content/Loadstone.exe'
-          node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs
+          node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs tests/close-guard.test.mjs

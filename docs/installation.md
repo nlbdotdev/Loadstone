@@ -30,6 +30,8 @@ Each filename and description includes the installation ID. Repair recreates a m
 
 The selected destination must initially be empty. Loadstone records an ownership marker and creates `profile/` for Wabbajack output, `downloads/` for reusable archives, `work/` for the engine working directory, and a hashed `list.wabbajack` snapshot. Retry requires matching ownership and preserves downloads and partial output. It also repeats preflight against the imported manifest and source archive; keep those available. Changed source manifests may prevent a retry of the original snapshot.
 
+Closing the window or quitting while installation, removal or engine preparation is active keeps Loadstone open and offers minimization. Finish the operation, or stop installation in Downloads / cancel engine preparation in Settings and wait for its stopped status before closing. This avoids exiting before final state and log cleanup are saved; forced termination, Windows shutdown and crashes still use interruption recovery.
+
 Cancel stops the tracked engine process tree. Completion is recorded only after the child exits. An unexpected app interruption leaves a durable job that becomes interrupted on reopening. Restart Windows before retrying that job: the saved Windows boot identifier prevents reuse while the previous engine might still be running. Loadstone does not automatically restart interrupted work.
 
 ## Credentials and diagnostics

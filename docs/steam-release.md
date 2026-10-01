@@ -15,7 +15,7 @@ Build with Node 24 and pnpm 11 from a clean checkout after `pnpm install --froze
 pnpm package:steam
 node scripts/steam-depot.mjs --verify release/steam/preview-<id>
 $env:LOADSTONE_TEST_EXE = (Resolve-Path 'release/steam/preview-<id>/content/Loadstone.exe').Path
-node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs
+node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs tests/close-guard.test.mjs
 Remove-Item Env:LOADSTONE_TEST_EXE
 ```
 

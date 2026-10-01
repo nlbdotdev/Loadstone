@@ -9,6 +9,7 @@ const {
 const path = require('node:path');
 const fs = require('node:fs');
 const { Store } = require('./store.cjs');
+const { protectActiveWork, currentActivity } = require('./close-guard.cjs');
 const { LiveCatalog } = require('./live-catalog.cjs');
 const { steamRoots, discoverGames } = require('./game-discovery.cjs');
 const { Runtime } = require('./runtime.cjs');
@@ -132,6 +133,9 @@ else {
       });
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       window.webContents.on('will-navigate', (event) => event.preventDefault());
+      protectActiveWork(app, window, dialog, () =>
+        currentActivity(installer, runtime),
+      );
       window.once('ready-to-show', () => window.show());
       window.loadFile(path.join(__dirname, '../dist/index.html'));
       const trusted = (event) => {
@@ -329,10 +333,7 @@ else {
       );
       app.exit(1);
     });
-  app.on('window-all-closed', async () => {
-    if (installer?.running)
-      await installer.cancel(installer.running.id).catch(() => {});
-    runtime?.cancel();
+  app.on('window-all-closed', () => {
     clearInterval(timer);
     app.quit();
   });
