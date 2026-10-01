@@ -117,6 +117,13 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  outputVerification?: {
+    files: number;
+    sizeChecked: number;
+    presenceOnly: number;
+    temporaryInputs: number;
+    checkedAt: string;
+  };
   version: string;
   removalRecoveryPath?: string;
   shortcutCleanupError?: string | null;

@@ -130,6 +130,11 @@
           >Retry installation</button
         >{/if}
       {#if job.status === 'installed'}
+        {#if job.outputVerification}<p>
+            At installation: {job.outputVerification.files} output files found; {job
+              .outputVerification.sizeChecked} file sizes checked. This does not verify
+            gameplay or later changes.
+          </p>{/if}
         <SteamShortcut jobId={job.id} />
         {#if job.steamShortcutError}<p class="error">
             Steam entry needs attention: {job.steamShortcutError}
