@@ -1031,18 +1031,19 @@
               <div class="divider"></div>
               <h4>Diagnostics</h4>
               <p class="aside-copy">
-                Export local activity logs to help review the demo workflow.
+                Export app, engine and installation status. Credentials, account
+                names, paths and raw logs are excluded. Nothing is uploaded.
               </p>
               <button
                 class="secondary full"
                 onclick={async () => {
                   try {
                     const file = await window.loadstone.exportLogs();
-                    if (file) message(`Logs exported to ${file}`);
+                    if (file) message(`Diagnostics exported to ${file}`);
                   } catch {
-                    message('Could not export logs.', true);
+                    message('Could not export diagnostics.', true);
                   }
-                }}><FileText size={16} />Export logs</button
+                }}><FileText size={16} />Export diagnostics</button
               >
               <details class="activity-log">
                 <summary>Recent activity</summary>{#each appState.logs

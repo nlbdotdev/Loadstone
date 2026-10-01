@@ -17,6 +17,7 @@ const { Installer } = require('./installer.cjs');
 const { Launcher } = require('./launcher.cjs');
 const { createDesktopShortcut } = require('./shortcuts.cjs');
 const { SteamShortcuts } = require('./steam-shortcuts.cjs');
+const { diagnostics } = require('./diagnostics.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -204,18 +205,23 @@ else {
       });
       handle('logs:export', async () => {
         const result = await dialog.showSaveDialog(window, {
-          title: 'Export Loadstone logs',
-          defaultPath: 'loadstone-diagnostics.txt',
-          filters: [{ name: 'Text file', extensions: ['txt'] }],
+          title: 'Export Loadstone diagnostics',
+          defaultPath: 'loadstone-diagnostics.json',
+          filters: [{ name: 'JSON report', extensions: ['json'] }],
         });
         if (result.canceled || !result.filePath) return null;
         fs.writeFileSync(
           result.filePath,
-          [
-            'Loadstone 0.1.0 — UI MVP',
-            `Mode: ${store.state.settings.dummyData ? 'demo' : 'production (not connected)'}`,
-            ...store.state.logs,
-          ].join('\n'),
+          JSON.stringify(
+            diagnostics({
+              state: store.state,
+              engine: runtime.status(),
+              account: nexus.status(),
+              jobs: launcher.list(),
+            }),
+            null,
+            2,
+          ) + '\n',
         );
         return result.filePath;
       });

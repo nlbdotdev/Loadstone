@@ -236,14 +236,17 @@ test(
       await app.evaluate(({ dialog }, filePath) => {
         dialog.showSaveDialog = async () => ({ canceled: false, filePath });
       }, exportedLog);
-      await page.getByRole('button', { name: 'Export logs' }).click();
+      await page.getByRole('button', { name: 'Export diagnostics' }).click();
       await page
-        .getByText(`Logs exported to ${exportedLog}`, { exact: true })
+        .getByText(`Diagnostics exported to ${exportedLog}`, { exact: true })
         .waitFor();
-      assert.match(
-        fs.readFileSync(exportedLog, 'utf8'),
-        /Demo session started/,
-      );
+      const reportText = fs.readFileSync(exportedLog, 'utf8');
+      const report = JSON.parse(reportText);
+      assert.equal(report.product, 'Loadstone');
+      assert.equal(report.mode, 'demo');
+      assert.ok(report.demo.activityLines > 0);
+      assert.equal(reportText.includes(pickedDirectory), false);
+      assert.match(report.build.lockfileSha256, /^[a-f0-9]{64}$/);
       await page.getByRole('switch', { name: 'Reduce motion' }).click();
       await page.getByRole('switch', { name: 'Use dummy data' }).click();
       await page.getByRole('button', { name: 'Discover', exact: true }).click();

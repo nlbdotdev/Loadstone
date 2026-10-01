@@ -43,7 +43,7 @@ See [the review checklist and verification notes](docs/review.md).
 3. Pause, resume, cancel, or retry in Downloads. A complete demo takes approximately 20 seconds.
 4. Open My library to launch a demo session, verify the simulated profile, or remove it.
 5. In Settings, turn **Use dummy data** off to import a live setup manifest and check game/archive compatibility. Turn it back on to restore your demo library. Reduced motion, shortcut preferences, and folder selection persist.
-6. Export diagnostic logs or reset the demo workspace from Settings.
+6. Export a privacy-conscious diagnostic summary or reset the demo workspace from Settings. Raw installation output remains local in Downloads.
 
 The demo catalog, requirements, installation sizes, profile validation, launch, and shortcut creation are simulated. Demo mode does not download mods, launch game processes, change game files, or modify Steam. Turning demo mode off prevents demo mutations in the main process as well as hiding sample data in the renderer.
 
