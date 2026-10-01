@@ -5,6 +5,7 @@ const { spawn, execFile } = require('node:child_process');
 const { canonical, contains, sha256 } = require('./live-catalog.cjs');
 const { validateManifest } = require('./manifest.cjs');
 const { verifyOutputs } = require('./verify-outputs.cjs');
+const { redact, sanitizeLogs } = require('./engine-logs.cjs');
 const active = new Set(['preparing', 'installing', 'verifying']);
 const statuses = new Set([
   ...active,
@@ -48,25 +49,6 @@ async function bootIdentifier() {
     ),
   );
 }
-function redact(line, secret = '') {
-  let value = String(line);
-  if (secret) value = value.split(secret).join('[redacted]');
-  return value
-    .replace(/https?:\/\/[^\s"<>]+/gi, (url) => {
-      try {
-        const u = new URL(url);
-        return u.origin + u.pathname + (u.search ? '?[redacted]' : '');
-      } catch {
-        return '[URL]';
-      }
-    })
-    .replace(
-      /(apikey|authorization|access_token|refresh_token)\s*[:=]\s*\S+/gi,
-      '$1=[redacted]',
-    )
-    .replace(/[\x00-\x08\x0b-\x1f]/g, '')
-    .slice(0, 1000);
-}
 function owned(job) {
   const root = canonical(job.destination);
   if (root.toLowerCase() !== path.resolve(job.destination).toLowerCase())
@@ -78,27 +60,9 @@ function owned(job) {
     throw new Error('This folder is not owned by this installation.');
   return root;
 }
-function sanitizeEngineLogs(job, key) {
-  const root = owned(job),
-    logs = path.join(root, 'work', 'logs');
-  if (!fs.existsSync(logs)) return;
-  if (!contains(root, canonical(logs)))
-    throw new Error('The installer log folder points outside this setup.');
-  for (const name of fs.readdirSync(logs)) {
-    if (!/^wabbajack-cli.*\.log$/i.test(name)) continue;
-    const file = path.join(logs, name);
-    if (!contains(logs, canonical(file)) || !fs.statSync(file).isFile())
-      throw new Error('An installer log points outside its log folder.');
-    const text =
-      fs.statSync(file).size <= 10_000_000
-        ? fs
-            .readFileSync(file, 'utf8')
-            .split(/\r?\n/)
-            .map((line) => redact(line, key))
-            .join('\n')
-        : 'Oversized engine log omitted. Review the bounded installation output in Loadstone.';
-    fs.writeFileSync(file, text);
-  }
+function sanitizeEngineLogs(job, key, runtimeDirectory) {
+  sanitizeLogs(path.join(owned(job), 'work'), key);
+  sanitizeLogs(runtimeDirectory, key);
 }
 function verifyProfile(job) {
   const root = owned(job),
@@ -547,7 +511,7 @@ class Installer {
         child.once('close', resolve);
       });
       if (buffer) logs.push(redact(buffer, key));
-      sanitizeEngineLogs(job, key);
+      sanitizeEngineLogs(job, key, this.runtime.directory);
       if (run.cancelled) {
         this.change(job.id, {
           status: 'cancelled',

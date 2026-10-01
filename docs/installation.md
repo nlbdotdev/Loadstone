@@ -36,7 +36,7 @@ Cancel stops the tracked engine process tree. Completion is recorded only after 
 
 ## Credentials and diagnostics
 
-The main process passes the private-test Nexus key only to the engine environment. Renderer job history contains no key. Captured output redacts the exact key, URL queries and named token fields, retaining at most 150 lines of 1,000 characters each. After the child exits, matching Wabbajack CLI logs in the owned working directory are sanitized; oversized logs are replaced with a short notice. Native engine logs may remain unsanitized while installation is running or after a crash. Do not publish raw engine logs without reviewing them. Third-party diagnostics outside that working directory are not covered by this sanitizer.
+The main process passes the private-test Nexus key only to the engine environment. Renderer job history contains no key. Captured output redacts the exact key, URL queries and named token fields, retaining at most 150 lines of 1,000 characters each. After the child exits, matching Wabbajack CLI logs in the owned working directory and Loadstone-managed runtime directory are sanitized; oversized logs are replaced with a short notice. Native engine logs may remain unsanitized while installation is running or after a crash. Do not publish raw engine logs without reviewing them. Third-party diagnostics outside those two managed locations are not covered by this sanitizer.
 
 ## Removing a setup
 
