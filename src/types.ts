@@ -61,6 +61,14 @@ export interface AppState {
   logs: string[];
 }
 export interface Bridge {
+  liveJobs(): Promise<LiveJob[]>;
+  installLive(options: {
+    id: string;
+    gameFolder: string;
+    destination: string;
+  }): Promise<LiveJob[]>;
+  retryLive(id: string): Promise<LiveJob[]>;
+  cancelLive(id: string): Promise<LiveJob[]>;
   nexus(): Promise<NexusStatus>;
   connectNexus(key: string): Promise<NexusStatus>;
   verifyNexus(): Promise<NexusStatus>;
@@ -99,6 +107,26 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface LiveJob {
+  id: string;
+  setupId: string;
+  name: string;
+  destination: string;
+  gameFolder: string;
+  status:
+    | 'preparing'
+    | 'installing'
+    | 'verifying'
+    | 'installed'
+    | 'failed'
+    | 'cancelled'
+    | 'interrupted';
+  logs: string[];
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+  installedAt?: string;
 }
 export interface NexusStatus {
   available: boolean;

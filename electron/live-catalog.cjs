@@ -79,7 +79,11 @@ class LiveCatalog {
     this.entries = entries;
     return this.list();
   }
-  async preflight({ id, gameFolder, destination }, engineVersion = '4.2.3.0') {
+  async preflight(
+    { id, gameFolder, destination },
+    engineVersion = '4.2.3.0',
+    ownedId = null,
+  ) {
     const entry = this.entries.find((x) => x.manifest.id === id);
     if (!entry) throw new Error('Unknown imported setup.');
     if (
@@ -177,8 +181,21 @@ class LiveCatalog {
       if (
         fs.existsSync(target) &&
         (!fs.statSync(target).isDirectory() || fs.readdirSync(target).length)
-      )
-        throw new Error('Use an empty folder for this installation.');
+      ) {
+        let owner = null;
+        if (ownedId) {
+          try {
+            owner = JSON.parse(
+              fs.readFileSync(
+                path.join(target, '.loadstone-owner.json'),
+                'utf8',
+              ),
+            );
+          } catch {}
+        }
+        if (!owner || owner.jobId !== ownedId || owner.setupId !== id)
+          throw new Error('Use an empty folder for this installation.');
+      }
       let ancestor = target;
       while (!fs.existsSync(ancestor)) ancestor = path.dirname(ancestor);
       fs.accessSync(ancestor, fs.constants.W_OK);

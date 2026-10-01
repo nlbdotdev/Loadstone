@@ -208,7 +208,7 @@ test(
       await page
         .getByRole('button', { name: 'Check compatibility', exact: true })
         .click();
-      await page.getByText('Installer connection', { exact: true }).waitFor();
+      await page.getByText('Installation engine', { exact: true }).waitFor();
       fs.mkdirSync(path.resolve(import.meta.dirname, '..', 'test-results'), {
         recursive: true,
       });
@@ -222,10 +222,9 @@ test(
       });
       assert.equal(
         await page
-          .getByText(
-            'The Wabbajack installation adapter and Nexus authentication are not connected yet.',
-            { exact: true },
-          )
+          .getByText('Install or repair the engine in Settings.', {
+            exact: true,
+          })
           .isVisible(),
         true,
       );

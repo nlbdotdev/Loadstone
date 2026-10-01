@@ -47,15 +47,15 @@ See [the review checklist and verification notes](docs/review.md).
 
 The demo catalog, requirements, installation sizes, profile validation, launch, and shortcut creation are simulated. Demo mode does not download mods, launch game processes, change game files, or modify Steam. Turning demo mode off prevents demo mutations in the main process as well as hiding sample data in the renderer.
 
-Current source also supports a separate live manifest catalog, Steam game discovery, manual game selection, SHA-256 compatibility checks, and destination/storage preflight. See [manifest requirements](docs/manifests.md). The Wabbajack installation adapter, authentication, launch, and shortcuts remain in development, and live preflight explicitly reports that connection as unavailable. The existing v0.1.0 release predates these features.
+Current source also supports a separate live manifest catalog, Steam game discovery, manual game selection, SHA-256 compatibility checks, destination/storage preflight, and a Wabbajack installation runner with saved jobs, cancellation and retry. See [manifest requirements](docs/manifests.md) and [installation behavior and limits](docs/installation.md). Controlled process tests pass; a full real modlist installation has not yet been verified. Live launch and shortcuts remain in development. The existing v0.1.0 release predates these features.
 
 Settings now prepares a pinned official Wabbajack runtime, with download/cancel/repair controls, archive and full runtime integrity checks, and a real CLI capability check. See [runtime integration notes](docs/runtime.md). Preparing the engine does not install a modlist.
 
-Settings also validates a Nexus personal API key for private testing, stores it with Windows encryption, and displays account membership and the last verification time. [Account integration notes](docs/nexus.md) describe the credential handling and remaining Wabbajack connection work. This is not yet a registered public Nexus application.
+Settings also validates a Nexus personal API key for private testing, stores it with Windows encryption, and displays account membership and the last verification time. [Account integration notes](docs/nexus.md) describe credential handling and installation requirements. This is not yet a registered public Nexus application.
 
 ## Persistence and desktop behavior
 
-Settings and demo state live in `%APPDATA%\Loadstone\state.json` in the packaged app. Active installs are restored paused after a restart. Disabling demo mode preserves its state and pauses its jobs. Resetting demo data preserves preferences. Unreadable state is backed up before recovery. Native Windows folder/save dialogs, window controls, a single-instance guard, and offline artwork are included.
+Settings and demo state live in `%APPDATA%\Loadstone\state.json` in the packaged app. Active demo installs are restored paused after a restart. Disabling demo mode preserves its state and pauses its jobs. Resetting demo data preserves preferences. Unreadable demo state is backed up before recovery. Live jobs are saved separately in `live-jobs.json`; interrupted live installations require a Windows restart before retry. Native Windows folder/save dialogs, window controls, a single-instance guard, and offline artwork are included.
 
 For isolated automated testing, set `LOADSTONE_DATA_DIR` to a dedicated directory. Never point it at a directory whose files you need to preserve.
 
@@ -66,11 +66,12 @@ For isolated automated testing, set `LOADSTONE_DATA_DIR` to a dedicated director
 - `electron/preload.cjs`: limited context-isolated bridge; no arbitrary filesystem/process access.
 - `electron/store.cjs`: persistent simulated installation state machine.
 - `electron/manifest.cjs`, `game-discovery.cjs`, `live-catalog.cjs`: live setup validation, local game discovery, and filesystem preflight.
+- `electron/installer.cjs`: durable live jobs, engine process control, credential handoff, and structural profile verification.
 - `tests/electron.test.mjs`: real Electron workflows and backend invariants.
 - `public/worlds.png`: original AI-generated triptych for the three fictional setups.
 - `scripts/create-icon.py`: geometric app icon generator (Pillow needed only to regenerate artwork).
 
-Production integration will sit behind a dedicated installer adapter. Authentication, recovery, real installation/launch, Steam shortcuts, and save-safe updates need integration work before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements.
+Real installation acceptance testing, launch, Steam shortcuts, and save-safe maintenance remain necessary before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements, including open-source documentation, license review and notices.
 
 ## Distribution
 
