@@ -321,6 +321,17 @@ test(
       await page
         .getByRole('button', { name: 'Create desktop shortcut', exact: true })
         .click();
+      await page.waitForFunction(
+        () =>
+          document.body.textContent.includes('Repair desktop shortcut') ||
+          !!document.querySelector('[role="alert"]')?.textContent,
+      );
+      const shortcutErrors = await page.getByRole('alert').allTextContents();
+      assert.deepEqual(
+        shortcutErrors,
+        [],
+        'Native shortcut creation: ' + shortcutErrors.join('; '),
+      );
       await page
         .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
         .waitFor();
