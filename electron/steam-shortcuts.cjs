@@ -158,7 +158,7 @@ class SteamShortcuts {
       const snapshot = this.read(account);
       const { entries } = snapshot;
       const marker = `Loadstone:${job.id}`,
-        appname = `${job.name} — Loadstone`;
+        appname = `${job.name} ${job.manifest.version} — Loadstone`;
       const exe = quoteArgument(plan.executable);
       const owned = entries.filter((node) => {
         const tags = field(node.value, 'tags');
