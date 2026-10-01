@@ -35,6 +35,7 @@
     CircleHelp,
   } from '@lucide/svelte';
   import Logo from './Logo.svelte';
+  import Welcome from './Welcome.svelte';
   import LiveCatalog from './LiveCatalog.svelte';
   import EngineSettings from './EngineSettings.svelte';
   import NexusSettings from './NexusSettings.svelte';
@@ -380,6 +381,21 @@
         <LoaderCircle class="spin" size={32} />
         <h1>Finding your next adventure…</h1>
       </div>
+    {:else if !appState.settings.onboardingComplete}
+      <Welcome
+        {busy}
+        onchoose={async (demo) => {
+          if (
+            await action(() =>
+              window.loadstone.settings({
+                dummyData: demo,
+                onboardingComplete: true,
+              }),
+            )
+          )
+            navigate(demo ? 'discover' : 'settings');
+        }}
+      />
     {:else}
       <div class="demo-strip" class:production={!appState.settings.dummyData}>
         <FlaskConical size={14} /><span

@@ -14,6 +14,7 @@ const statuses = new Set([
 ]);
 const settingKeys = [
   'dummyData',
+  'onboardingComplete',
   'installRoot',
   'reducedMotion',
   'desktopShortcut',
@@ -54,7 +55,7 @@ function validateSettings(settings) {
 }
 function validateState(state) {
   demand(
-    record(state) && state.schemaVersion === 1,
+    record(state) && state.schemaVersion === 2,
     'Unsupported state schema.',
   );
   validateSettings(state.settings);

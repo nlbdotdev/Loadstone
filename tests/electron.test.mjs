@@ -79,6 +79,14 @@ test(
         env,
       });
       const page = await app.firstWindow();
+      await page.waitForFunction(() => Boolean(window.loadstone));
+      if (
+        !(await page.evaluate(() => window.loadstone.getState())).settings
+          .onboardingComplete
+      )
+        await page
+          .getByRole('button', { name: 'Explore the demo', exact: true })
+          .click();
       page.on('pageerror', (error) => errors.push(error.message));
       await page
         .getByRole('heading', { name: 'Your next playthrough, ready.' })

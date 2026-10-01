@@ -44,6 +44,9 @@ try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
   const page = browser.contexts()[0].pages()[0];
   await page
+    .getByRole('button', { name: 'Explore the demo', exact: true })
+    .click();
+  await page
     .getByRole('heading', { name: 'Your next playthrough, ready.' })
     .waitFor();
   assert.equal(

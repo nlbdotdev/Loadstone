@@ -16,6 +16,14 @@ async function open() {
     env: { ...process.env, LOADSTONE_DATA_DIR: dataDir },
   });
   const page = await app.firstWindow();
+  await page.waitForFunction(() => Boolean(window.loadstone));
+  if (
+    !(await page.evaluate(() => window.loadstone.getState())).settings
+      .onboardingComplete
+  )
+    await page
+      .getByRole('button', { name: 'Set up real installations', exact: true })
+      .click();
   page.on('pageerror', (error) => errors.push(error.message));
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page

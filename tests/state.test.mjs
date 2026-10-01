@@ -79,3 +79,27 @@ test('queued jobs progress independently without duplicate completion', () => {
   assert.equal(store.state.installed.length, 2);
   assert.equal(new Store(root).state.installed.length, 2);
 });
+
+test('existing schema-1 workspaces migrate without resetting their selected mode or user preferences', () => {
+  const root = folder(),
+    store = new Store(root);
+  assert.equal(store.state.settings.onboardingComplete, false);
+  const old = structuredClone(store.state);
+  old.schemaVersion = 1;
+  delete old.settings.onboardingComplete;
+  old.settings.dummyData = false;
+  old.settings.reducedMotion = true;
+  fs.writeFileSync(store.file, JSON.stringify(old));
+  const migrated = new Store(root);
+  assert.equal(migrated.state.schemaVersion, 2);
+  assert.equal(migrated.state.settings.onboardingComplete, true);
+  assert.equal(migrated.state.settings.dummyData, false);
+  assert.equal(migrated.state.settings.reducedMotion, true);
+  assert.deepEqual(migrated.state.jobs, old.jobs);
+  assert.deepEqual(migrated.state.installed, old.installed);
+  assert.equal(new Store(root).state.settings.onboardingComplete, true);
+  assert.throws(
+    () => migrated.settings({ onboardingComplete: 'yes' }),
+    /Invalid/,
+  );
+});
