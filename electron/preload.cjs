@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('loadstone', {
   discoverGames: () => ipcRenderer.invoke('live:games'),
   preflight: (options) => ipcRenderer.invoke('live:preflight', options),
   liveJobs: () => ipcRenderer.invoke('live:jobs'),
+  steamAccounts: () => ipcRenderer.invoke('steam:accounts'),
+  steamShortcut: (id, accountId) =>
+    ipcRenderer.invoke('live:steam-shortcut', id, accountId),
   desktopShortcut: (id) => ipcRenderer.invoke('live:desktop-shortcut', id),
   launchLive: (id) => ipcRenderer.invoke('live:launch', id),
   verifyLiveProfile: (id) => ipcRenderer.invoke('live:verify-profile', id),

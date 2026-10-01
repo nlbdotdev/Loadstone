@@ -509,7 +509,7 @@ class Installer {
         error: null,
       });
       try {
-        this.onInstalled(job.id);
+        await this.onInstalled(job.id);
       } catch (error) {
         try {
           this.change(job.id, { shortcutError: redact(error.message) });
