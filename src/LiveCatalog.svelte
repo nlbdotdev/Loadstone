@@ -19,6 +19,11 @@
   let result = $state<Preflight | null>(null);
   let busy = $state(false);
   let error = $state('');
+  const compatibility = {
+    compatible: 'Compatible saves',
+    'new-game-required': 'Start a new game',
+    unknown: 'Not yet verified',
+  };
   const names = {
     fnv: 'Fallout: New Vegas',
     skyrimse: 'Skyrim Special Edition',
