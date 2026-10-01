@@ -1,5 +1,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  validateState,
+  validateSettings,
+  absoluteDirectory,
+} = require('./state-schema.cjs');
 const ids = new Set(['mojave', 'northern', 'commonwealth']);
 const active = new Set(['queued', 'downloading', 'extracting', 'configuring']);
 function initial(root) {
@@ -25,28 +30,30 @@ class Store {
     this.file = path.join(root, 'state.json');
     this.state = initial(root);
     if (fs.existsSync(this.file)) {
+      let saved;
       try {
-        const saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-        if (
-          saved.schemaVersion !== 1 ||
-          !Array.isArray(saved.jobs) ||
-          !Array.isArray(saved.installed) ||
-          !Array.isArray(saved.logs) ||
-          typeof saved.settings !== 'object' ||
-          saved.settings === null
-        )
-          throw new Error('Invalid state');
-        this.state = {
+        saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+        if (Number.isInteger(saved?.schemaVersion) && saved.schemaVersion > 1) {
+          const error = new Error(
+            'This workspace was saved by a newer Loadstone version. Update the app before opening it. Your data has not been changed.',
+          );
+          error.code = 'NEWER_STATE';
+          throw error;
+        }
+        const candidate = {
           ...saved,
           settings: { ...this.state.settings, ...saved.settings },
         };
+        this.state = validateState(candidate);
         for (const job of this.state.jobs)
           if (active.has(job.status)) {
             job.previousStatus = job.status;
             job.status = 'paused';
           }
-      } catch {
+      } catch (error) {
+        if (error.code === 'NEWER_STATE') throw error;
         fs.copyFileSync(this.file, `${this.file}.corrupt-${Date.now()}`);
+        this.state = initial(root);
         this.log(
           'Recovered from an unreadable settings file. A backup was preserved.',
         );
@@ -55,8 +62,10 @@ class Store {
     this.save();
   }
   save() {
+    validateState(this.state);
     const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2));
+    const serialized = JSON.stringify(this.state, null, 2);
+    fs.writeFileSync(tmp, serialized, { flush: true });
     fs.renameSync(tmp, this.file);
     return this.state;
   }
@@ -94,7 +103,9 @@ class Store {
           throw new Error('Choose an absolute installation folder.');
       } else throw new Error('Unknown setting.');
     }
-    Object.assign(this.state.settings, patch);
+    const settings = { ...this.state.settings, ...patch };
+    validateSettings(settings);
+    this.state.settings = settings;
     if (!this.state.settings.dummyData)
       for (const job of this.state.jobs)
         if (active.has(job.status)) {
@@ -109,10 +120,7 @@ class Store {
       throw new Error('Invalid install options.');
     this.guard();
     if (!ids.has(options.setupId)) throw new Error('Unknown setup.');
-    if (
-      !path.isAbsolute(options.destination || '') ||
-      options.destination.length > 1024
-    )
+    if (!absoluteDirectory(options.destination))
       throw new Error('Choose an absolute installation folder.');
     if (
       typeof options.desktopShortcut !== 'boolean' ||
@@ -129,8 +137,23 @@ class Store {
       )
     )
       throw new Error('This setup already has an installation in progress.');
+    if (
+      Object.keys(options).some(
+        (key) =>
+          ![
+            'setupId',
+            'destination',
+            'desktopShortcut',
+            'steamShortcut',
+          ].includes(key),
+      )
+    )
+      throw new Error('Unknown installation option.');
     this.state.jobs.push({
-      ...options,
+      setupId: options.setupId,
+      destination: options.destination,
+      desktopShortcut: options.desktopShortcut,
+      steamShortcut: options.steamShortcut,
       id: crypto.randomUUID(),
       progress: 0,
       status: 'queued',
@@ -234,5 +257,26 @@ class Store {
     this.log('Demo data reset. Settings preserved.');
     return this.save();
   }
+}
+// Mutations are committed only after a successful durable save. A disk error or
+// validation failure must not leave the in-memory workspace ahead of the file.
+for (const method of [
+  'settings',
+  'install',
+  'job',
+  'tick',
+  'library',
+  'reset',
+]) {
+  const mutate = Store.prototype[method];
+  Store.prototype[method] = function (...args) {
+    const before = structuredClone(this.state);
+    try {
+      return mutate.apply(this, args);
+    } catch (error) {
+      this.state = before;
+      throw error;
+    }
+  };
 }
 module.exports = { Store };

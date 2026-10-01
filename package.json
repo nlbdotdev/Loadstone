@@ -11,7 +11,8 @@
     "build": "vite build",
     "start": "pnpm build && electron .",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "pnpm build && node --test tests/electron.test.mjs",
+    "test": "pnpm build && node --test tests/*.test.mjs",
+    "test:unit": "node --test tests/state.test.mjs",
     "package": "pnpm build && electron-builder --win portable --x64"
   },
   "dependencies": {
