@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { validateManifest, games } = require('./manifest.cjs');
+const { inspectList } = require('./wabbajack-list.cjs');
 async function sha256(file) {
   const hash = crypto.createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
@@ -78,7 +79,7 @@ class LiveCatalog {
     this.entries = entries;
     return this.list();
   }
-  async preflight({ id, gameFolder, destination }) {
+  async preflight({ id, gameFolder, destination }, engineVersion = '4.2.3.0') {
     const entry = this.entries.find((x) => x.manifest.id === id);
     if (!entry) throw new Error('Unknown imported setup.');
     if (
@@ -91,6 +92,7 @@ class LiveCatalog {
       )
     )
       throw new Error('Select absolute game and installation folders.');
+    let list = null;
     const { manifest } = entry,
       checks = [];
     async function check(name, run) {
@@ -142,7 +144,12 @@ class LiveCatalog {
         throw new Error(
           'The local list archive is missing or its SHA-256 hash differs.',
         );
-      return 'Local Wabbajack archive hash verified.';
+      list = await inspectList(archive, manifest, engineVersion);
+      if (list.unsupportedSources.length)
+        throw new Error(
+          `This list needs download sources that Loadstone does not support yet: ${list.unsupportedSources.join(', ')}.`,
+        );
+      return `${list.name}: archive hash, game, MO2 profile, ${list.archives} source archives and ${list.files} output paths verified.`;
     });
     await check('Installation folder', async () => {
       const target = canonical(destination),
@@ -196,6 +203,7 @@ class LiveCatalog {
       checkedAt: new Date().toISOString(),
       ready: checks.every((x) => x.status === 'pass'),
       checks,
+      list,
     };
   }
 }

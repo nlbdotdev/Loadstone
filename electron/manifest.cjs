@@ -37,7 +37,16 @@ function relativeFile(v) {
     !path.win32.isAbsolute(v) &&
     !path.posix.isAbsolute(v) &&
     !/[:*?"<>|]/.test(v) &&
-    v.split(/[\\/]/).every((p) => p && p !== '.' && p !== '..')
+    v
+      .split(/[\\/]/)
+      .every(
+        (p) =>
+          p &&
+          p !== '.' &&
+          p !== '..' &&
+          !/[. ]$/.test(p) &&
+          !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p),
+      )
   );
 }
 function httpsUrl(v) {
