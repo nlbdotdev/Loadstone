@@ -194,7 +194,12 @@ export interface Manifest {
   };
   storage: { downloadBytes: number; installBytes: number };
   archive: { file: string; sha256: string; source: string };
-  launch: { manager: 'mo2'; profile: string; executable: string };
+  launch: {
+    manager: 'mo2';
+    profile: string;
+    executable: string;
+    gameRoot?: string;
+  };
   credits: { name: string; author: string; source: string; license: string }[];
 }
 export interface DiscoveredGame {

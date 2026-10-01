@@ -5,6 +5,7 @@ const { spawn, execFile } = require('node:child_process');
 const { canonical, contains, sha256 } = require('./live-catalog.cjs');
 const { validateManifest } = require('./manifest.cjs');
 const { verifyOutputs } = require('./verify-outputs.cjs');
+const { verifyGameLayout } = require('./game-layout.cjs');
 const { redact, sanitizeLogs } = require('./engine-logs.cjs');
 const active = new Set(['preparing', 'installing', 'verifying']);
 const statuses = new Set([
@@ -127,6 +128,7 @@ function verifyProfile(job) {
     throw new Error(
       'The configured game executable is missing or outside the setup and game folders.',
     );
+  verifyGameLayout(job, output, ini, binary);
   return {
     manager: path.join(output, 'ModOrganizer.exe'),
     profile: job.manifest.launch.profile,

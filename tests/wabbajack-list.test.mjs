@@ -58,3 +58,23 @@ test('engine game parsing accepts confirmed game selections and rejects ambiguit
   );
   assert.throws(() => parseGameLocations(log + '\n' + log), /ambiguous/);
 });
+
+test('isolated layouts require the game executable among the actual archive outputs', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-stock-')),
+    file = path.join(root, 'stock.wabbajack');
+  const declared = structuredClone(manifest);
+  declared.launch.gameRoot = 'Stock Game';
+  const metadata = listMetadata();
+  await writeList(file, metadata);
+  await assert.rejects(
+    inspectList(file, declared, '4.2.3.0'),
+    /isolated game folder/,
+  );
+  metadata.Directives.push({
+    To: 'Stock Game/FalloutNV.exe',
+    Size: 1,
+    $type: 'FromArchive',
+  });
+  await writeList(file, metadata);
+  assert.equal((await inspectList(file, declared, '4.2.3.0')).files, 4);
+});

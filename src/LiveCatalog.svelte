@@ -119,6 +119,11 @@
           1e9
         ).toFixed(1)} GB including downloads.
       </p>
+      {#if selected.launch.gameRoot}<p>
+          Isolated game folder: {selected.launch.gameRoot}. This list must
+          install its game files and configure MO2 to use that folder. Loadstone
+          checks the layout before completion and launch.
+        </p>{/if}
       {#if selected.update}<div class="live-checks">
           <strong>Fresh installation of version {selected.version}</strong>
           <p>

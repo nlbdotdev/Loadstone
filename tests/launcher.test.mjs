@@ -122,3 +122,47 @@ test('spawn failure and nonzero manager exit remain visible and allow retry', as
   await closed(launcher);
   assert.match(launcher.list()[0].launch.message, /code 3/);
 });
+
+test('isolated game layout checks MO2 gamePath, launch target and redirects before launch', async () => {
+  const h = fixture(),
+    stock = path.join(h.output, 'Stock Game'),
+    iniFile = path.join(h.output, 'ModOrganizer.ini');
+  h.job.manifest.game = { id: 'fnv' };
+  h.job.manifest.launch.gameRoot = 'Stock Game';
+  fs.mkdirSync(stock);
+  fs.writeFileSync(path.join(stock, 'FalloutNV.exe'), 'MZfixture');
+  const ini =
+    '[General]\ngamePath=@ByteArray(' +
+    stock.replaceAll('\\', '\\\\') +
+    ')\n[customExecutables]\n1\\title=Game & tools\n1\\binary=' +
+    path.join(stock, 'FalloutNV.exe').replaceAll('\\', '/') +
+    '\n';
+  fs.writeFileSync(iniFile, ini);
+  assert.ok(launchPlan(h.job));
+  for (const changed of [
+    ini.replace(
+      stock.replaceAll('\\', '\\\\'),
+      h.root.replaceAll('\\', '\\\\'),
+    ),
+    ini.replace(
+      path.join(stock, 'FalloutNV.exe').replaceAll('\\', '/'),
+      'game.exe',
+    ),
+    ini.replace('[General]', '[Ignored]'),
+    ini.replace('[General]', '[General]\ngamePath=other'),
+  ]) {
+    fs.writeFileSync(iniFile, changed);
+    const launcher = new Launcher(h.installer, {
+      spawn: () => assert.fail('An invalid layout must never launch'),
+    });
+    await assert.rejects(
+      launcher.launch(h.job.id),
+      /gamePath|different game folder|outside the isolated/,
+    );
+  }
+  fs.writeFileSync(iniFile, ini);
+  const moved = path.join(h.root, 'moved-game');
+  fs.renameSync(stock, moved);
+  fs.symlinkSync(moved, stock, 'junction');
+  assert.throws(() => launchPlan(h.job), /missing or redirected/);
+});
