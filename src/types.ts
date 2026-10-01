@@ -116,6 +116,7 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  version: string;
   removalRecoveryPath?: string;
   shortcutCleanupError?: string | null;
   shortcutsCleaned?: boolean;
@@ -165,6 +166,11 @@ export interface RuntimeStatus {
   error: string | null;
 }
 export interface Manifest {
+  update?: {
+    fromVersions: string[];
+    saveCompatibility: 'compatible' | 'new-game-required' | 'unknown';
+    notes: string;
+  };
   schemaVersion: 1;
   id: string;
   name: string;

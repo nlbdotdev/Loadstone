@@ -224,3 +224,62 @@ test('stopping an active child waits for it to exit and preserves retry files', 
   await finish(h.installer);
   assert.equal(h.installer.list()[0].status, 'installed');
 });
+
+test('version updates install alongside the old profile and retries use the original archive and manifest', async () => {
+  const h = harness();
+  await h.installer.start(h.options);
+  await finish(h.installer);
+  const original = h.installer.jobs[0];
+  const save = path.join(original.destination, 'profile', 'keep-save.txt');
+  fs.writeFileSync(save, 'original save and user choices');
+  const next = structuredClone(h.catalog.entries[0].manifest);
+  next.version = '2.0';
+  next.update = {
+    fromVersions: ['1.0'],
+    saveCompatibility: 'unknown',
+    notes: 'Use a new game until tested.',
+  };
+  h.catalog.entries[0] = { manifest: next, folder: h.root };
+  h.catalog.list = () => [next];
+  await assert.rejects(
+    h.installer.start({
+      ...h.options,
+      destination: path.join(original.destination, 'nested'),
+    }),
+    /separate folder/,
+  );
+  h.setMode('fail');
+  await h.installer.start({
+    ...h.options,
+    destination: path.join(h.root, 'version-2'),
+  });
+  await finish(h.installer);
+  const second = h.installer.jobs[1];
+  assert.equal(second.status, 'failed');
+  assert.equal(original.manifest.version, '1.0');
+  assert.equal(fs.readFileSync(save, 'utf8'), 'original save and user choices');
+  const later = structuredClone(next);
+  later.version = '3.0';
+  later.game.id = 'skyrimse';
+  later.archive.sha256 = 'f'.repeat(64);
+  h.catalog.entries[0] = { manifest: later, folder: h.root };
+  h.catalog.list = () => [later];
+  let retryManifest;
+  h.catalog.preflight = async (_options, _engine, _owned, entry) => {
+    retryManifest = entry.manifest;
+    return { ready: true, checks: [], list: { requiresNexus: false } };
+  };
+  h.setMode('success');
+  await h.installer.start(null, second.id);
+  await finish(h.installer);
+  assert.equal(retryManifest.version, '2.0');
+  assert.equal(retryManifest.archive.file, 'list.wabbajack');
+  assert.deepEqual(
+    h.installer.list().map((j) => [j.version, j.status]),
+    [
+      ['1.0', 'installed'],
+      ['2.0', 'installed'],
+    ],
+  );
+  assert.equal(fs.readFileSync(save, 'utf8'), 'original save and user choices');
+});

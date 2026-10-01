@@ -247,7 +247,27 @@ else {
           properties: ['openFile'],
           filters: [{ name: 'Loadstone manifest', extensions: ['json'] }],
         });
-        return result.canceled ? null : live.import(result.filePaths[0]);
+        if (result.canceled) return null;
+        const file = result.filePaths[0];
+        const candidate = live.inspectImport(file);
+        if (candidate.previous) {
+          const answer = await dialog.showMessageBox(window, {
+            type: 'warning',
+            title: 'Replace catalog version?',
+            message: `Use ${candidate.manifest.name} ${candidate.manifest.version} instead of ${candidate.previous.version}?`,
+            detail: `Creator: ${candidate.manifest.author}\nSource: ${candidate.manifest.website}\n\nSave compatibility: ${candidate.manifest.update.saveCompatibility}\n${candidate.manifest.update.notes}\n\nExisting installations stay intact. Install this version in a separate empty folder. Saves and custom changes are not copied automatically.`,
+            buttons: ['Cancel', 'Replace catalog version'],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          });
+          if (answer.response !== 1) return null;
+        }
+        if (installer.starting || installer.running || installer.maintenance)
+          throw new Error(
+            'Wait for the current installation or removal before changing the catalog.',
+          );
+        return live.import(file, candidate);
       });
       handle('dialog:directory', async () => {
         const result = await dialog.showOpenDialog(window, {

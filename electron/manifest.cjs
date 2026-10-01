@@ -73,6 +73,7 @@ function validateManifest(v) {
     'archive',
     'launch',
     'credits',
+    'update',
   ]);
   demand(v.schemaVersion === 1, 'unsupported schema version.');
   demand(
@@ -152,6 +153,23 @@ function validateManifest(v) {
         text(credit.license, 2000),
       'invalid credit or license statement.',
     );
+  }
+  if (v.update !== undefined) {
+    shape(v.update, ['fromVersions', 'saveCompatibility', 'notes']);
+    demand(
+      Array.isArray(v.update.fromVersions) &&
+        v.update.fromVersions.length > 0 &&
+        v.update.fromVersions.length <= 100 &&
+        v.update.fromVersions.every((x) => text(x) && x !== v.version),
+      'declare previous update versions.',
+    );
+    demand(
+      ['compatible', 'new-game-required', 'unknown'].includes(
+        v.update.saveCompatibility,
+      ),
+      'declare save compatibility.',
+    );
+    demand(text(v.update.notes, 2000), 'provide update guidance.');
   }
   return structuredClone(v);
 }

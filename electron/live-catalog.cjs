@@ -57,18 +57,41 @@ class LiveCatalog {
   list() {
     return this.entries.map(({ manifest }) => manifest);
   }
-  import(file) {
+  inspectImport(file) {
     if (typeof file !== 'string' || fs.statSync(file).size > 2_000_000)
       throw new Error('Manifest exceeds the 2 MB limit.');
     const manifest = validateManifest(
       JSON.parse(fs.readFileSync(file, 'utf8')),
     );
-    if (this.entries.some((x) => x.manifest.id === manifest.id))
-      throw new Error('This setup is already imported.');
-    if (this.entries.length >= 100) throw new Error('The catalog is full.');
+    const previous = this.entries.find((x) => x.manifest.id === manifest.id);
+    if (previous) {
+      if (previous.manifest.version === manifest.version)
+        throw new Error('This setup version is already imported.');
+      if (previous.manifest.game.id !== manifest.game.id)
+        throw new Error('An update cannot change the setup game.');
+      if (!manifest.update?.fromVersions.includes(previous.manifest.version))
+        throw new Error(
+          'The creator must declare this update from the currently imported version.',
+        );
+    } else if (this.entries.length >= 100)
+      throw new Error('The catalog is full.');
+    return {
+      manifest,
+      folder: fs.realpathSync(path.dirname(file)),
+      previous: previous?.manifest || null,
+    };
+  }
+  import(file, approved = null) {
+    const candidate = this.inspectImport(file);
+    if (
+      candidate.previous &&
+      JSON.stringify(candidate) !== JSON.stringify(approved)
+    )
+      throw new Error('Review and confirm this setup version replacement.');
+    const { manifest, folder } = candidate;
     const entries = [
-      ...this.entries,
-      { manifest, folder: fs.realpathSync(path.dirname(file)) },
+      ...this.entries.filter((x) => x.manifest.id !== manifest.id),
+      { manifest, folder },
     ];
     fs.writeFileSync(
       this.file + '.tmp',
@@ -83,8 +106,9 @@ class LiveCatalog {
     { id, gameFolder, destination },
     engineVersion = '4.2.3.0',
     ownedId = null,
+    override = null,
   ) {
-    const entry = this.entries.find((x) => x.manifest.id === id);
+    const entry = override || this.entries.find((x) => x.manifest.id === id);
     if (!entry) throw new Error('Unknown imported setup.');
     if (
       ![gameFolder, destination].every(

@@ -24,7 +24,10 @@ function fixture() {
     status: 'installed',
     destination,
     gameFolder: destination,
-    manifest: { launch: { profile: 'Test', executable: 'Game' } },
+    manifest: {
+      version: '1.0',
+      launch: { profile: 'Test', executable: 'Game' },
+    },
   };
   fs.writeFileSync(
     path.join(destination, '.loadstone-owner.json'),
@@ -123,7 +126,11 @@ test('Steam shortcut edits reject running Steam, changed files, malformed files 
         type: 0,
         key: '0',
         value: [
-          { type: 1, key: 'AppName', value: h.job.name + ' — Loadstone' },
+          {
+            type: 1,
+            key: 'AppName',
+            value: h.job.name + ' ' + h.job.manifest.version + ' — Loadstone',
+          },
         ],
       },
     ]),
@@ -203,4 +210,26 @@ test('desktop cleanup verifies ownership and works after the executable is remov
   removeDesktopShortcut(job, desktop, shell);
   assert.equal(fs.existsSync(file), false);
   removeDesktopShortcut(job, desktop, shell);
+});
+
+test('different setup versions get distinct Steam names while an existing entry keeps its app ID', async () => {
+  const h = fixture(),
+    [account] = await h.service.list();
+  const first = await h.service.create(h.job, account.id);
+  const next = {
+    ...h.job,
+    id: crypto.randomUUID(),
+    manifest: { ...h.job.manifest, version: '2.0' },
+  };
+  fs.writeFileSync(
+    path.join(h.job.destination, '.loadstone-owner.json'),
+    JSON.stringify({ jobId: next.id, setupId: next.setupId }),
+  );
+  await h.service.create(next, account.id);
+  const entries = decode(fs.readFileSync(h.file))[0].value;
+  assert.deepEqual(
+    entries.map((node) => field(node.value, 'AppName').value),
+    ['Test game 1.0 — Loadstone', 'Test game 2.0 — Loadstone'],
+  );
+  assert.equal(field(entries[0].value, 'appid').value, first.appid);
 });

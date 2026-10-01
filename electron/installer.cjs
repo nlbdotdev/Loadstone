@@ -245,7 +245,9 @@ class Installer {
     fs.renameSync(this.file + '.tmp', this.file);
   }
   list() {
-    return this.jobs.map(({ manifest, ...job }) => structuredClone(job));
+    return this.jobs.map(({ manifest, ...job }) =>
+      structuredClone({ ...job, version: manifest.version }),
+    );
   }
   change(id, patch) {
     const jobs = this.jobs.map((job) =>
@@ -256,11 +258,12 @@ class Installer {
     this.save(jobs);
     this.jobs = jobs;
   }
-  async preflight(options, ownedId = null) {
+  async preflight(options, ownedId = null, entryOverride = null) {
     const result = await this.catalog.preflight(
       options,
       this.runtime.status().version,
       ownedId,
+      entryOverride,
     );
     result.checks = result.checks.filter(
       (check) => check.name !== 'Installer connection',
@@ -279,9 +282,9 @@ class Installer {
     });
     if (this.runtime.status().status === 'ready')
       await add('Engine game selection', async () => {
-        const manifest = this.catalog
-          .list()
-          .find((item) => item.id === options.id);
+        const manifest =
+          entryOverride?.manifest ||
+          this.catalog.list().find((item) => item.id === options.id);
         const game = (await this.runtime.gameLocations()).find(
           (item) => item.id === manifest.game.id,
         );
@@ -328,8 +331,25 @@ class Installer {
         throw new Error(
           'Restart Windows before retrying this interrupted installation so the previous installer and its workers have stopped.',
         );
+      let entry = this.catalog.entries.find(
+        (item) => item.manifest.id === (job?.setupId || options.id),
+      );
       if (job) {
         owned(job);
+        if (fs.existsSync(path.join(job.destination, 'list.wabbajack'))) {
+          entry = {
+            folder: job.destination,
+            manifest: structuredClone(job.manifest),
+          };
+          entry.manifest.archive.file = 'list.wabbajack';
+        } else if (
+          !entry ||
+          JSON.stringify(entry.manifest) !== JSON.stringify(job.manifest)
+        ) {
+          throw new Error(
+            'The original list archive is unavailable. Restore the owned list.wabbajack archive before retrying.',
+          );
+        }
         options = {
           id: job.setupId,
           gameFolder: job.gameFolder,
@@ -337,11 +357,43 @@ class Installer {
         };
       } else if (
         this.jobs.some(
-          (item) => item.setupId === options.id && item.status === 'installed',
+          (item) =>
+            item.setupId === options.id &&
+            item.manifest.version === entry?.manifest.version &&
+            item.status === 'installed',
         )
       )
-        throw new Error('This setup is already installed.');
-      const result = await this.preflight(options, job?.id);
+        throw new Error('This setup version is already installed.');
+      if (!job) {
+        const target = canonical(options.destination);
+        for (const existing of this.jobs) {
+          for (const location of [
+            existing.status !== 'removed' && existing.destination,
+            existing.removalRecoveryPath,
+          ].filter(Boolean)) {
+            const old = canonical(location);
+            if (contains(old, target) || contains(target, old))
+              throw new Error(
+                'Choose a separate folder outside existing installations and recovery folders.',
+              );
+          }
+        }
+        const installed = this.jobs.filter(
+          (item) => item.setupId === options.id && item.status === 'installed',
+        );
+        if (
+          installed.some(
+            (item) =>
+              !entry?.manifest.update?.fromVersions.includes(
+                item.manifest.version,
+              ),
+          )
+        )
+          throw new Error(
+            'The creator has not declared an update from an installed version.',
+          );
+      }
+      const result = await this.preflight(options, job?.id, entry);
       if (!result.ready)
         throw new Error(
           result.checks
@@ -356,9 +408,7 @@ class Installer {
       )
         throw new Error('The installation engine is busy.');
       this.runtime.inUse = true;
-      const entry = this.catalog.entries.find(
-        (item) => item.manifest.id === options.id,
-      );
+
       if (!job) {
         if (this.jobs.length >= 1000)
           throw new Error('Installation history is full.');

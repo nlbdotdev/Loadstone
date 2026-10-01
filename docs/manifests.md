@@ -14,10 +14,26 @@ Schema 1 requires these fields, with unknown fields rejected:
 
 Preflight streams file hashes, checks required game files and archive integrity, rejects game/system/Loadstone folder overlap and nonempty destinations, and checks writability and free disk space. It does not create an install or modify the game. Steam discovery reads local library and app metadata and confirms the executable exists; it does not assert ownership from an install directory. GOG and other installations can be selected manually.
 
-The installer connection deliberately fails preflight until the Wabbajack adapter and authentication are implemented and tested. A valid manifest alone does not make a setup installable. No real curated list is bundled yet.
+Installation requires the verified engine, successful live preflight and source access. A valid manifest alone does not make a setup installable. No real curated list is bundled yet.
 
 Preflight also reads the archive's actual `modlist` metadata. It checks game identity, required engine version, MO2/profile output files, bounded sizes, safe and unique Windows output paths, and declared storage against the archive's totals. Unknown download providers and lists requiring additional games are identified as unsupported. A verified engine is asked which game folder it would use; a different selection blocks installation rather than silently using another copy of the game.
 
 The parser was checked against the locally cached Viva New Vegas 11.8.26 archive: 153 source archives and 17,630 output files. The pinned 4.2.3.0 CLI was also run to confirm its actual Fallout 4 and New Vegas selections. These are read-only compatibility checks, not evidence of a successful installation or permission to redistribute the list.
 
-The pinned [Wabbajack install command](https://github.com/wabbajack-tools/wabbajack/blob/4.2.3.0/Wabbajack.CLI/Verbs/Install.cs) accepts `-w/--wabbajack`, `-o/--output`, and `-d/--downloads`. The runtime and command interface are verified; authentication, job recovery, and real installation remain in development.
+The pinned [Wabbajack install command](https://github.com/wabbajack-tools/wabbajack/blob/4.2.3.0/Wabbajack.CLI/Verbs/Install.cs) accepts `-w/--wabbajack`, `-o/--output`, and `-d/--downloads`. The runtime and command interface are verified; protected authentication and durable job recovery are implemented; full real-list installation acceptance remains outstanding.
+
+## Updating an imported setup
+
+Keep the same stable ID and use a different version label. Add optional schema-1 metadata (required when replacing an imported version):
+
+```json
+"update": {
+  "fromVersions": ["1.0"],
+  "saveCompatibility": "new-game-required",
+  "notes": "Start a new game. Keep version 1.0 for existing saves."
+}
+```
+
+Allowed compatibility values are `compatible`, `new-game-required`, and `unknown`. These are creator declarations, not Loadstone guarantees. Notes must explain the migration requirements. Version labels are opaque: Loadstone does not infer ordering from dates or semantic versions. Reimporting the same version is rejected, including altered archives; publish a new version instead. A game change under the same ID is rejected.
+
+Import presents the old/new versions, creator/source and save guidance for confirmation, then checks the manifest has not changed before saving. Existing jobs retain their own manifest snapshots. Install a replacement in a separate empty folder; Loadstone keeps the prior profile, settings, saves and custom mods available for rollback. It does not migrate saves or customizations automatically. Installed versions appear in Library. Older failed jobs retry their owned archive using their original manifest, even after the catalog changes. If that archive is missing and the original manifest is no longer imported, restore the exact owned archive before retrying.
