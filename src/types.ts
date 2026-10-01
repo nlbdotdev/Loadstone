@@ -62,6 +62,7 @@ export interface AppState {
 }
 export interface Bridge {
   liveJobs(): Promise<LiveJob[]>;
+  desktopShortcut(id: string): Promise<LiveJob[]>;
   launchLive(id: string): Promise<LiveJob[]>;
   verifyLiveProfile(id: string): Promise<string>;
   installLive(options: {
@@ -111,6 +112,8 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  desktopShortcut?: string;
+  shortcutError?: string | null;
   launch?: {
     phase: 'starting' | 'open' | 'closed' | 'error';
     message: string;

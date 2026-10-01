@@ -273,6 +273,12 @@ test(
         }),
       );
       page = await start();
+      const testDesktop = path.join(root, 'desktop');
+      fs.mkdirSync(testDesktop);
+      await app.evaluate(
+        ({ app }, folder) => app.setPath('desktop', folder),
+        testDesktop,
+      );
       await page
         .getByRole('heading', {
           name: 'Integration fixture',
@@ -312,6 +318,69 @@ test(
           .isEnabled(),
         true,
       );
+      await page
+        .getByRole('button', { name: 'Create desktop shortcut', exact: true })
+        .click();
+      await page
+        .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
+        .waitFor();
+      const shortcut = path.join(
+        testDesktop,
+        fs.readdirSync(testDesktop).find((name) => name.endsWith('.lnk')),
+      );
+      const details = await app.evaluate(
+        ({ shell }, file) => shell.readShortcutLink(file),
+        shortcut,
+      );
+      assert.equal(
+        details.target.toLowerCase(),
+        path.join(output, 'ModOrganizer.exe').toLowerCase(),
+      );
+      assert.equal(details.args, '"-p" "Fixture" "run" "-e" "NVSE"');
+      fs.unlinkSync(shortcut);
+      await page
+        .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
+        .click();
+      await page.waitForFunction(
+        () => !document.querySelector('.launch-actions button')?.disabled,
+      );
+      assert.equal(fs.existsSync(shortcut), true);
+      await app.evaluate(
+        ({ shell }, file) =>
+          shell.writeShortcutLink(file, 'update', {
+            args: 'outdated arguments',
+          }),
+        shortcut,
+      );
+      await page
+        .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
+        .click();
+      await page.waitForFunction(
+        () => !document.querySelector('.launch-actions button')?.disabled,
+      );
+      assert.equal(
+        await app.evaluate(
+          ({ shell }, file) => shell.readShortcutLink(file).args,
+          shortcut,
+        ),
+        details.args,
+      );
+      await app.evaluate(
+        ({ shell }, file) =>
+          shell.writeShortcutLink(file, 'update', {
+            description: 'Unrelated shortcut',
+          }),
+        shortcut,
+      );
+      const unrelated = fs.readFileSync(shortcut);
+      await page
+        .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
+        .click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'left unchanged' })
+        .waitFor();
+      assert.deepEqual(fs.readFileSync(shortcut), unrelated);
       await page.screenshot({
         path: path.resolve('test-results/live-library.png'),
       });

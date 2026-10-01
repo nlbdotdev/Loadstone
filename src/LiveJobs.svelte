@@ -94,6 +94,15 @@
       {#if job.status === 'installed'}
         <div class="launch-actions">
           <button
+            class="secondary"
+            disabled={busy}
+            onclick={() =>
+              action(() => window.loadstone.desktopShortcut(job.id))}
+            >{job.desktopShortcut
+              ? 'Repair desktop shortcut'
+              : 'Create desktop shortcut'}</button
+          >
+          <button
             class="primary"
             disabled={busy ||
               job.launch?.phase === 'open' ||
@@ -121,6 +130,12 @@
             {job.launch.message}
           </p>{/if}
         {#if verified[job.id]}<p role="status">{verified[job.id]}</p>{/if}
+        {#if job.desktopShortcut}<p>
+            Desktop shortcut: {job.desktopShortcut}
+          </p>{/if}
+        {#if job.shortcutError}<p class="error">
+            Shortcut needs attention: {job.shortcutError}
+          </p>{/if}
       {/if}
       {#if job.logs.length}<details>
           <summary>Installer output</summary>
@@ -132,6 +147,7 @@
 <style>
   .launch-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin: 20px 0;
   }

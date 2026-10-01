@@ -174,6 +174,7 @@ class Installer {
     this.spawn = options.spawn || spawn;
     this.verifyProfile = options.verifyProfile || verifyProfile;
     this.bootIdentifier = options.bootIdentifier || bootIdentifier;
+    this.onInstalled = options.onInstalled || (() => {});
     this.credentialFile =
       options.credentialFile ||
       path.join(
@@ -507,6 +508,15 @@ class Installer {
         installedAt: new Date().toISOString(),
         error: null,
       });
+      try {
+        this.onInstalled(job.id);
+      } catch (error) {
+        try {
+          this.change(job.id, { shortcutError: redact(error.message) });
+        } catch {
+          /* Installation completion is already durable. */
+        }
+      }
     } catch (error) {
       try {
         this.change(job.id, {

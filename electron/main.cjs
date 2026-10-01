@@ -4,6 +4,7 @@ const {
   ipcMain,
   dialog,
   safeStorage,
+  shell,
 } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -14,6 +15,7 @@ const { Runtime } = require('./runtime.cjs');
 const { NexusAccount } = require('./nexus.cjs');
 const { Installer } = require('./installer.cjs');
 const { Launcher } = require('./launcher.cjs');
+const { createDesktopShortcut } = require('./shortcuts.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -35,6 +37,15 @@ else {
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
       launcher = new Launcher(installer);
+      const desktopShortcut = (id) => {
+        const job = installer.jobs.find((item) => item.id === id);
+        const file = createDesktopShortcut(job, app.getPath('desktop'), shell);
+        installer.change(id, { desktopShortcut: file, shortcutError: null });
+        return file;
+      };
+      installer.onInstalled = (id) => {
+        if (store.state.settings.desktopShortcut) desktopShortcut(id);
+      };
       void runtime.verify();
       window = new BrowserWindow({
         width: 1480,
@@ -103,6 +114,14 @@ else {
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
       handle('live:jobs', () => launcher.list());
+      handle('live:desktop-shortcut', (id) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before creating a shortcut.',
+          );
+        desktopShortcut(id);
+        return launcher.list();
+      });
       handle('live:launch', (id) => {
         if (store.state.settings.dummyData)
           throw new Error(
