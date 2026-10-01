@@ -16,7 +16,8 @@
     "package": "pnpm notices && electron-builder --win portable --x64",
     "notices": "pnpm build && pnpm licenses list --prod --json | node scripts/generate-notices.mjs",
     "package:steam": "pnpm notices && electron-builder --win --x64 --dir -c.directories.output=release/steam-unpacked && node scripts/steam-depot.mjs release/steam-unpacked/win-unpacked",
-    "audit:publication": "node scripts/audit-publication.mjs"
+    "audit:publication": "node scripts/audit-publication.mjs",
+    "assets:steam": "node scripts/steam-artwork.mjs"
   },
   "dependencies": {
     "yauzl": "^3.4.0"

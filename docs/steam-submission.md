@@ -55,14 +55,14 @@ Use the existing charcoal, copper and ivory palette with the original compass-st
 
 | Asset | Pixels | Status |
 | --- | --- | --- |
-| Store header | 920 x 430 | Pending |
-| Store small capsule | 462 x 174 | Pending; inspect reduced-size legibility |
-| Store main capsule | 1232 x 706 | Pending |
-| Store vertical capsule | 748 x 896 | Pending |
-| Library capsule | 600 x 900 | Pending |
-| Library header | 920 x 430 | Pending |
+| Store header | 920 x 430 | Generated draft; final review pending |
+| Store small capsule | 462 x 174 | Generated draft; inspect reduced-size legibility |
+| Store main capsule | 1232 x 706 | Generated draft; final review pending |
+| Store vertical capsule | 748 x 896 | Generated draft; final review pending |
+| Library capsule | 600 x 900 | Generated draft; final review pending |
+| Library header | 920 x 430 | Generated draft; final review pending |
 
-Sizes and capsule guidance: [store assets](https://partner.steamgames.com/doc/store/assets/standard), [library assets](https://partner.steamgames.com/doc/store/assets/libraryassets). Also produce the library hero, transparent logo and client/community icons using Valve's current templates before upload; the app icon alone is not a complete asset kit.
+Sizes and capsule guidance: [store assets](https://partner.steamgames.com/doc/store/assets/standard), [library assets](https://partner.steamgames.com/doc/store/assets/libraryassets). Run `pnpm assets:steam` to generate these six assets plus a 3840 x 1240 library hero and a transparent 1280 x 280 library logo under `release/steam-artwork/`. See [artwork provenance](artwork.md). Client/community icon preparation and final Steamworks preview remain pending; this draft kit is not approval to upload.
 
 Capture at least five real app screenshots at 1920 x 1080 or larger, 16:9, following [Valve's screenshot requirements](https://partner.steamgames.com/doc/store/assets/standard). Planned subjects:
 
