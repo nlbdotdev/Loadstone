@@ -13,7 +13,8 @@ const { steamRoots, discoverGames } = require('./game-discovery.cjs');
 const { Runtime } = require('./runtime.cjs');
 const { NexusAccount } = require('./nexus.cjs');
 const { Installer } = require('./installer.cjs');
-let window, store, timer, live, runtime, nexus, installer;
+const { Launcher } = require('./launcher.cjs');
+let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
 const locked = app.requestSingleInstanceLock();
@@ -33,6 +34,7 @@ else {
       runtime = new Runtime(app.getPath('userData'));
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
+      launcher = new Launcher(installer);
       void runtime.verify();
       window = new BrowserWindow({
         width: 1480,
@@ -100,7 +102,18 @@ else {
       handle('runtime:install', () => runtime.install());
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
-      handle('live:jobs', () => installer.list());
+      handle('live:jobs', () => launcher.list());
+      handle('live:launch', (id) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before launching a setup.',
+          );
+        return launcher.launch(id);
+      });
+      handle('live:verify-profile', (id) => {
+        launcher.verify(id);
+        return 'The portable mod manager, declared profile and launch entry passed structural checks.';
+      });
       handle('live:install', (options) => {
         if (store.state.settings.dummyData)
           throw new Error(

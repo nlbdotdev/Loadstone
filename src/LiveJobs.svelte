@@ -3,6 +3,7 @@
   import type { LiveJob } from './types';
   let { library = false }: { library?: boolean } = $props();
   let jobs = $state<LiveJob[]>([]),
+    verified = $state<Record<string, string>>({}),
     error = $state(''),
     busy = $state(false);
   const shown = $derived(
@@ -90,10 +91,37 @@
           onclick={() => action(() => window.loadstone.retryLive(job.id))}
           >Retry installation</button
         >{/if}
-      {#if job.status === 'installed'}<p>
-          The mod manager, profile and launch entry have been checked. Launch
-          and shortcut controls are still being integrated.
-        </p>{/if}
+      {#if job.status === 'installed'}
+        <div class="launch-actions">
+          <button
+            class="primary"
+            disabled={busy ||
+              job.launch?.phase === 'open' ||
+              job.launch?.phase === 'starting'}
+            onclick={() => action(() => window.loadstone.launchLive(job.id))}
+            >Launch setup</button
+          >
+          <button
+            class="secondary"
+            disabled={busy}
+            onclick={() =>
+              action(async () => {
+                verified[job.id] = '';
+                verified[job.id] = await window.loadstone.verifyLiveProfile(
+                  job.id,
+                );
+                return window.loadstone.liveJobs();
+              })}>Check profile</button
+          >
+        </div>
+        {#if job.launch}<p
+            role="status"
+            class:error={job.launch.phase === 'error'}
+          >
+            {job.launch.message}
+          </p>{/if}
+        {#if verified[job.id]}<p role="status">{verified[job.id]}</p>{/if}
+      {/if}
       {#if job.logs.length}<details>
           <summary>Installer output</summary>
           <pre>{job.logs.join('\n')}</pre>
@@ -102,6 +130,11 @@
 </section>
 
 <style>
+  .launch-actions {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0;
+  }
   .live-job {
     padding: 24px;
     margin: 20px 0;

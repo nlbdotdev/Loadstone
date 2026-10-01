@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('loadstone', {
   discoverGames: () => ipcRenderer.invoke('live:games'),
   preflight: (options) => ipcRenderer.invoke('live:preflight', options),
   liveJobs: () => ipcRenderer.invoke('live:jobs'),
+  launchLive: (id) => ipcRenderer.invoke('live:launch', id),
+  verifyLiveProfile: (id) => ipcRenderer.invoke('live:verify-profile', id),
   installLive: (options) => ipcRenderer.invoke('live:install', options),
   retryLive: (id) => ipcRenderer.invoke('live:retry', id),
   cancelLive: (id) => ipcRenderer.invoke('live:cancel', id),
