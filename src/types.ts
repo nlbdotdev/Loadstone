@@ -62,6 +62,8 @@ export interface AppState {
 }
 export interface Bridge {
   liveJobs(): Promise<LiveJob[]>;
+  launchLive(id: string): Promise<LiveJob[]>;
+  verifyLiveProfile(id: string): Promise<string>;
   installLive(options: {
     id: string;
     gameFolder: string;
@@ -109,6 +111,10 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  launch?: {
+    phase: 'starting' | 'open' | 'closed' | 'error';
+    message: string;
+  } | null;
   id: string;
   setupId: string;
   name: string;

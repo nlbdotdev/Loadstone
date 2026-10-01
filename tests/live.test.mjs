@@ -231,6 +231,47 @@ test(
       assert.equal(fs.existsSync(path.join(root, 'setup')), false);
       await app.close();
       app = null;
+      const destination = path.join(root, 'completed-fixture');
+      const output = path.join(destination, 'profile');
+      const jobId = crypto.randomUUID();
+      fs.mkdirSync(path.join(output, 'profiles', 'Fixture'), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(destination, '.loadstone-owner.json'),
+        JSON.stringify({ jobId, setupId: 'test-setup' }),
+      );
+      fs.writeFileSync(path.join(output, 'ModOrganizer.exe'), 'MZfixture');
+      fs.writeFileSync(path.join(output, 'game.exe'), 'MZfixture');
+      fs.writeFileSync(
+        path.join(output, 'ModOrganizer.ini'),
+        '[customExecutables]\n1\\title=NVSE\n1\\binary=game.exe\n',
+      );
+      fs.writeFileSync(
+        path.join(output, 'profiles', 'Fixture', 'modlist.txt'),
+        '#fixture',
+      );
+      fs.writeFileSync(
+        path.join(dataDir, 'live-jobs.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          jobs: [
+            {
+              id: jobId,
+              setupId: 'test-setup',
+              name: 'Completed fixture',
+              destination,
+              gameFolder: root,
+              manifest: fixtureManifest(),
+              status: 'installed',
+              logs: ['Controlled test output'],
+              error: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        }),
+      );
       page = await start();
       await page
         .getByRole('heading', {
@@ -245,6 +286,39 @@ test(
         (await page.evaluate(() => window.loadstone.getState())).installed
           .length,
         0,
+      );
+      await page
+        .getByRole('button', { name: 'My library', exact: true })
+        .click();
+      await page.getByRole('heading', { name: 'Completed fixture' }).waitFor();
+      await page
+        .getByRole('button', { name: 'Check profile', exact: true })
+        .click();
+      await page
+        .getByRole('alert')
+        .filter({ hasText: 'portable.txt' })
+        .waitFor();
+      fs.writeFileSync(path.join(output, 'portable.txt'), '');
+      await page
+        .getByRole('button', { name: 'Check profile', exact: true })
+        .click();
+      await page
+        .getByRole('status')
+        .filter({ hasText: 'passed structural checks' })
+        .waitFor();
+      assert.equal(
+        await page
+          .getByRole('button', { name: 'Launch setup', exact: true })
+          .isEnabled(),
+        true,
+      );
+      await page.screenshot({
+        path: path.resolve('test-results/live-library.png'),
+      });
+      await page.evaluate(() => window.loadstone.settings({ dummyData: true }));
+      await assert.rejects(
+        page.evaluate((id) => window.loadstone.launchLive(id), jobId),
+        /live workspace/,
       );
     } finally {
       if (app) await app.close();
