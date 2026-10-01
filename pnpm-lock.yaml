@@ -8,12 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@lucide/svelte':
-        specifier: ^1.0.0
-        version: 1.49.0(svelte@5.57.1)
-      svelte:
-        specifier: ^5.0.0
-        version: 5.57.1
       yauzl:
         specifier: ^3.4.0
         version: 3.4.0
@@ -21,6 +15,9 @@ importers:
       '@electron/asar':
         specifier: 3.4.1
         version: 3.4.1
+      '@lucide/svelte':
+        specifier: ^1.0.0
+        version: 1.49.0(svelte@5.57.1)
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.0.0
         version: 6.2.4(svelte@5.57.1)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0))
@@ -42,6 +39,9 @@ importers:
       prettier-plugin-svelte:
         specifier: ^4.1.1
         version: 4.1.1(prettier@3.9.9)(svelte@5.57.1)
+      svelte:
+        specifier: ^5.0.0
+        version: 5.57.1
       svelte-check:
         specifier: ^4.0.0
         version: 4.7.6(picomatch@4.0.7)(svelte@5.57.1)(typescript@5.9.3)
