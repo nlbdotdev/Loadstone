@@ -8,7 +8,15 @@ Only one live installation runs at a time. Downloads displays actual engine outp
 
 Library offers **Launch setup** and **Check profile**. Launch repeats structural checks, requires the original `portable.txt` marker, and rejects a redirected MO2 profile directory. It invokes the installed manager with `-p <profile> run -e <configured executable title>` as separate process arguments, using the manager directory as its working directory. No shell interprets titles or paths, and inherited Nexus credential variables are removed. This adapter targets MO2's standard portable layout and the command interface present in [MO2 2.5.2](https://github.com/ModOrganizer2/modorganizer/blob/v2.5.2/src/commandline.cpp). The [portable marker behavior](https://github.com/ModOrganizer2/modorganizer/blob/v2.5.2/src/instancemanager.cpp) keeps instance selection local.
 
-Status tracks the spawned manager process, not gameplay or playtime. MO2 may hand the request to an existing window; check that window for game startup or errors. Closing Loadstone leaves the manager/game running. Manager tracking is session-local and does not survive a Loadstone restart. Steam shortcuts remain in development.
+Status tracks the spawned manager process, not gameplay or playtime. MO2 may hand the request to an existing window; check that window for game startup or errors. Closing Loadstone leaves the manager/game running. Manager tracking is session-local and does not survive a Loadstone restart.
+
+## Steam library entries
+
+Library offers **Add or repair Steam entry**, with explicit local-account selection. Steam must be fully closed; Loadstone checks for Steam processes twice and never closes Steam itself. With the Steam shortcut preference enabled, installation attempts automatic creation only when one local account is available. If Steam is running, no account exists, or account selection is ambiguous, installation remains successful and the library reports the follow-up needed.
+
+Entries target the same portable MO2 command as desktop shortcuts. The updater understands the binary KeyValues format used by `userdata/<account>/config/shortcuts.vdf`. It preserves unrelated entries as their original bytes and preserves the app ID and additional fields when repairing a matching Loadstone entry. A per-installation tag identifies ownership. Name/app-ID conflicts, malformed or unsupported data, redirected files and concurrent file changes stop the edit. Existing files receive a uniquely named `.loadstone-<id>.bak` backup before replacement. To restore one, exit Steam and copy the desired backup over `shortcuts.vdf`; this restores the entire previous shortcut library.
+
+This is a local-file integration, not a public Steamworks shortcut API. Format references: [ValvePython's binary KeyValues implementation](https://github.com/ValvePython/vdf) and [SteamTinkerLaunch's shortcut integration](https://github.com/sonic2kk/steamtinkerlaunch/wiki/Add-Non-Steam-Game). Tests use isolated Steam directories. Read-only inspection of the development machine's existing three-entry shortcut file confirmed an exact binary round trip. Creating an entry and launching it from the actual Steam client still needs release acceptance testing; neither the tests nor this inspection changed that real shortcut file.
 
 ## Desktop shortcuts
 

@@ -384,9 +384,25 @@ test(
       await page.screenshot({
         path: path.resolve('test-results/live-library.png'),
       });
+      await page
+        .getByRole('button', { name: 'Add or repair Steam entry', exact: true })
+        .click();
+      await page
+        .getByText(
+          'Exit Steam completely before saving. Existing entries are backed up and preserved.',
+          { exact: true },
+        )
+        .waitFor();
       await page.evaluate(() => window.loadstone.settings({ dummyData: true }));
       await assert.rejects(
         page.evaluate((id) => window.loadstone.launchLive(id), jobId),
+        /live workspace/,
+      );
+      await assert.rejects(
+        page.evaluate(
+          (id) => window.loadstone.steamShortcut(id, 'invalid'),
+          jobId,
+        ),
         /live workspace/,
       );
     } finally {

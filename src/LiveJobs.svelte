@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { LiveJob } from './types';
+  import SteamShortcut from './SteamShortcut.svelte';
   let { library = false }: { library?: boolean } = $props();
   let jobs = $state<LiveJob[]>([]),
     verified = $state<Record<string, string>>({}),
@@ -92,6 +93,10 @@
           >Retry installation</button
         >{/if}
       {#if job.status === 'installed'}
+        <SteamShortcut jobId={job.id} />
+        {#if job.steamShortcutError}<p class="error">
+            Steam entry needs attention: {job.steamShortcutError}
+          </p>{/if}
         <div class="launch-actions">
           <button
             class="secondary"

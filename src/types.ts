@@ -62,6 +62,8 @@ export interface AppState {
 }
 export interface Bridge {
   liveJobs(): Promise<LiveJob[]>;
+  steamAccounts(): Promise<{ id: string; label: string }[]>;
+  steamShortcut(id: string, accountId: string): Promise<{ message: string }>;
   desktopShortcut(id: string): Promise<LiveJob[]>;
   launchLive(id: string): Promise<LiveJob[]>;
   verifyLiveProfile(id: string): Promise<string>;
@@ -112,6 +114,7 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  steamShortcutError?: string | null;
   desktopShortcut?: string;
   shortcutError?: string | null;
   launch?: {

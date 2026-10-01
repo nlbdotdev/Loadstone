@@ -16,6 +16,7 @@ const { NexusAccount } = require('./nexus.cjs');
 const { Installer } = require('./installer.cjs');
 const { Launcher } = require('./launcher.cjs');
 const { createDesktopShortcut } = require('./shortcuts.cjs');
+const { SteamShortcuts } = require('./steam-shortcuts.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -37,14 +38,44 @@ else {
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
       launcher = new Launcher(installer);
+      const steamShortcuts = new SteamShortcuts();
+      const steamShortcut = async (id, accountId) => {
+        const result = await steamShortcuts.create(
+          installer.jobs.find((item) => item.id === id),
+          accountId,
+        );
+        installer.change(id, {
+          steamShortcut: result,
+          steamShortcutError: null,
+        });
+        return result;
+      };
       const desktopShortcut = (id) => {
         const job = installer.jobs.find((item) => item.id === id);
         const file = createDesktopShortcut(job, app.getPath('desktop'), shell);
         installer.change(id, { desktopShortcut: file, shortcutError: null });
         return file;
       };
-      installer.onInstalled = (id) => {
-        if (store.state.settings.desktopShortcut) desktopShortcut(id);
+      installer.onInstalled = async (id) => {
+        if (store.state.settings.desktopShortcut) {
+          try {
+            desktopShortcut(id);
+          } catch (error) {
+            installer.change(id, { shortcutError: error.message });
+          }
+        }
+        if (store.state.settings.steamShortcut) {
+          try {
+            const accounts = await steamShortcuts.list();
+            if (accounts.length !== 1)
+              throw new Error(
+                'Choose a local Steam account from the setup’s library controls.',
+              );
+            await steamShortcut(id, accounts[0].id);
+          } catch (error) {
+            installer.change(id, { steamShortcutError: error.message });
+          }
+        }
       };
       void runtime.verify();
       window = new BrowserWindow({
@@ -114,6 +145,14 @@ else {
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
       handle('live:jobs', () => launcher.list());
+      handle('steam:accounts', () => steamShortcuts.list());
+      handle('live:steam-shortcut', (id, accountId) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before adding a Steam entry.',
+          );
+        return steamShortcut(id, accountId);
+      });
       handle('live:desktop-shortcut', (id) => {
         if (store.state.settings.dummyData)
           throw new Error(
