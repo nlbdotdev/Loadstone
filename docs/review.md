@@ -1,37 +1,22 @@
-# Loadstone 0.1.0 review
+# Reviewing the 0.2.0 developer preview
 
-The Windows UI MVP is ready to review. It implements the approved visual direction in Svelte and Electron, with persistent dummy data that can be disabled in Settings.
+This build includes the live installer and maintenance features developed after the original demo. It is unsigned and remains a private developer preview. A real supported install-to-play run, clean Windows/Steam acceptance, Nexus registration and project licensing are still required before public release.
 
-## Suggested walkthrough
+## Walkthrough
 
-- Discover: filter by game, search, select another setup, and open its details.
-- Install setup: change the destination and shortcut preferences; begin a demo installation.
-- Downloads: pause, resume, cancel, retry, and clear completed/cancelled jobs.
-- Restart during an install: the job returns paused and can resume.
-- My library: launch a demo session, verify its plan, view details, or remove the setup.
-- Settings: toggle dummy data off and back on. Demo state is preserved, but hidden and blocked while off.
-- Change shortcut defaults and reduced motion, then restart to check persistence.
-- Browse for a folder, export logs, and reset the demo workspace.
-- Resize or maximize the app and navigate using the keyboard.
+1. Start with a fresh test workspace. The welcome screen offers live setup or the fictional demo; neither starts a download automatically.
+2. Explore the demo: Discover filters/details, install planning, Downloads pause/cancel/retry, Library actions, settings persistence and reduced motion. Demo activity must remain separate from live state.
+3. In the live workspace, prepare the pinned engine in Settings and import a compatible creator manifest/archive. Check the game and destination. Failed compatibility or account checks must prevent installation.
+4. Connect Nexus only through Settings in your local app. Do not put keys in chat, manifests or reports. Lists requiring automatic Nexus downloads currently need Premium, and a conflicting saved Wabbajack login must be resolved in that application.
+5. With an accepted real list, exercise download/install, failure/retry, output verification, profile launch, shortcut repair, version coexistence and save-preserving removal. These are required acceptance steps, not a claim that they have already passed.
+6. Export diagnostics and confirm build identity. Ordinary closes during installation, removal or engine preparation should keep the operation visible and offer minimization. Idle closes should exit cleanly.
 
-## Verification performed
+The existing VNV archive needs additional game preparation. Read [the real preflight findings](vnv-acceptance.md) before using it as an acceptance candidate. An isolated-layout declaration does not convert an archive into a Stock Game list.
 
-- Svelte/TypeScript check: zero errors and zero warnings.
-- Persistent state engine: live-mode mutation guards, duplicate prevention, pause recovery, completion, uninstall, invalid inputs, and settings retention.
-- End-to-end tests run against the **packaged Loadstone.exe**, not only the browser/source build: discovery, filters, search, details, install, pause, resume after restart, completion, library, launch, verification, settings persistence, dummy-data isolation, uninstall, cancel/retry, and reset.
-- Window minimize/maximize controls, minimum-size horizontal layout, and dialog keyboard focus containment.
-- Folder and log-export IPC handlers exercised with controlled native-dialog return values; the log file was actually written and inspected.
-- Portable **Loadstone-0.1.0-Windows.exe**: extraction, launch, renderer and bridge, persistent setting mutation, live-mode empty state, and clean wrapper/app shutdown.
-- No renderer page errors during the end-to-end review journey.
+## Reproduce package verification
 
-Generated verification records are included beside this document. Screenshots come from the running Electron application.
+Run `pnpm check`, `pnpm test`, then `pnpm package` from a clean commit. Set `LOADSTONE_TEST_EXE` to `release/win-unpacked/Loadstone.exe` and run the Electron, live, Nexus, onboarding and close-guard tests. Clear that environment variable, then run `node scripts/verify-portable.mjs` to exercise the actual self-extracting executable. The script derives its filename/version from package metadata and records the artifact's SHA-256, size and checked workflows under ignored `test-results/`.
 
-## Intended limits
+Use a dedicated `LOADSTONE_DATA_DIR` for manual review. This isolates settings and credentials, but does not redirect Desktop or Steam operations. Automated shortcut tests use explicit temporary targets. Do not point a test workspace at data you need to preserve.
 
-This is a UI MVP. All modlists, game requirements, installation sizes, checks, downloads, profile creation, game launches, and per-setup shortcuts are simulated. Folder selection, preferences, local logs, window controls, and app persistence are real. No live Nexus, Wabbajack, MO2, or Steam integrations are incorporated yet. The Windows portable executable is unsigned.
-
-![Discover](screenshots/discover.png)
-
-![Library](screenshots/library.png)
-
-![Settings](screenshots/settings.png)
+The original [0.1.0 review](review-0.1.md) is historical evidence for the demo-only release. Its screenshots and claims do not certify the newer live installation features. See [Steam depot verification](steam-release.md) for the separate directory build and actual-client acceptance requirements.

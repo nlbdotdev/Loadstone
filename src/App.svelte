@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { version as appVersion } from '../package.json';
   import {
     Compass,
     Library,
@@ -320,7 +321,7 @@
         >{/if}<kbd>⌕</kbd>
     </div>
     <button class="build-badge" onclick={() => (modal = 'about')}
-      >PREVIEW <span>0.1</span></button
+      >PREVIEW <span>{appVersion}</span></button
     >
     <div class="window-controls">
       <button
@@ -1035,7 +1036,7 @@
               <h2>Loadstone</h2>
               <p>Your next playthrough, ready.</p>
               <div class="detail-meta">
-                <span>Version 0.1.0</span><span>UI preview</span>
+                <span>Version {appVersion}</span><span>Developer preview</span>
               </div>
               <div class="divider"></div>
               <h4>Built for a better journey</h4>
@@ -1316,19 +1317,19 @@
             <h2>Loadstone</h2>
             <p class="modal-intro">Your next playthrough, ready.</p>
             <div class="detail-meta centered-meta">
-              <span>0.1.0</span><span>Windows desktop preview</span>
+              <span>{appVersion}</span><span>Windows developer preview</span>
             </div>
             <p class="long-description">
-              A library of curated adventures, built with Svelte and Electron.
-              Explore a setup, follow a simulated install, and return to it from
-              your library.
+              Explore the fictional demo catalog or import a creator’s setup
+              manifest in the live workspace. Keep installation progress and
+              installed profiles together in your library.
             </p>
             <div class="notice">
               <Info size={18} />
               <p>
-                All catalog content and installation behavior are illustrative.
-                Live Nexus, Wabbajack, MO2, and Steam integrations are future
-                work.
+                The demo is simulated. Live installation features are in private
+                testing and require your game, a compatible list and source
+                access. Full install-to-play and Steam acceptance remain open.
               </p>
             </div>
             <button class="primary full" onclick={() => (modal = null)}

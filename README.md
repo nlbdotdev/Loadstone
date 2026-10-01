@@ -2,13 +2,13 @@
 
 **Your next playthrough, ready.**
 
-A Windows desktop UI MVP for a curated Bethesda modlist installer, built with Svelte 5, TypeScript, and Electron. Charcoal panels, copper accents, and original cinematic artwork carry the approved Loadstone visual direction into an interactive app.
+A Windows developer preview of a curated Bethesda modlist installer, built with Svelte 5, TypeScript, and Electron. Charcoal panels, copper accents, and original cinematic artwork carry the approved Loadstone visual direction into an interactive app.
 
 ![Loadstone Discover](docs/screenshots/discover.png)
 
 ## Windows preview
 
-Download `Loadstone-0.1.0-Windows.exe` from the repository's private **v0.1.0 preview release**, or run the local copy in `release/`. It is a portable executable: no Node.js, pnpm, or installation wizard is needed to review it. The preview is unsigned.
+Build the current **0.2.0 developer preview** with `pnpm package`, then run `release/Loadstone-0.2.0-Windows.exe`. The portable executable needs no Node.js, pnpm or installation wizard to run. It is unsigned and has not been published as a new hosted release. The existing private v0.1.0 release is the older demo-only build.
 
 ## Run locally
 
@@ -71,12 +71,14 @@ For isolated automated testing, set `LOADSTONE_DATA_DIR` to a dedicated director
 - `public/worlds.png`: original AI-generated triptych for the three fictional setups.
 - `scripts/create-icon.py`: geometric app icon generator (Pillow needed only to regenerate artwork).
 
-Real install-to-play and Steam-client acceptance testing, plus save-safe maintenance remain necessary before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements, including open-source documentation, license review and notices.
+Real install-to-play, Steam-client and save-preservation acceptance remain necessary before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements, including open-source documentation, license review and notices.
 
 ## Distribution
 
 This repository is private and currently unlicensed. No Wabbajack, MO2, or other GPL application code is incorporated in this MVP. Third-party JavaScript packages retain their respective licenses. The portable Windows preview is unsigned and is not a Steam release.
 
-See [contributor setup](CONTRIBUTING.md), [security reporting](SECURITY.md), [privacy and local data](docs/privacy.md), and [open-source publication gates](docs/open-source.md). Generated [third-party notices](notices/THIRD-PARTY.txt) and the [dependency inventory](notices/dependencies.json) ship with new packages. Two upstream packages currently lack standalone license texts; the inventory records those unresolved notice gaps. GPL-3.0-or-later remains a candidate pending the project license decision and release review.
+See [contributor setup](CONTRIBUTING.md), [security reporting](SECURITY.md), [privacy and local data](docs/privacy.md), and [open-source publication gates](docs/open-source.md). Generated [third-party notices](notices/THIRD-PARTY.txt) and the [dependency inventory](notices/dependencies.json) ship with new packages. The shipped dependency inventory currently has no missing license texts. It covers bundled renderer code, main-process dependencies and Electron; excluded build tools and publication rights still require review. GPL-3.0-or-later remains a candidate pending the project license decision and release review.
 
 For a separate unpacked Windows Steam depot preview, run `pnpm package:steam`. See [Steam packaging and acceptance](docs/steam-release.md) for file verification, packaged-executable tests, templates and remaining submission gates. This command does not upload or publish.
+
+See [0.2.0 release notes](CHANGELOG.md) for implemented live features and outstanding release gates.

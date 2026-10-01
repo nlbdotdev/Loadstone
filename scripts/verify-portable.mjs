@@ -3,11 +3,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
+import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const root = path.resolve(import.meta.dirname, '..');
-const executable = path.join(root, 'release', 'Loadstone-0.1.0-Windows.exe');
+const { version } = JSON.parse(
+  fs.readFileSync(path.join(root, 'package.json'), 'utf8'),
+);
+const executable = path.join(
+  root,
+  'release',
+  `Loadstone-${version}-Windows.exe`,
+);
+const digest = crypto.createHash('sha256');
+for await (const chunk of fs.createReadStream(executable)) digest.update(chunk);
+const artifactHash = digest.digest('hex');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-portable-'));
 const server = net.createServer();
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -53,6 +64,13 @@ try {
     (await page.evaluate(() => window.loadstone.getState())).settings.dummyData,
     true,
   );
+  assert.equal(
+    await page
+      .getByRole('button', { name: `PREVIEW ${version}`, exact: true })
+      .count(),
+    1,
+    'packaged UI must display the current package version',
+  );
   fs.mkdirSync(path.join(root, 'test-results'), { recursive: true });
   await page.screenshot({
     path: path.join(root, 'test-results', 'portable-launch.png'),
@@ -73,6 +91,9 @@ try {
     JSON.stringify(
       {
         executable: path.basename(executable),
+        version,
+        sha256: artifactHash,
+        bytes: fs.statSync(executable).size,
         passed: true,
         verified: new Date().toISOString(),
         workflows: [
