@@ -81,6 +81,23 @@ test(
     await runtime.install(process.env.LOADSTONE_TEST_RUNTIME_ARCHIVE);
     assert.equal((await runtime.verify()).status, 'ready');
     assert.equal(runtime.status().version, PIN.version);
+    await runtime.gameLocations();
+    await runtime.gameLocations();
+    assert.equal(
+      (await runtime.verify()).status,
+      'ready',
+      'real CLI logs must not invalidate the pinned runtime',
+    );
+    const injectedLog = path.join(runtime.directory, 'logs', 'payload.dll');
+    fs.mkdirSync(path.dirname(injectedLog), { recursive: true });
+    fs.writeFileSync(injectedLog, 'not a log');
+    assert.equal(
+      (await runtime.verify()).status,
+      'error',
+      'the logs directory is not an integrity exemption',
+    );
+    fs.unlinkSync(injectedLog);
+    assert.equal((await runtime.verify()).status, 'ready');
     const unexpected = path.join(runtime.directory, 'unexpected.dll');
     fs.writeFileSync(unexpected, 'injected');
     assert.equal((await runtime.verify()).status, 'error');

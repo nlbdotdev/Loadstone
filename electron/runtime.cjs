@@ -8,6 +8,7 @@ const { execFile } = require('node:child_process');
 const yauzl = require('yauzl');
 const { sha256, contains } = require('./live-catalog.cjs');
 const { relativeFile } = require('./manifest.cjs');
+const { isRuntimeLog } = require('./engine-logs.cjs');
 const PIN = Object.freeze({
   version: '4.2.3.0',
   url: 'https://github.com/wabbajack-tools/wabbajack/releases/download/4.2.3.0/4.2.3.0.zip',
@@ -194,7 +195,14 @@ class Runtime {
             throw new Error('Runtime files must not be symbolic links.');
           if (entry.isDirectory())
             inspectTree(path.join(folder, entry.name), relative + '/');
-          else if (!expected.has(relative.toLowerCase()))
+          else if (
+            !expected.has(relative.toLowerCase()) &&
+            !(
+              isRuntimeLog(relative) &&
+              entry.isFile() &&
+              fs.lstatSync(path.join(folder, entry.name)).nlink === 1
+            )
+          )
             throw new Error(
               'Unexpected runtime files were found. Repair the engine before installing a setup.',
             );

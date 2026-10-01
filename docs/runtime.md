@@ -4,7 +4,7 @@ Loadstone downloads the unmodified official Windows [Wabbajack 4.2.3.0 release](
 
 Archive SHA-256: `91392832f4466420a02687fa6e92192897e8e4b5b1b3dc97fbe36f7a4e490ba5`.
 
-The full extracted file inventory is pinned as well, so editing inventory metadata cannot authorize changed runtime binaries. Verification rejects changed, missing, injected, or symbolic-link files. CLI logs are kept outside the runtime payload in `engine-work`, and no arbitrary executable path is accepted through the renderer bridge. At least 1.2 GB of free workspace-drive space is required while preparing the runtime.
+The full extracted file inventory is pinned as well, so editing inventory metadata cannot authorize changed runtime binaries. Verification rejects changed, missing, injected, or symbolic-link runtime files. The pinned CLI writes rotating logs relative to its executable despite a separate working directory. Only regular, singly linked files matching `logs/wabbajack-cli.current.log` or its numbered archives are excluded from payload hashes; other files in `logs` are still rejected. Completed installer runs sanitize these runtime logs as well as owned working-directory logs. No arbitrary executable path is accepted through the renderer bridge. At least 1.2 GB of free workspace-drive space is required while preparing the runtime.
 
 ## Verification
 
@@ -28,3 +28,7 @@ The released [Nexus client](https://github.com/wabbajack-tools/wabbajack/blob/4.
 ## Distribution
 
 Wabbajack remains an independent, unmodified [GPL-3.0 project](https://github.com/wabbajack-tools/wabbajack/blob/4.2.3.0/LICENSE.txt). Its executable is downloaded from the upstream release, not embedded in this repository or the current Loadstone package. The runtime and its components retain their upstream licenses. Any future bundled distribution must include the applicable notices and corresponding source obligations. The pinned source tag and release link are retained here for review.
+
+Real VNV preflight exposed the log location on a second runtime verification. The genuine-engine regression now runs game discovery, re-verifies with generated logs present, and checks that a DLL placed in the logs folder is still rejected. The pinned [CLI logging configuration](https://github.com/wabbajack-tools/wabbajack/blob/4.2.3.0/Wabbajack.CLI/Program.cs) declares the current and numbered archive names.
+
+The shipped NLog version actually rotates logs as `wabbajack-cli_00.log` (underscore), despite the dotted archive pattern in the CLI source. Both strictly numbered forms are handled. The real-engine regression performs game discovery twice so rotation is exercised before verification.

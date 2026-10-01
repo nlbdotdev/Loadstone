@@ -336,3 +336,28 @@ test('the default output verifier checks a real archive after the child process 
   assert.equal(h.installer.list()[0].outputVerification.files, 4);
   assert.equal(h.installer.list()[0].outputVerification.sizeChecked, 2);
 });
+
+test('completed and failed engine runs sanitize executable-relative CLI logs', async () => {
+  for (const mode of ['success', 'fail']) {
+    const h = harness();
+    h.requireNexus();
+    h.setMode(mode);
+    const logs = path.join(h.runtime.directory, 'logs');
+    fs.mkdirSync(logs);
+    const file = path.join(logs, 'wabbajack-cli.current.log');
+    fs.writeFileSync(
+      file,
+      'synthetic-test-secret https://example.com/file?token=synthetic-query',
+    );
+    await h.installer.start(h.options);
+    await finish(h.installer);
+    assert.equal(
+      h.installer.list()[0].status,
+      mode === 'success' ? 'installed' : 'failed',
+    );
+    const text = fs.readFileSync(file, 'utf8');
+    assert.ok(!text.includes('synthetic-test-secret'));
+    assert.ok(!text.includes('synthetic-query'));
+    assert.match(text, /redacted/);
+  }
+});
