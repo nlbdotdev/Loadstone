@@ -16,4 +16,6 @@ Account connection and explicit revalidation contact Nexus Mods. Installation pr
 
 ## Diagnostics
 
+The Settings export is a structured JSON summary containing app/build identity, platform/runtime versions, preferences, connection status, aggregate demo counts, and up to 25 recent live job summaries. It excludes credentials, account names/IDs, filesystem paths, creator metadata, source URLs and raw logs. Errors are reduced to automatic categories and numeric exit codes; these are triage hints, not diagnoses. The save dialog writes only to the selected local destination and does not upload the report.
+
 Paths, setup names, account display names and local account IDs can identify a user. Review any exported or copied diagnostics before sharing. Loadstone redacts the known API key, query strings and common token fields from captured engine output, but this is not a guarantee that arbitrary third-party output contains no personal data. Native engine logs may be unsanitized during a run or after a crash. Do not share credential files, raw Steam account files or complete user-data folders.

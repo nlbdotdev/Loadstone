@@ -33,3 +33,5 @@ pnpm package
 Notice generation reads the installed production graph and Electron license. Review changes to `notices/` before committing. Packaging includes that directory in application resources and retains Electron/Chromium notices. The current portable package is unsigned; it is not the Steam depot build. See [the acceptance plan](docs/1.0-plan.md) and [publication checklist](docs/open-source.md).
 
 Do not treat a passing fixture suite as completion of install-to-play acceptance. Record the exact game, list, engine and application versions for real release validation.
+
+Builds embed the Git commit, dirty-worktree flag and lockfile SHA-256 in `dist/build-info.json`. Source archives without Git metadata report an unknown commit. Diagnostic exports include this build identity so builds with the same preview version can still be distinguished. Exports use an explicit field allowlist; do not add arbitrary log, manifest or credential objects to them.

@@ -8,7 +8,7 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/write-build-info.mjs",
     "start": "pnpm build && electron .",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "pnpm build && node --test tests/*.test.mjs",
