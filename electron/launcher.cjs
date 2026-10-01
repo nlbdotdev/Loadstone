@@ -1,3 +1,4 @@
+const { childEnvironment } = require('./child-environment.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -85,9 +86,7 @@ class Launcher {
     };
     this.sessions.set(id, session);
     try {
-      const env = { ...process.env };
-      delete env.NEXUS_API_KEY;
-      delete env.NEXUS_OAUTH_INFO;
+      const env = childEnvironment();
       await new Promise((resolve, reject) => {
         const child = this.spawn(plan.executable, plan.args, {
           cwd: plan.cwd,

@@ -1,3 +1,4 @@
+const { childEnvironment } = require('./child-environment.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -476,10 +477,7 @@ class Installer {
       }
     };
     try {
-      const env = { ...process.env };
-      delete env.NEXUS_API_KEY;
-      delete env.NEXUS_OAUTH_INFO;
-      if (key) env.NEXUS_API_KEY = key;
+      const env = childEnvironment(key);
       const code = await new Promise((resolve, reject) => {
         const child = this.spawn(
           path.join(this.runtime.directory, 'wabbajack-cli.exe'),
