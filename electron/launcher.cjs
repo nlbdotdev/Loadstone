@@ -74,6 +74,8 @@ class Launcher {
     return plan;
   }
   async launch(id) {
+    if (this.installer.maintenance)
+      throw new Error('Wait for setup maintenance to finish before launching.');
     if (this.sessions.get(id)?.child)
       throw new Error('The mod manager launched by Loadstone is still open.');
     const plan = this.verify(id);

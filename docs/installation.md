@@ -34,6 +34,16 @@ Cancel stops the tracked engine process tree. Completion is recorded only after 
 
 The main process passes the private-test Nexus key only to the engine environment. Renderer job history contains no key. Captured output redacts the exact key, URL queries and named token fields, retaining at most 150 lines of 1,000 characters each. After the child exits, matching Wabbajack CLI logs in the owned working directory are sanitized; oversized logs are replaced with a short notice. Native engine logs may remain unsanitized while installation is running or after a crash. Do not publish raw engine logs without reviewing them. Third-party diagnostics outside that working directory are not covered by this sanitizer.
 
+## Removing a setup
+
+**Remove setup** checks ownership and scans the installed profile before presenting a native confirmation dialog with the exact destination, recovery folder, file count and estimated file bytes to remove. Supported game, script extender, MO2 and Wabbajack processes must be closed. Loadstone will not stop them automatically. Junctions and symbolic links anywhere inside the profile block removal, as do overlaps with game, system or application folders.
+
+On confirmation, Loadstone records durable removal state and moves the owned destination to a sibling folder named `<destination>.loadstone-recovery-<installation-id>`. It deletes ordinary installed files inside `profile/` while retaining all of `profile/profiles/`, `profile/overwrite/`, `ModOrganizer.ini`, and any directory named `saves`. Downloads, the list archive, engine logs and other files outside `profile/` remain in the recovery folder. Global saves outside the setup are untouched. Custom mods and other files inside `profile/` outside the retained locations are deleted; copy anything else you want to keep before confirming.
+
+No recursive deletion follows reparse points. Each file is checked again before deletion. If a file is locked or the app closes, the job becomes resumable removal work; **Resume removal** repeats the checks and continues. A completed removal leaves the library and stays in Downloads history with its recovery location. The original destination can be used for a fresh installation. The retained data is not a full restore of deleted mods; transferring saves to another list requires that creator's save-compatibility guidance.
+
+Automatic removal of desktop/Steam entries and version-update orchestration remain unfinished. Review old shortcuts after removal. Deleting the recovery folder would delete the retained saves and downloads, so Loadstone does not purge it automatically.
+
 ## Verification status
 
 Tests exercise real child processes with synthetic files: success, failure, cancellation, retry, ownership rejection, restart recovery, credential redaction, launch arguments, duplicate launch prevention and manager exit handling. Electron tests cover library profile checks and demo-mode launch rejection. The pinned official engine has separately passed integrity, version, help and game discovery checks. A full real list download, install and play session has not yet passed acceptance testing. These source features are newer than the v0.1.0 portable preview.

@@ -11,6 +11,9 @@ const statuses = new Set([
   'failed',
   'cancelled',
   'interrupted',
+  'removing',
+  'removed',
+  'removal-failed',
 ]);
 async function bootIdentifier() {
   if (process.platform !== 'win32')
@@ -223,6 +226,11 @@ class Installer {
           job.error =
             'Loadstone closed during installation. Restart Windows before retrying to ensure the previous installer has stopped.';
         }
+        if (job.status === 'removing') {
+          job.status = 'removal-failed';
+          job.error =
+            'Loadstone closed during removal. Resume removal to finish cleanup; preserved data remains in the setup or recovery folder.';
+        }
       }
       this.jobs = saved.jobs;
       this.save(this.jobs);
@@ -305,7 +313,7 @@ class Installer {
     return result;
   }
   async start(options, retryId = null) {
-    if (this.starting || this.running)
+    if (this.starting || this.running || this.maintenance)
       throw new Error('Another installation is already running.');
     this.starting = true;
     try {

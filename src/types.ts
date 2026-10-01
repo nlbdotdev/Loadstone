@@ -62,6 +62,7 @@ export interface AppState {
 }
 export interface Bridge {
   liveJobs(): Promise<LiveJob[]>;
+  removeLive(id: string): Promise<LiveJob[]>;
   steamAccounts(): Promise<{ id: string; label: string }[]>;
   steamShortcut(id: string, accountId: string): Promise<{ message: string }>;
   desktopShortcut(id: string): Promise<LiveJob[]>;
@@ -114,6 +115,7 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface LiveJob {
+  removalRecoveryPath?: string;
   steamShortcutError?: string | null;
   desktopShortcut?: string;
   shortcutError?: string | null;
@@ -133,7 +135,10 @@ export interface LiveJob {
     | 'installed'
     | 'failed'
     | 'cancelled'
-    | 'interrupted';
+    | 'interrupted'
+    | 'removing'
+    | 'removed'
+    | 'removal-failed';
   logs: string[];
   error: string | null;
   createdAt: string;
