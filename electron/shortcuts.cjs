@@ -3,6 +3,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { launchPlan } = require('./launcher.cjs');
 const { canonical } = require('./live-catalog.cjs');
+const samePath = (a, b) =>
+  fs.realpathSync.native(a).toLowerCase() ===
+  fs.realpathSync.native(b).toLowerCase();
 
 // Windows command-line quoting for a single argument (no shell involved).
 function quoteArgument(value) {
@@ -51,8 +54,8 @@ function createDesktopShortcut(job, desktop, shell) {
       throw new Error('Windows could not create the desktop shortcut.');
     const written = shell.readShortcutLink(temporary);
     if (
-      written.target.toLowerCase() !== details.target.toLowerCase() ||
-      written.cwd.toLowerCase() !== details.cwd.toLowerCase() ||
+      !samePath(written.target, details.target) ||
+      !samePath(written.cwd, details.cwd) ||
       written.args !== details.args ||
       written.description !== description
     )
