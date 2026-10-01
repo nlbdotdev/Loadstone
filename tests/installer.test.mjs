@@ -361,3 +361,12 @@ test('completed and failed engine runs sanitize executable-relative CLI logs', a
     assert.match(text, /redacted/);
   }
 });
+
+test('engine success cannot complete an installation with an unmet isolated game declaration', async () => {
+  const h = harness();
+  h.catalog.entries[0].manifest.launch.gameRoot = 'Stock Game';
+  await h.installer.start(h.options);
+  await finish(h.installer);
+  assert.equal(h.installer.list()[0].status, 'failed');
+  assert.match(h.installer.list()[0].error, /isolated game folder/);
+});

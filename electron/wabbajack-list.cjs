@@ -1,5 +1,5 @@
 const yauzl = require('yauzl');
-const { relativeFile } = require('./manifest.cjs');
+const { relativeFile, games } = require('./manifest.cjs');
 const gameTypes = {
   fnv: 'FalloutNewVegas',
   skyrimse: 'SkyrimSpecialEdition',
@@ -132,6 +132,16 @@ async function inspectList(
     throw new Error(
       'The list does not include the MO2 application and profile declared by this manifest.',
     );
+  if (manifest.launch.gameRoot) {
+    const executable =
+      manifest.launch.gameRoot.replaceAll('\\', '/').toLowerCase() +
+      '/' +
+      games[manifest.game.id].executable.toLowerCase();
+    if (!outputs.has(executable))
+      throw new Error(
+        'The list does not produce the game executable inside its declared isolated game folder.',
+      );
+  }
   const automatic = new Set([
     'NexusDownloader',
     'GameFileSourceDownloader',

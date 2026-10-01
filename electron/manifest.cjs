@@ -130,7 +130,12 @@ function validateManifest(v) {
       httpsUrl(v.archive.source),
     'declare a local Wabbajack archive, hash, and original HTTPS source.',
   );
-  shape(v.launch, ['manager', 'profile', 'executable']);
+  shape(v.launch, ['manager', 'profile', 'executable', 'gameRoot']);
+  if (v.launch.gameRoot !== undefined)
+    demand(
+      relativeFile(v.launch.gameRoot),
+      'isolated game root must be a relative folder inside the setup.',
+    );
   demand(
     v.launch.manager === 'mo2' &&
       relativeFile(v.launch.profile) &&

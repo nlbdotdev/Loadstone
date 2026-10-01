@@ -19,7 +19,7 @@ The same candidate was opened in the actual Electron application. Its compatibil
 
 The [creator's Wabbajack guide](https://vivanewvegas.moddinglinked.com/wabbajack.html), inspected on 2026-10-01, requires root-file installation and the FNV patcher, plus post-install manager/game checks. The cached archive itself contains `__Files Requiring Manual Install\FNVpatch.exe` and `__Files Requiring Manual Install\nvse_loader.exe`, as well as a Vanilla BSAs Patcher directory. Wabbajack completing its declared output files does not perform or prove all those steps.
 
-Current Loadstone manifests describe archive installation and MO2 launch, but have no model for these required post-install actions. Structural/output checks could pass while the game is not ready. An already configured developer machine could conceal this gap. Connecting Nexus alone does not resolve it.
+Loadstone now supports an optional `launch.gameRoot` declaration for creator-authored Stock Game lists, verifying their archive output and MO2 game/launch paths. The cached VNV archive does not contain that layout. Its required manual game preparation still has no automatic adapter. Structural/output checks could pass while the game is not ready. An already configured developer machine could conceal this gap. Connecting Nexus alone does not resolve it.
 
 Before advertising this candidate as one-click ready:
 
