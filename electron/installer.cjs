@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
 const { canonical, contains, sha256 } = require('./live-catalog.cjs');
 const { validateManifest } = require('./manifest.cjs');
+const { verifyOutputs } = require('./verify-outputs.cjs');
 const active = new Set(['preparing', 'installing', 'verifying']);
 const statuses = new Set([
   ...active,
@@ -176,6 +177,7 @@ class Installer {
     this.nexus = nexus;
     this.spawn = options.spawn || spawn;
     this.verifyProfile = options.verifyProfile || verifyProfile;
+    this.verifyOutputs = options.verifyOutputs || verifyOutputs;
     this.bootIdentifier = options.bootIdentifier || bootIdentifier;
     this.onInstalled = options.onInstalled || (() => {});
     this.credentialFile =
@@ -561,7 +563,18 @@ class Installer {
         );
       this.change(job.id, { status: 'verifying', logs: logs.slice(-150) });
       this.verifyProfile(job);
+      const outputVerification = await this.verifyOutputs(
+        owned(job),
+        job.manifest,
+        this.runtime.status().version,
+        () => run.cancelled,
+      );
+      if (run.cancelled)
+        throw new Error(
+          'Installation verification stopped. Retry to complete verification.',
+        );
       this.change(job.id, {
+        outputVerification,
         status: 'installed',
         installedAt: new Date().toISOString(),
         error: null,
@@ -578,7 +591,7 @@ class Installer {
     } catch (error) {
       try {
         this.change(job.id, {
-          status: 'failed',
+          status: run.cancelled ? 'cancelled' : 'failed',
           error: redact(error.message, key),
           logs: logs.slice(-150),
         });

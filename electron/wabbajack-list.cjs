@@ -16,7 +16,12 @@ function newerVersion(value, supported) {
   for (let i = 0; i < 4; i++) if (a[i] !== b[i]) return a[i] > b[i];
   return false;
 }
-async function inspectList(file, manifest, engineVersion) {
+async function inspectList(
+  file,
+  manifest,
+  engineVersion,
+  includeOutputs = false,
+) {
   const zip = await yauzl.openPromise(file, {
     lazyEntries: true,
     validateEntrySizes: true,
@@ -147,6 +152,15 @@ async function inspectList(file, manifest, engineVersion) {
     downloadBytes,
     requiresNexus: sources.has('NexusDownloader'),
     unsupportedSources,
+    ...(includeOutputs
+      ? {
+          outputs: data.Directives.map((d) => ({
+            path: d.To,
+            bytes: d.Size,
+            type: d.$type,
+          })),
+        }
+      : {}),
   };
 }
 module.exports = { inspectList, newerVersion };

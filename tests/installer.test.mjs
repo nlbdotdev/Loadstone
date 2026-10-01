@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
+import { writeList, listMetadata } from './list-fixture.mjs';
 const require = createRequire(import.meta.url);
 const {
   Installer,
@@ -71,6 +72,14 @@ function harness() {
     ],
   };
   const installerOptions = {
+    // Process fixtures use a text archive; real ZIP output checks have dedicated tests.
+    verifyOutputs: async () => ({
+      files: 3,
+      sizeChecked: 1,
+      presenceOnly: 2,
+      temporaryInputs: 0,
+      checkedAt: new Date().toISOString(),
+    }),
     credentialFile: path.join(root, 'other-app-credential'),
     bootIdentifier: async () => boot,
     spawn: (_exe, args, options) => {
@@ -282,4 +291,48 @@ test('version updates install alongside the old profile and retries use the orig
     ],
   );
   assert.equal(fs.readFileSync(save, 'utf8'), 'original save and user choices');
+});
+
+test('a successful engine exit cannot mark an incomplete output set installed', async () => {
+  const h = harness();
+  h.installer.verifyOutputs = async () => {
+    throw new Error('An expected installed file is missing');
+  };
+  await h.installer.start(h.options);
+  await finish(h.installer);
+  assert.equal(h.installer.list()[0].status, 'failed');
+  assert.match(h.installer.list()[0].error, /expected installed file/);
+  assert.equal(h.installer.list()[0].installedAt, undefined);
+});
+test('cancellation during final output checks keeps the job retryable', async () => {
+  const h = harness();
+  h.installer.verifyOutputs = async (_root, _manifest, _version, cancelled) => {
+    await h.installer.cancel(h.installer.running.id);
+    assert.equal(cancelled(), true);
+    throw new Error('Installation verification stopped.');
+  };
+  await h.installer.start(h.options);
+  await finish(h.installer);
+  assert.equal(h.installer.list()[0].status, 'cancelled');
+  assert.equal(h.installer.list()[0].installedAt, undefined);
+});
+
+test('the default output verifier checks a real archive after the child process completes', async () => {
+  const h = harness();
+  const metadata = listMetadata();
+  metadata.Directives[0].Size = 9;
+  metadata.Directives.push({ To: 'game.exe', Size: 9, $type: 'FromArchive' });
+  const archive = path.join(h.root, 'source.wabbajack');
+  await writeList(archive, metadata);
+  h.catalog.entries[0].manifest.archive.sha256 = crypto
+    .createHash('sha256')
+    .update(fs.readFileSync(archive))
+    .digest('hex');
+  h.installer.verifyOutputs =
+    require('../electron/verify-outputs.cjs').verifyOutputs;
+  await h.installer.start(h.options);
+  await finish(h.installer);
+  assert.equal(h.installer.list()[0].status, 'installed');
+  assert.equal(h.installer.list()[0].outputVerification.files, 4);
+  assert.equal(h.installer.list()[0].outputVerification.sizeChecked, 2);
 });
