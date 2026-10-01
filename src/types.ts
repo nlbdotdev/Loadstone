@@ -61,6 +61,15 @@ export interface AppState {
   logs: string[];
 }
 export interface Bridge {
+  liveInstallRoot(): Promise<string>;
+  liveCatalog(): Promise<Manifest[]>;
+  importManifest(): Promise<Manifest[] | null>;
+  discoverGames(): Promise<{ games: DiscoveredGame[]; warnings: string[] }>;
+  preflight(options: {
+    id: string;
+    gameFolder: string;
+    destination: string;
+  }): Promise<Preflight>;
   getState(): Promise<AppState>;
   settings(patch: Partial<Settings>): Promise<AppState>;
   install(options: {
@@ -82,6 +91,38 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface Manifest {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  website: string;
+  game: {
+    id: 'fnv' | 'skyrimse' | 'fallout4';
+    versions: string[];
+    executableHashes: string[];
+    requiredFiles: { path: string; sha256: string }[];
+  };
+  storage: { downloadBytes: number; installBytes: number };
+  archive: { file: string; sha256: string; source: string };
+  launch: { manager: 'mo2'; profile: string; executable: string };
+  credits: { name: string; author: string; source: string; license: string }[];
+}
+export interface DiscoveredGame {
+  id: Manifest['game']['id'];
+  name: string;
+  folder: string;
+  source: 'steam';
+  buildId: string | null;
+}
+export interface Preflight {
+  id: string;
+  checkedAt: string;
+  ready: boolean;
+  checks: { name: string; status: 'pass' | 'fail'; detail: string }[];
 }
 declare global {
   interface Window {

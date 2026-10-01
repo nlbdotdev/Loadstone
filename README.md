@@ -42,10 +42,12 @@ See [the review checklist and verification notes](docs/review.md).
 2. Open setup details, then Install setup. Choose an installation plan and start the demo.
 3. Pause, resume, cancel, or retry in Downloads. A complete demo takes approximately 20 seconds.
 4. Open My library to launch a demo session, verify the simulated profile, or remove it.
-5. In Settings, turn **Use dummy data** off to inspect the unconnected live workspace. Turn it back on to restore your demo library. Reduced motion, shortcut preferences, and folder selection persist.
+5. In Settings, turn **Use dummy data** off to import a live setup manifest and check game/archive compatibility. Turn it back on to restore your demo library. Reduced motion, shortcut preferences, and folder selection persist.
 6. Export diagnostic logs or reset the demo workspace from Settings.
 
-The catalog, requirements, installation sizes, profile validation, launch, and shortcut creation are simulated. Demo mode does not download mods, launch game processes, change game files, or modify Steam. Live Nexus/Wabbajack/MO2/Steam integrations are intentionally not implemented in this UI MVP. Turning demo mode off prevents demo mutations in the main process as well as hiding sample data in the renderer.
+The demo catalog, requirements, installation sizes, profile validation, launch, and shortcut creation are simulated. Demo mode does not download mods, launch game processes, change game files, or modify Steam. Turning demo mode off prevents demo mutations in the main process as well as hiding sample data in the renderer.
+
+Current source also supports a separate live manifest catalog, Steam game discovery, manual game selection, SHA-256 compatibility checks, and destination/storage preflight. See [manifest requirements](docs/manifests.md). The Wabbajack installation adapter, authentication, launch, and shortcuts remain in development, and live preflight explicitly reports that connection as unavailable. The existing v0.1.0 release predates these features.
 
 ## Persistence and desktop behavior
 
@@ -59,11 +61,12 @@ For isolated automated testing, set `LOADSTONE_DATA_DIR` to a dedicated director
 - `electron/main.cjs`: native window, validated IPC, dialogs, and state notifications.
 - `electron/preload.cjs`: limited context-isolated bridge; no arbitrary filesystem/process access.
 - `electron/store.cjs`: persistent simulated installation state machine.
+- `electron/manifest.cjs`, `game-discovery.cjs`, `live-catalog.cjs`: live setup validation, local game discovery, and filesystem preflight.
 - `tests/electron.test.mjs`: real Electron workflows and backend invariants.
 - `public/worlds.png`: original AI-generated triptych for the three fictional setups.
 - `scripts/create-icon.py`: geometric app icon generator (Pillow needed only to regenerate artwork).
 
-Production integration should sit behind a dedicated installer adapter. The catalog should become versioned source-backed manifests; installation planning should validate actual games, versions, storage, and permissions. Authentication, recovery, Steam shortcuts, and save-safe updates need their own integration work before a public installer release.
+Production integration will sit behind a dedicated installer adapter. Authentication, recovery, real installation/launch, Steam shortcuts, and save-safe updates need integration work before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements.
 
 ## Distribution
 
