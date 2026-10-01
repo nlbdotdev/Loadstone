@@ -89,8 +89,23 @@
         </p>{/if}
       {#if job.status === 'removed'}<p>
           Installed files removed. Your retained data is in the recovery folder
-          shown above. Review any remaining desktop or Steam shortcuts.
+          shown above.
         </p>{/if}
+      {#if job.status === 'removed'}
+        {#if job.shortcutsCleaned}<p>Owned shortcuts cleaned up.</p>
+        {:else}
+          {#if job.shortcutCleanupError}<p class="error">
+              {job.shortcutCleanupError}
+            </p>{/if}
+          <button
+            class="secondary"
+            disabled={busy}
+            onclick={() =>
+              action(() => window.loadstone.cleanupShortcuts(job.id))}
+            >Clean up shortcuts</button
+          >
+        {/if}
+      {/if}
       {#if ['installed', 'removal-failed'].includes(job.status)}<button
           class="secondary"
           disabled={busy}

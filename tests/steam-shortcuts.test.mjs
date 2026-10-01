@@ -149,3 +149,58 @@ test('binary VDF rejects truncation, duplicate keys, unsupported types and trail
   ])
     assert.throws(() => decode(buffer));
 });
+
+test('removed setups clean only tagged Steam entries, preserve fields, back up and retry safely', async () => {
+  const h = fixture(),
+    [account] = await h.service.list();
+  await h.service.create(h.job, account.id);
+  const owned = decode(fs.readFileSync(h.file))[0].value[0];
+  fs.writeFileSync(h.file, shortcutFile([owned, { ...unrelated, key: '1' }]));
+  const before = fs.readFileSync(h.file);
+  await assert.rejects(h.service.remove(h.job), /Only removed/);
+  h.job.status = 'removed';
+  fs.unlinkSync(path.join(h.job.destination, 'profile', 'ModOrganizer.exe'));
+  h.service.closed = async () => {
+    throw new Error('Exit Steam');
+  };
+  await assert.rejects(h.service.remove(h.job), /Exit Steam/);
+  assert.deepEqual(fs.readFileSync(h.file), before);
+  h.service.closed = async () => {};
+  const backups = await h.service.remove(h.job);
+  assert.deepEqual(fs.readFileSync(backups[0]), before);
+  const after = decode(fs.readFileSync(h.file))[0].value;
+  assert.equal(after.length, 1);
+  assert.equal(after[0].key, '0');
+  assert.deepEqual(
+    after[0].value,
+    decode(shortcutFile([unrelated]))[0].value[0].value,
+  );
+  assert.deepEqual(await h.service.remove(h.job), []);
+  fs.writeFileSync(h.file, 'broken');
+  await assert.rejects(h.service.remove(h.job));
+  assert.equal(fs.readFileSync(h.file, 'utf8'), 'broken');
+});
+
+test('desktop cleanup verifies ownership and works after the executable is removed', () => {
+  const { removeDesktopShortcut } = require('../electron/shortcuts.cjs');
+  const desktop = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'loadstone-desktop-cleanup-'),
+  );
+  const job = { id: crypto.randomUUID(), name: 'Test', status: 'removed' };
+  const file = path.join(desktop, `Loadstone - Test - ${job.id}.lnk`);
+  fs.writeFileSync(file, 'unrelated');
+  assert.throws(
+    () =>
+      removeDesktopShortcut(job, desktop, {
+        readShortcutLink: () => ({ description: 'Other app' }),
+      }),
+    /left unchanged/,
+  );
+  assert.equal(fs.readFileSync(file, 'utf8'), 'unrelated');
+  const shell = {
+    readShortcutLink: () => ({ description: `Loadstone setup ${job.id}` }),
+  };
+  removeDesktopShortcut(job, desktop, shell);
+  assert.equal(fs.existsSync(file), false);
+  removeDesktopShortcut(job, desktop, shell);
+});

@@ -62,6 +62,7 @@ export interface AppState {
 }
 export interface Bridge {
   liveJobs(): Promise<LiveJob[]>;
+  cleanupShortcuts(id: string): Promise<LiveJob[]>;
   removeLive(id: string): Promise<LiveJob[]>;
   steamAccounts(): Promise<{ id: string; label: string }[]>;
   steamShortcut(id: string, accountId: string): Promise<{ message: string }>;
@@ -116,6 +117,8 @@ export interface Bridge {
 }
 export interface LiveJob {
   removalRecoveryPath?: string;
+  shortcutCleanupError?: string | null;
+  shortcutsCleaned?: boolean;
   steamShortcutError?: string | null;
   desktopShortcut?: string;
   shortcutError?: string | null;

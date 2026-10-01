@@ -42,7 +42,7 @@ On confirmation, Loadstone records durable removal state and moves the owned des
 
 No recursive deletion follows reparse points. Each file is checked again before deletion. If a file is locked or the app closes, the job becomes resumable removal work; **Resume removal** repeats the checks and continues. A completed removal leaves the library and stays in Downloads history with its recovery location. The original destination can be used for a fresh installation. The retained data is not a full restore of deleted mods; transferring saves to another list requires that creator's save-compatibility guidance.
 
-Automatic removal of desktop/Steam entries and version-update orchestration remain unfinished. Review old shortcuts after removal. Deleting the recovery folder would delete the retained saves and downloads, so Loadstone does not purge it automatically.
+After removal, Loadstone deletes its matching desktop link and tagged Steam entries across available local accounts. Unrelated shortcuts are retained. Steam must be closed for any Steam file edit; each edit gets a backup and preserves remaining entry fields and app IDs, renumbering entry indices where necessary. Cleanup failures leave the setup removed and show **Clean up shortcuts** in Downloads for retry, including after restart. Renamed desktop links and unavailable Steam accounts may require manual cleanup. Version-update orchestration remains unfinished. Deleting the recovery folder would delete the retained saves and downloads, so Loadstone does not purge it automatically.
 
 ## Verification status
 
