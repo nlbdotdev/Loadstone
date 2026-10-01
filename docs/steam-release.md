@@ -30,3 +30,5 @@ Settings, protected Nexus credentials and installation history stay in Electron'
 Before upload or review, finalize project licensing/notices and Nexus registration, supply a permitted real creator list, complete clean Windows install-to-play acceptance, review public claims/screenshots, and configure support/privacy links. Record the tested source commit and depot build ID. Current builds identify as 0.2.0 developer previews; generating a depot kit does not justify a 1.0 version bump. New workspaces open a welcome screen with explicit live/demo choices. The live choice explains prerequisites and opens engine/account settings without downloading anything. Existing schema-1 workspaces migrate to schema 2 with their selected mode and preferences retained.
 
 [Valve's review process](https://partner.steamgames.com/doc/store/review_process) covers the actual store presence and build. Successful packaging or fixture checks do not establish acceptance by Valve. No Steam upload or actual-client acceptance has occurred through this workflow.
+
+Store copy, disclosures, asset production and reviewer handoff are tracked in the [Steam submission draft](steam-submission.md).
