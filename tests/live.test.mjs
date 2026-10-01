@@ -320,6 +320,18 @@ test(
       );
       await page
         .getByRole('button', { name: 'Create desktop shortcut', exact: true })
+        .waitFor();
+      await app.evaluate(({ shell }) => {
+        const read = shell.readShortcutLink;
+        globalThis.shortcutReads = [];
+        shell.readShortcutLink = (file) => {
+          const result = read(file);
+          globalThis.shortcutReads.push(result);
+          return result;
+        };
+      });
+      await page
+        .getByRole('button', { name: 'Create desktop shortcut', exact: true })
         .click();
       await page.waitForFunction(
         () =>
@@ -330,7 +342,9 @@ test(
       assert.deepEqual(
         shortcutErrors,
         [],
-        'Native shortcut creation: ' + shortcutErrors.join('; '),
+        'Native shortcut creation: ' +
+          shortcutErrors.join('; ') +
+          JSON.stringify(await app.evaluate(() => globalThis.shortcutReads)),
       );
       await page
         .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
