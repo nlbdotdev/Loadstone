@@ -79,7 +79,7 @@
         <h2>{job.name}</h2>
         <span>{job.status}</span>
       </div>
-      <p>{job.destination}</p>
+      <p>Version {job.version} · {job.destination}</p>
       {#if job.error}<p class="error">{job.error}</p>{/if}
       {#if job.removalRecoveryPath}<p>
           Preserved data: {job.removalRecoveryPath}

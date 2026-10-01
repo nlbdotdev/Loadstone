@@ -493,6 +493,62 @@ test(
         (await app.evaluate(() => globalThis.removalDialog)).detail,
         /Other files inside the profile folder, including custom mods/,
       );
+      const update = fixtureManifest();
+      update.version = '2.0';
+      update.update = {
+        fromVersions: ['1.0'],
+        saveCompatibility: 'new-game-required',
+        notes: 'Start a new game.',
+      };
+      fs.writeFileSync(file, JSON.stringify(update));
+      await app.evaluate(({ dialog }, file) => {
+        dialog.showOpenDialog = async () => ({
+          canceled: false,
+          filePaths: [file],
+        });
+        dialog.showMessageBox = async (_window, options) => {
+          globalThis.updateDialog = options;
+          return { response: 0 };
+        };
+      }, file);
+      assert.equal(
+        await page.evaluate(() => window.loadstone.importManifest()),
+        null,
+      );
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.liveCatalog()))[0].version,
+        '1.0',
+      );
+      assert.match(
+        (await app.evaluate(() => globalThis.updateDialog)).detail,
+        /new-game-required/,
+      );
+      await app.evaluate(({ dialog }) => {
+        dialog.showMessageBox = async () => ({ response: 1 });
+      });
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.importManifest()))[0]
+          .version,
+        '2.0',
+      );
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.liveJobs()))[0].version,
+        '1.0',
+      );
+      await page.getByRole('button', { name: 'Discover', exact: true }).click();
+      await page.locator('.live-list').click();
+      await page
+        .getByText('Fresh installation of version 2.0', { exact: true })
+        .waitFor();
+      assert.match(
+        await page
+          .getByLabel('Setup installation', { exact: true })
+          .inputValue(),
+        /test-setup-2-0$/,
+      );
+      await page.screenshot({
+        path: path.resolve('test-results/live-update.png'),
+      });
       await page.evaluate(() => window.loadstone.settings({ dummyData: true }));
       await assert.rejects(
         page.evaluate((id) => window.loadstone.removeLive(id), jobId),
@@ -514,3 +570,36 @@ test(
     }
   },
 );
+
+test('catalog version replacement requires reviewed creator guidance and detects changed imports', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-update-'));
+  const file = path.join(root, 'setup.json');
+  const catalog = new LiveCatalog(root);
+  const first = fixtureManifest();
+  fs.writeFileSync(file, JSON.stringify(first));
+  catalog.import(file);
+  const next = structuredClone(first);
+  next.version = '2.0';
+  fs.writeFileSync(file, JSON.stringify(next));
+  assert.throws(() => catalog.inspectImport(file), /creator must declare/);
+  next.update = {
+    fromVersions: ['1.0'],
+    saveCompatibility: 'new-game-required',
+    notes: 'Begin a new game. Keep the previous setup for existing saves.',
+  };
+  fs.writeFileSync(file, JSON.stringify(next));
+  const review = catalog.inspectImport(file);
+  assert.throws(() => catalog.import(file), /Review and confirm/);
+  next.update.notes = 'Changed after review';
+  fs.writeFileSync(file, JSON.stringify(next));
+  assert.throws(() => catalog.import(file, review), /Review and confirm/);
+  assert.equal(new LiveCatalog(root).list()[0].version, '1.0');
+  catalog.import(file, catalog.inspectImport(file));
+  assert.equal(catalog.list().length, 1);
+  assert.equal(new LiveCatalog(root).list()[0].version, '2.0');
+  assert.throws(() => catalog.import(file), /already imported/);
+  for (const compatibility of ['safe', null, true]) {
+    next.update.saveCompatibility = compatibility;
+    assert.throws(() => validateManifest(next), /save compatibility/);
+  }
+});

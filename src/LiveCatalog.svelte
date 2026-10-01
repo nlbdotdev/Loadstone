@@ -51,7 +51,7 @@
     selected = list;
     result = null;
     gameFolder = games.find((g) => g.id === list.game.id)?.folder || '';
-    destination = `${installRoot}\\${list.id}`;
+    destination = `${installRoot}\\${list.id}-${list.version.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40)}`;
   }
   onMount(() => {
     void run(async () => {
@@ -114,6 +114,21 @@
           1e9
         ).toFixed(1)} GB including downloads.
       </p>
+      {#if selected.update}<div class="live-checks">
+          <strong>Fresh installation of version {selected.version}</strong>
+          <p>
+            Updates from: {selected.update.fromVersions.join(', ')}.
+            Creator-declared save compatibility: {selected.update
+              .saveCompatibility}.
+          </p>
+          <p>{selected.update.notes}</p>
+          <p>
+            Choose a separate empty folder. Your previous installation remains
+            available for rollback. Saves and custom changes are not copied
+            automatically; follow the creator’s guidance before transferring
+            anything.
+          </p>
+        </div>{/if}
       <label for="live-game">Game installation</label>
       <div class="live-folder">
         <input
