@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { _electron as electron } from 'playwright';
+import { writeList } from './list-fixture.mjs';
 const require = createRequire(import.meta.url);
 const { validateManifest } = require('../electron/manifest.cjs');
 const { parseVdf, discoverGames } = require('../electron/game-discovery.cjs');
@@ -88,9 +89,13 @@ test('live preflight hashes real files and rejects unsafe destinations without c
     fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(game, 'FalloutNV.exe'), 'game');
   fs.writeFileSync(path.join(game, 'Data', 'Test.esm'), 'dlc');
-  fs.writeFileSync(path.join(source, 'fixture.wabbajack'), 'archive');
+  await writeList(path.join(source, 'fixture.wabbajack'));
   const file = path.join(source, 'setup.json');
-  fs.writeFileSync(file, JSON.stringify(fixtureManifest()));
+  const manifest = fixtureManifest();
+  manifest.archive.sha256 = hash(
+    fs.readFileSync(path.join(source, 'fixture.wabbajack')),
+  );
+  fs.writeFileSync(file, JSON.stringify(manifest));
   const catalog = new LiveCatalog(user);
   catalog.import(file);
   assert.equal(new LiveCatalog(user).list().length, 1);

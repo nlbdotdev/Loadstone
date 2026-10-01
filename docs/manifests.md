@@ -16,4 +16,8 @@ Preflight streams file hashes, checks required game files and archive integrity,
 
 The installer connection deliberately fails preflight until the Wabbajack adapter and authentication are implemented and tested. A valid manifest alone does not make a setup installable. No real curated list is bundled yet.
 
-Current upstream [Wabbajack install command](https://github.com/wabbajack-tools/wabbajack/blob/main/Wabbajack.CLI/Verbs/Install.cs) accepts `-w/--wabbajack`, `-o/--output`, and `-d/--downloads`. Runtime availability, authentication and progress reporting still need verification against a pinned released build before this interface is used.
+Preflight also reads the archive's actual `modlist` metadata. It checks game identity, required engine version, MO2/profile output files, bounded sizes, safe and unique Windows output paths, and declared storage against the archive's totals. Unknown download providers and lists requiring additional games are identified as unsupported. A verified engine is asked which game folder it would use; a different selection blocks installation rather than silently using another copy of the game.
+
+The parser was checked against the locally cached Viva New Vegas 11.8.26 archive: 153 source archives and 17,630 output files. The pinned 4.2.3.0 CLI was also run to confirm its actual Fallout 4 and New Vegas selections. These are read-only compatibility checks, not evidence of a successful installation or permission to redistribute the list.
+
+The pinned [Wabbajack install command](https://github.com/wabbajack-tools/wabbajack/blob/4.2.3.0/Wabbajack.CLI/Verbs/Install.cs) accepts `-w/--wabbajack`, `-o/--output`, and `-d/--downloads`. The runtime and command interface are verified; authentication, job recovery, and real installation remain in development.

@@ -84,6 +84,26 @@ async function inspectRuntime(directory, cwd) {
       );
   return { version: version.trim(), executable };
 }
+function parseGameLocations(output) {
+  const names = {
+    'Fallout New Vegas': 'fnv',
+    'Skyrim Special Edition': 'skyrimse',
+    'Fallout 4': 'fallout4',
+  };
+  const found = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(
+      /\[INFO\] \[X\] (Fallout New Vegas|Skyrim Special Edition|Fallout 4) (.*?) -> Path: (.+)$/,
+    );
+    if (match && path.isAbsolute(match[3]) && !/[\x00-\x1f]/.test(match[3])) {
+      const id = names[match[1]];
+      if (found.some((game) => game.id === id))
+        throw new Error('The installer reported ambiguous game locations.');
+      found.push({ id, version: match[2], folder: match[3] });
+    }
+  }
+  return found;
+}
 class Runtime {
   constructor(root) {
     this.root = path.join(root, 'engines');
@@ -104,6 +124,29 @@ class Runtime {
   }
   status() {
     return structuredClone(this.current);
+  }
+  async gameLocations() {
+    if (this.current.status !== 'ready' || this.controller || this.verifying)
+      throw new Error(
+        'Verify the installation engine before checking its game selection.',
+      );
+    try {
+      const { stdout } = await promisify(execFile)(
+        path.join(this.directory, 'wabbajack-cli.exe'),
+        ['list-games'],
+        {
+          cwd: this.work,
+          windowsHide: true,
+          timeout: 30000,
+          maxBuffer: 2_000_000,
+        },
+      );
+      return parseGameLocations(stdout);
+    } catch {
+      throw new Error(
+        'The installation engine could not confirm its game locations. Check the game installation and try again.',
+      );
+    }
   }
   async verify() {
     if (this.controller || this.verifying) return this.status();
@@ -306,4 +349,10 @@ class Runtime {
     return this.status();
   }
 }
-module.exports = { Runtime, PIN, extractZip, inspectRuntime };
+module.exports = {
+  Runtime,
+  PIN,
+  extractZip,
+  inspectRuntime,
+  parseGameLocations,
+};
