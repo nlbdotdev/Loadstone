@@ -8,6 +8,7 @@
     CheckCircle2,
   } from '@lucide/svelte';
   import type { Manifest, DiscoveredGame, Preflight } from './types';
+  let { onstarted }: { onstarted: () => void } = $props();
   let installRoot = $state('');
   let lists = $state<Manifest[]>([]);
   let games = $state<DiscoveredGame[]>([]);
@@ -89,8 +90,8 @@
       <h2>No live setups imported</h2>
       <p>
         Live installations need a versioned manifest with game hashes, storage
-        requirements, launch settings, and author credits. The installer
-        connection is still in development.
+        requirements, launch settings, and author credits. Prepare the engine
+        and connect your Nexus account in Settings before installing.
       </p>
     </div>{/if}
   <div class="live-list-grid">
@@ -196,6 +197,19 @@
               </div>
             </div>{/each}
         </div>{/if}
+      {#if result?.ready}<button
+          class="primary"
+          disabled={busy}
+          onclick={() =>
+            run(async () => {
+              await window.loadstone.installLive({
+                id: selected!.id,
+                gameFolder,
+                destination,
+              });
+              onstarted();
+            })}>Install this setup</button
+        >{/if}
       <details>
         <summary>Credits and distribution information</summary
         >{#each selected.credits as credit}<p>

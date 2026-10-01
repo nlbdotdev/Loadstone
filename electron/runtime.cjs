@@ -229,6 +229,10 @@ class Runtime {
     return this.status();
   }
   async install(archiveForVerification) {
+    if (this.inUse)
+      throw new Error(
+        'Wait for the active setup installation to finish before changing the engine.',
+      );
     if (this.verifying)
       throw new Error('Wait for engine verification to finish.');
     if (this.controller)

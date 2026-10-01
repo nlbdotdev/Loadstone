@@ -104,7 +104,7 @@
   <p class="engine-note">
     Downloads the pinned official Windows release (146 MB), checks its SHA-256
     hash, and verifies the installer interface. No game files are changed.
-    Account connection and setup installation are still in development.
+    Import a setup in Discover to check compatibility and start installation.
   </p>
 </section>
 

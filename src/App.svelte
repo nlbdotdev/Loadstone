@@ -38,6 +38,7 @@
   import LiveCatalog from './LiveCatalog.svelte';
   import EngineSettings from './EngineSettings.svelte';
   import NexusSettings from './NexusSettings.svelte';
+  import LiveJobs from './LiveJobs.svelte';
   import { catalog } from './data';
   import type { AppState, Page, Setup, Job } from './types';
 
@@ -389,7 +390,7 @@
         <p>
           {appState.settings.dummyData
             ? 'Explore the full experience. Installs, games, and shortcuts are simulated.'
-            : 'Installer services are not connected in this UI preview.'}
+            : 'Installations use your local game and original mod sources.'}
         </p>
         <button onclick={() => navigate('settings')}
           >{appState.settings.dummyData ? 'Manage' : 'Enable demo'}<ArrowUpRight
@@ -412,7 +413,7 @@
             </div>
           </div>
           {#if !appState.settings.dummyData}
-            <LiveCatalog />
+            <LiveCatalog onstarted={() => navigate('downloads')} />
           {:else}
             <div class="filter-row">
               <div class="filter-tabs" aria-label="Filter by game">
@@ -605,6 +606,10 @@
                 >
               </div>{/if}
           {/if}
+        {:else if page === 'library' && !appState.settings.dummyData}
+          <LiveJobs library />
+        {:else if page === 'downloads' && !appState.settings.dummyData}
+          <LiveJobs />
         {:else if page === 'library'}
           <div class="page-heading">
             <div>

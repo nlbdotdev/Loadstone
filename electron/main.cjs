@@ -8,11 +8,12 @@ const {
 const path = require('node:path');
 const fs = require('node:fs');
 const { Store } = require('./store.cjs');
-const { LiveCatalog, canonical } = require('./live-catalog.cjs');
+const { LiveCatalog } = require('./live-catalog.cjs');
 const { steamRoots, discoverGames } = require('./game-discovery.cjs');
 const { Runtime } = require('./runtime.cjs');
 const { NexusAccount } = require('./nexus.cjs');
-let window, store, timer, live, runtime, nexus;
+const { Installer } = require('./installer.cjs');
+let window, store, timer, live, runtime, nexus, installer;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
 const locked = app.requestSingleInstanceLock();
@@ -31,6 +32,7 @@ else {
       live = new LiveCatalog(app.getPath('userData'));
       runtime = new Runtime(app.getPath('userData'));
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
+      installer = new Installer(app.getPath('userData'), live, runtime, nexus);
       void runtime.verify();
       window = new BrowserWindow({
         width: 1480,
@@ -97,52 +99,23 @@ else {
       handle('runtime:verify', () => runtime.verify());
       handle('runtime:install', () => runtime.install());
       handle('runtime:cancel', () => runtime.cancel());
-      handle('live:preflight', async (options) => {
-        const result = await live.preflight(options);
-        const engine = await runtime.verify();
-        result.checks.splice(result.checks.length - 1, 0, {
-          name: 'Installation engine',
-          status: engine.status === 'ready' ? 'pass' : 'fail',
-          detail:
-            engine.status === 'ready'
-              ? `Wabbajack ${engine.version} is verified.`
-              : 'Install or repair the Wabbajack engine in Settings.',
-        });
-        if (engine.status === 'ready') {
-          let check;
-          try {
-            const manifest = live.list().find((item) => item.id === options.id);
-            const selected = (await runtime.gameLocations()).find(
-              (game) => game.id === manifest.game.id,
-            );
-            if (!selected)
-              throw new Error(
-                'Wabbajack could not find this game. Install or repair it in its game store first.',
-              );
-            if (
-              canonical(selected.folder).toLowerCase() !==
-              canonical(options.gameFolder).toLowerCase()
-            )
-              throw new Error(
-                `Wabbajack selected a different game installation. Select this folder to continue: ${selected.folder}`,
-              );
-            check = {
-              name: 'Engine game selection',
-              status: 'pass',
-              detail: `Wabbajack selected the same game folder (${selected.version}).`,
-            };
-          } catch (error) {
-            check = {
-              name: 'Engine game selection',
-              status: 'fail',
-              detail: error.message,
-            };
-          }
-          result.checks.splice(result.checks.length - 1, 0, check);
-        }
-        result.ready = result.checks.every((check) => check.status === 'pass');
-        return result;
+      handle('live:preflight', (options) => installer.preflight(options));
+      handle('live:jobs', () => installer.list());
+      handle('live:install', (options) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before installing a real setup.',
+          );
+        return installer.start(options);
       });
+      handle('live:retry', (id) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before retrying a real setup.',
+          );
+        return installer.start(null, id);
+      });
+      handle('live:cancel', (id) => installer.cancel(id));
       handle('live:import', async () => {
         const result = await dialog.showOpenDialog(window, {
           title: 'Import a Loadstone setup manifest',
@@ -202,7 +175,9 @@ else {
       );
       app.exit(1);
     });
-  app.on('window-all-closed', () => {
+  app.on('window-all-closed', async () => {
+    if (installer?.running)
+      await installer.cancel(installer.running.id).catch(() => {});
     runtime?.cancel();
     clearInterval(timer);
     app.quit();

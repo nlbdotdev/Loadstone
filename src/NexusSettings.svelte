@@ -92,7 +92,7 @@
   <p class="note">
     The key is protected with Windows credential encryption and stays on this
     device. Disconnecting removes Loadstone’s saved key. The Wabbajack account
-    connection is still being integrated.
+    login must be signed out to use this Loadstone connection.
   </p>
 </section>
 
