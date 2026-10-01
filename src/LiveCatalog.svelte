@@ -123,8 +123,9 @@
           <strong>Fresh installation of version {selected.version}</strong>
           <p>
             Updates from: {selected.update.fromVersions.join(', ')}.
-            Creator-declared save compatibility: {selected.update
-              .saveCompatibility}.
+            Creator-declared save compatibility: {compatibility[
+              selected.update.saveCompatibility
+            ]}.
           </p>
           <p>{selected.update.notes}</p>
           <p>
