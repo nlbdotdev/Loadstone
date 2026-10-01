@@ -15,7 +15,8 @@
     "test:unit": "node --test tests/state.test.mjs",
     "package": "pnpm notices && pnpm build && electron-builder --win portable --x64",
     "notices": "pnpm licenses list --prod --json | node scripts/generate-notices.mjs",
-    "package:steam": "pnpm notices && pnpm build && electron-builder --win --x64 --dir -c.directories.output=release/steam-unpacked && node scripts/steam-depot.mjs release/steam-unpacked/win-unpacked"
+    "package:steam": "pnpm notices && pnpm build && electron-builder --win --x64 --dir -c.directories.output=release/steam-unpacked && node scripts/steam-depot.mjs release/steam-unpacked/win-unpacked",
+    "audit:publication": "node scripts/audit-publication.mjs"
   },
   "dependencies": {
     "@lucide/svelte": "^1.0.0",

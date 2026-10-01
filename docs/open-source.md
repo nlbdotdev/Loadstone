@@ -32,3 +32,5 @@ Current notice gaps: installed `is-reference@3.0.3` and `locate-character@3.0.0`
 - Obtain an explicit publication request before changing repository visibility or publishing a public release.
 
 These gates remain open. This document records preparation, not approval to publish.
+
+Run `pnpm audit:publication` before proposing public release. See [publication hygiene findings](publication-audit.md) for the scan scope, classified fixtures, historical personal-path findings and outstanding manual review. The command never rewrites history and does not approve publication.
