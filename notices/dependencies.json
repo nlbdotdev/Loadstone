@@ -1,0 +1,266 @@
+{
+  "packages": [
+    {
+      "name": "@jridgewell/gen-mapping",
+      "version": "0.3.13",
+      "license": "MIT",
+      "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        }
+      ]
+    },
+    {
+      "name": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "license": "MIT",
+      "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/remapping",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        }
+      ]
+    },
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "b8778b155bfde5a28b023a558753c0fa058a52bb9de35c343c250be1bbcdedab"
+        }
+      ]
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "license": "MIT",
+      "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        }
+      ]
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "license": "MIT",
+      "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        }
+      ]
+    },
+    {
+      "name": "@lucide/svelte",
+      "version": "1.49.0",
+      "license": "ISC",
+      "homepage": "https://lucide.dev",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+        }
+      ]
+    },
+    {
+      "name": "@sveltejs/acorn-typescript",
+      "version": "1.0.13",
+      "license": "MIT",
+      "homepage": "https://github.com/sveltejs/acorn-typescript#readme",
+      "notices": [
+        {
+          "file": "LICENSE.md",
+          "sha256": "54e58ba168330ad6c315813fd50e729b2748d1ed38314fd30b833a4e89e15f2a"
+        }
+      ]
+    },
+    {
+      "name": "@types/estree",
+      "version": "1.0.9",
+      "license": "MIT",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "acorn",
+      "version": "8.18.0",
+      "license": "MIT",
+      "homepage": "https://github.com/acornjs/acorn",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "76a876cf886ff9be2a8b5e2e86514fed06223c8c9f0c1e9ee9606e93841e00b7"
+        }
+      ]
+    },
+    {
+      "name": "aria-query",
+      "version": "5.3.1",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/A11yance/aria-query#readme",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "c8df456c7ccba74b959087dff494d4ac2a12dfb0400c08b46b2494a08a000567"
+        }
+      ]
+    },
+    {
+      "name": "axobject-query",
+      "version": "4.1.0",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/A11yance/axobject-query#readme",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "c8df456c7ccba74b959087dff494d4ac2a12dfb0400c08b46b2494a08a000567"
+        }
+      ]
+    },
+    {
+      "name": "clsx",
+      "version": "2.1.1",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "license",
+          "sha256": "9a9edad7baae52622bddf3c15b2ef8a33d2c89f2d25408ad13e8a7481c6b0c97"
+        }
+      ]
+    },
+    {
+      "name": "devalue",
+      "version": "5.9.4",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "e399db7e952e45cae84f1b53d72ba8dbad2daaa7ab8cd1f0ab72fea5ab73b225"
+        }
+      ]
+    },
+    {
+      "name": "esm-env",
+      "version": "1.2.2",
+      "license": "MIT",
+      "homepage": "https://github.com/benmccann/esm-env",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "6df5276ee7531fcc5446f19082c12e77bb6c5f081fd2b6d6cf88180a5ee36acd"
+        }
+      ]
+    },
+    {
+      "name": "esrap",
+      "version": "2.4.0",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "8f8f0696ab4041a885d28bddf82e2ad673a6522cb644d6f972237f4f6e172a1d"
+        }
+      ]
+    },
+    {
+      "name": "is-reference",
+      "version": "3.0.3",
+      "license": "MIT",
+      "homepage": "https://github.com/Rich-Harris/is-reference#readme",
+      "notices": []
+    },
+    {
+      "name": "locate-character",
+      "version": "3.0.0",
+      "license": "MIT",
+      "homepage": "https://gitlab.com/Rich-Harris/locate-character#README",
+      "notices": []
+    },
+    {
+      "name": "magic-string",
+      "version": "0.30.21",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "1cbe51b907662f6cb1492b16c359384a595180bf0e4d101603ed525e75c4e484"
+        }
+      ]
+    },
+    {
+      "name": "pend",
+      "version": "1.2.0",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "7e64acffcb0d20d33f5a86949ffd4a99ae045b10c7332a9c3a58635876c16880"
+        }
+      ]
+    },
+    {
+      "name": "svelte",
+      "version": "5.57.1",
+      "license": "MIT",
+      "homepage": "https://svelte.dev",
+      "notices": [
+        {
+          "file": "LICENSE.md",
+          "sha256": "06257f4847b13a49a039efb17b944c141e71b12fd8d231b362d86919067d77a3"
+        }
+      ]
+    },
+    {
+      "name": "yauzl",
+      "version": "3.4.0",
+      "license": "MIT",
+      "homepage": "https://github.com/thejoshwolfe/yauzl",
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "b303783d5eb7ca50b853ffa5f145e4e7998fab339831d848f507ca6cd970577a"
+        }
+      ]
+    },
+    {
+      "name": "zimmerframe",
+      "version": "1.1.5",
+      "license": "MIT",
+      "homepage": null,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "5fde0201805ca0ffc8884fac6a3447b7f2918a6c22efb68b94019298d16bad9e"
+        }
+      ]
+    }
+  ],
+  "electron": {
+    "version": "40.10.6",
+    "license": "MIT"
+  },
+  "missingLicenseTexts": [
+    "is-reference@3.0.3",
+    "locate-character@3.0.0"
+  ]
+}

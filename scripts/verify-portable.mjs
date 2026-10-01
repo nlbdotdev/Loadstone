@@ -69,7 +69,7 @@ try {
     path.join(root, 'test-results', 'portable-verification.json'),
     JSON.stringify(
       {
-        executable,
+        executable: path.basename(executable),
         passed: true,
         verified: new Date().toISOString(),
         workflows: [

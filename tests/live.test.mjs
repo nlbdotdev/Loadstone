@@ -320,7 +320,32 @@ test(
       );
       await page
         .getByRole('button', { name: 'Create desktop shortcut', exact: true })
+        .waitFor();
+      await app.evaluate(({ shell }) => {
+        const read = shell.readShortcutLink;
+        globalThis.shortcutReads = [];
+        shell.readShortcutLink = (file) => {
+          const result = read(file);
+          globalThis.shortcutReads.push(result);
+          return result;
+        };
+      });
+      await page
+        .getByRole('button', { name: 'Create desktop shortcut', exact: true })
         .click();
+      await page.waitForFunction(
+        () =>
+          document.body.textContent.includes('Repair desktop shortcut') ||
+          !!document.querySelector('[role="alert"]')?.textContent,
+      );
+      const shortcutErrors = await page.getByRole('alert').allTextContents();
+      assert.deepEqual(
+        shortcutErrors,
+        [],
+        'Native shortcut creation: ' +
+          shortcutErrors.join('; ') +
+          JSON.stringify(await app.evaluate(() => globalThis.shortcutReads)),
+      );
       await page
         .getByRole('button', { name: 'Repair desktop shortcut', exact: true })
         .waitFor();
@@ -333,8 +358,10 @@ test(
         shortcut,
       );
       assert.equal(
-        details.target.toLowerCase(),
-        path.join(output, 'ModOrganizer.exe').toLowerCase(),
+        fs.realpathSync.native(details.target).toLowerCase(),
+        fs.realpathSync
+          .native(path.join(output, 'ModOrganizer.exe'))
+          .toLowerCase(),
       );
       assert.equal(details.args, '"-p" "Fixture" "run" "-e" "NVSE"');
       fs.unlinkSync(shortcut);
