@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const { Store } = require('./store.cjs');
 const { LiveCatalog } = require('./live-catalog.cjs');
 const { steamRoots, discoverGames } = require('./game-discovery.cjs');
-let window, store, timer, live;
+const { Runtime } = require('./runtime.cjs');
+let window, store, timer, live, runtime;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
 const locked = app.requestSingleInstanceLock();
@@ -21,6 +22,8 @@ else {
     .then(() => {
       store = new Store(app.getPath('userData'));
       live = new LiveCatalog(app.getPath('userData'));
+      runtime = new Runtime(app.getPath('userData'));
+      void runtime.verify();
       window = new BrowserWindow({
         width: 1480,
         height: 980,
@@ -78,7 +81,24 @@ else {
           : root;
       });
       handle('live:games', async () => discoverGames(await steamRoots()));
-      handle('live:preflight', (options) => live.preflight(options));
+      handle('runtime:get', () => runtime.status());
+      handle('runtime:verify', () => runtime.verify());
+      handle('runtime:install', () => runtime.install());
+      handle('runtime:cancel', () => runtime.cancel());
+      handle('live:preflight', async (options) => {
+        const result = await live.preflight(options);
+        const engine = await runtime.verify();
+        result.checks.splice(result.checks.length - 1, 0, {
+          name: 'Installation engine',
+          status: engine.status === 'ready' ? 'pass' : 'fail',
+          detail:
+            engine.status === 'ready'
+              ? `Wabbajack ${engine.version} is verified.`
+              : 'Install or repair the Wabbajack engine in Settings.',
+        });
+        result.ready = result.checks.every((check) => check.status === 'pass');
+        return result;
+      });
       handle('live:import', async () => {
         const result = await dialog.showOpenDialog(window, {
           title: 'Import a Loadstone setup manifest',
@@ -139,6 +159,7 @@ else {
       app.exit(1);
     });
   app.on('window-all-closed', () => {
+    runtime?.cancel();
     clearInterval(timer);
     app.quit();
   });

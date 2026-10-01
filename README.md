@@ -49,6 +49,8 @@ The demo catalog, requirements, installation sizes, profile validation, launch, 
 
 Current source also supports a separate live manifest catalog, Steam game discovery, manual game selection, SHA-256 compatibility checks, and destination/storage preflight. See [manifest requirements](docs/manifests.md). The Wabbajack installation adapter, authentication, launch, and shortcuts remain in development, and live preflight explicitly reports that connection as unavailable. The existing v0.1.0 release predates these features.
 
+Settings now prepares a pinned official Wabbajack runtime, with download/cancel/repair controls, archive and full runtime integrity checks, and a real CLI capability check. See [runtime integration notes](docs/runtime.md). Preparing the engine does not install a modlist.
+
 ## Persistence and desktop behavior
 
 Settings and demo state live in `%APPDATA%\Loadstone\state.json` in the packaged app. Active installs are restored paused after a restart. Disabling demo mode preserves its state and pauses its jobs. Resetting demo data preserves preferences. Unreadable state is backed up before recovery. Native Windows folder/save dialogs, window controls, a single-instance guard, and offline artwork are included.
