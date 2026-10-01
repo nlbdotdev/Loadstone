@@ -1,3 +1,4 @@
+const { childEnvironment } = require('./child-environment.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -70,6 +71,7 @@ async function inspectRuntime(directory, cwd) {
   const run = (args) =>
     promisify(execFile)(executable, args, {
       cwd,
+      env: childEnvironment(),
       windowsHide: true,
       timeout: 15000,
       maxBuffer: 512000,
@@ -137,6 +139,7 @@ class Runtime {
         ['list-games'],
         {
           cwd: this.work,
+          env: childEnvironment(),
           windowsHide: true,
           timeout: 30000,
           maxBuffer: 2_000_000,
