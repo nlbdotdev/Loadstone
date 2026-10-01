@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "rendererErrors": [],
+  "verified": "2026-10-01T01:44:38.478Z",
+  "workflows": [
+    "discovery",
+    "filtering",
+    "search",
+    "details",
+    "install",
+    "pause",
+    "resume after restart",
+    "completion",
+    "library",
+    "demo launch",
+    "verification",
+    "persistent settings",
+    "dummy data isolation",
+    "uninstall",
+    "cancel",
+    "retry",
+    "reset"
+  ]
+}
