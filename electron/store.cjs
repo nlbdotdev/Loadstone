@@ -9,9 +9,10 @@ const ids = new Set(['mojave', 'northern', 'commonwealth']);
 const active = new Set(['queued', 'downloading', 'extracting', 'configuring']);
 function initial(root) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: {
       dummyData: true,
+      onboardingComplete: false,
       installRoot: path.join(root, 'Setups'),
       reducedMotion: false,
       desktopShortcut: true,
@@ -33,7 +34,7 @@ class Store {
       let saved;
       try {
         saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-        if (Number.isInteger(saved?.schemaVersion) && saved.schemaVersion > 1) {
+        if (Number.isInteger(saved?.schemaVersion) && saved.schemaVersion > 2) {
           const error = new Error(
             'This workspace was saved by a newer Loadstone version. Update the app before opening it. Your data has not been changed.',
           );
@@ -42,7 +43,12 @@ class Store {
         }
         const candidate = {
           ...saved,
-          settings: { ...this.state.settings, ...saved.settings },
+          schemaVersion: saved.schemaVersion === 1 ? 2 : saved.schemaVersion,
+          settings: {
+            ...this.state.settings,
+            ...(saved.schemaVersion === 1 ? { onboardingComplete: true } : {}),
+            ...saved.settings,
+          },
         };
         this.state = validateState(candidate);
         for (const job of this.state.jobs)
@@ -87,6 +93,7 @@ class Store {
       if (
         [
           'dummyData',
+          'onboardingComplete',
           'reducedMotion',
           'desktopShortcut',
           'steamShortcut',

@@ -112,6 +112,17 @@ test(
         env: { ...process.env, LOADSTONE_DATA_DIR: root },
       });
       const page = await app.firstWindow();
+      await page.waitForFunction(() => Boolean(window.loadstone));
+      if (
+        !(await page.evaluate(() => window.loadstone.getState())).settings
+          .onboardingComplete
+      )
+        await page
+          .getByRole('button', {
+            name: 'Set up real installations',
+            exact: true,
+          })
+          .click();
       await page.getByRole('button', { name: 'Settings', exact: true }).click();
       return page;
     }

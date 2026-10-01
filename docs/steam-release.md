@@ -15,7 +15,7 @@ Build with Node 24 and pnpm 11 from a clean checkout after `pnpm install --froze
 pnpm package:steam
 node scripts/steam-depot.mjs --verify release/steam/preview-<id>
 $env:LOADSTONE_TEST_EXE = (Resolve-Path 'release/steam/preview-<id>/content/Loadstone.exe').Path
-node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs
+node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs
 Remove-Item Env:LOADSTONE_TEST_EXE
 ```
 
@@ -27,6 +27,6 @@ Configure the launch executable as `Loadstone.exe`, Windows 64-bit, with no laun
 
 Settings, protected Nexus credentials and installation history stay in Electron's per-user app-data directory, outside the depot. Installed setups and recovery folders belong outside the application directory. Do not configure Steam Cloud for credential files. Test updates and uninstall through the actual Steam client to confirm user data and external setups remain intact; local Electron tests cannot establish Steam behavior.
 
-Before upload or review, finalize project licensing/notices and Nexus registration, supply a permitted real creator list, complete clean Windows install-to-play acceptance, review public claims/screenshots, and configure support/privacy links. Record the tested source commit and depot build ID. Existing packages still identify as 0.1.0; generating a depot kit does not justify a 1.0 version bump. Current defaults open demo mode, with live mode available in Settings; choose and verify release onboarding before submission.
+Before upload or review, finalize project licensing/notices and Nexus registration, supply a permitted real creator list, complete clean Windows install-to-play acceptance, review public claims/screenshots, and configure support/privacy links. Record the tested source commit and depot build ID. Existing packages still identify as 0.1.0; generating a depot kit does not justify a 1.0 version bump. New workspaces open a welcome screen with explicit live/demo choices. The live choice explains prerequisites and opens engine/account settings without downloading anything. Existing schema-1 workspaces migrate to schema 2 with their selected mode and preferences retained.
 
 [Valve's review process](https://partner.steamgames.com/doc/store/review_process) covers the actual store presence and build. Successful packaging or fixture checks do not establish acceptance by Valve. No Steam upload or actual-client acceptance has occurred through this workflow.

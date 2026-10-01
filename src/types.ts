@@ -47,6 +47,7 @@ export interface Installed {
   sessions: number;
 }
 export interface Settings {
+  onboardingComplete: boolean;
   dummyData: boolean;
   installRoot: string;
   reducedMotion: boolean;
