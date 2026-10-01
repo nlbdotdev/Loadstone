@@ -360,9 +360,11 @@
         class="mode-indicator"
         onclick={() => navigate('settings')}
         ><span class:live={!appState?.settings.dummyData} class="status-dot"
-        ></span>{appState?.settings.dummyData
-          ? 'Demo mode'
-          : 'Live mode'}<ChevronRight size={14} /></button
+        ></span>{!appState?.settings.onboardingComplete
+          ? 'Choose workspace'
+          : appState.settings.dummyData
+            ? 'Demo mode'
+            : 'Live mode'}<ChevronRight size={14} /></button
       ><button class="help-link" onclick={() => (modal = 'about')}
         ><CircleHelp size={15} /> About Loadstone</button
       >
