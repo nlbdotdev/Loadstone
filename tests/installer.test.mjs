@@ -118,10 +118,14 @@ async function finish(installer) {
 }
 test('live runner executes a child, verifies its profile, persists completion and redacts output', async () => {
   const h = harness();
+  h.installer.onInstalled = () => {
+    throw new Error('Desktop is unavailable');
+  };
   await h.installer.start(h.options);
   await assert.rejects(h.installer.start(h.options), /already running/);
   await finish(h.installer);
   assert.equal(h.installer.list()[0].status, 'installed');
+  assert.equal(h.installer.list()[0].shortcutError, 'Desktop is unavailable');
   assert.equal(
     JSON.stringify(h.installer.list()).includes('private-token'),
     false,

@@ -8,7 +8,13 @@ Only one live installation runs at a time. Downloads displays actual engine outp
 
 Library offers **Launch setup** and **Check profile**. Launch repeats structural checks, requires the original `portable.txt` marker, and rejects a redirected MO2 profile directory. It invokes the installed manager with `-p <profile> run -e <configured executable title>` as separate process arguments, using the manager directory as its working directory. No shell interprets titles or paths, and inherited Nexus credential variables are removed. This adapter targets MO2's standard portable layout and the command interface present in [MO2 2.5.2](https://github.com/ModOrganizer2/modorganizer/blob/v2.5.2/src/commandline.cpp). The [portable marker behavior](https://github.com/ModOrganizer2/modorganizer/blob/v2.5.2/src/instancemanager.cpp) keeps instance selection local.
 
-Status tracks the spawned manager process, not gameplay or playtime. MO2 may hand the request to an existing window; check that window for game startup or errors. Closing Loadstone leaves the manager/game running. Manager tracking is session-local and does not survive a Loadstone restart. Desktop and Steam shortcuts remain in development.
+Status tracks the spawned manager process, not gameplay or playtime. MO2 may hand the request to an existing window; check that window for game startup or errors. Closing Loadstone leaves the manager/game running. Manager tracking is session-local and does not survive a Loadstone restart. Steam shortcuts remain in development.
+
+## Desktop shortcuts
+
+When the desktop shortcut preference is enabled in Settings, successful installation creates a Windows `.lnk` on the user's Desktop. Library also offers creation and repair. Creation repeats launch checks, quotes each Windows argument, writes a temporary link through [Electron's native shortcut API](https://www.electronjs.org/docs/latest/api/shell/), reads it back for verification, and then publishes it. The target is the installed MO2 executable, with the same profile, configured launch title and working directory as library launch. The shortcut works without Loadstone open; it therefore does not repeat Loadstone's checks when double-clicked.
+
+Each filename and description includes the installation ID. Repair recreates a missing link or replaces the matching owned link. It refuses to overwrite a link with a different ownership description. Shortcut errors appear separately and leave a successful installation installed. The displayed path records the last successful creation; it is not a continuously checked existence indicator. Tests use a temporary Desktop folder and real Windows shortcut read/write calls, leaving the user's Desktop untouched.
 
 ## Owned files and recovery
 
