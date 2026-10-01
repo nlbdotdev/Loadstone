@@ -603,3 +603,28 @@ test('catalog version replacement requires reviewed creator guidance and detects
     assert.throws(() => validateManifest(next), /save compatibility/);
   }
 });
+
+test('installation preflight rejects setups inside the packaged application directory', async () => {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'loadstone-depot-protection-'),
+  );
+  const data = path.join(root, 'user'),
+    application = path.join(root, 'steam-app');
+  fs.mkdirSync(data);
+  fs.mkdirSync(application);
+  const file = path.join(root, 'setup.json');
+  fs.writeFileSync(file, JSON.stringify(fixtureManifest()));
+  const catalog = new LiveCatalog(data, [application]);
+  catalog.import(file);
+  const result = await catalog.preflight({
+    id: 'test-setup',
+    gameFolder: path.join(root, 'game'),
+    destination: path.join(application, 'setup'),
+  });
+  const location = result.checks.find(
+    (check) => check.name === 'Installation folder',
+  );
+  assert.equal(location.status, 'fail');
+  assert.match(location.detail, /outside system and Loadstone folders/);
+  assert.equal(fs.existsSync(path.join(application, 'setup')), false);
+});
