@@ -35,6 +35,7 @@
     CircleHelp,
   } from '@lucide/svelte';
   import Logo from './Logo.svelte';
+  import LiveCatalog from './LiveCatalog.svelte';
   import { catalog } from './data';
   import type { AppState, Page, Setup, Job } from './types';
 
@@ -408,192 +409,200 @@
               <Compass size={19} /><span>EXPLORE<br />SOMETHING MORE</span>
             </div>
           </div>
-          <div class="filter-row">
-            <div class="filter-tabs" aria-label="Filter by game">
-              {#each ['All games', 'New Vegas', 'Skyrim SE', 'Fallout 4'] as game}<button
-                  class:selected={filter === game}
-                  onclick={() => (filter = game)}>{game}</button
-                >{/each}
-            </div>
-            <span class="result-count"
-              >{visibleCatalog.length}
-              {visibleCatalog.length === 1
-                ? 'setup'
-                : 'setups'}<SlidersHorizontal size={15} /></span
-            >
-          </div>
-          {#if feature}
-            <div class="discover-grid">
-              <div class="showcase">
-                <section
-                  class="hero art {feature.art}"
-                  aria-label={feature.name}
-                >
-                  <div class="hero-shade"></div>
-                  <div class="hero-content">
-                    <p class="hero-kicker"><span></span>THE FEATURED JOURNEY</p>
-                    <h2>{feature.name}</h2>
-                    <p>{feature.description}</p>
-                    <div class="tag-row">
-                      {#each feature.tags as tag, i}<span class="tag"
-                          >{#if i === 0}<Leaf size={13} />{:else}<ShieldCheck
-                              size={13}
-                            />{/if}{tag}</span
-                        >{/each}
-                    </div>
-                    <div class="hero-bottom">
-                      <button
-                        class="primary"
-                        onclick={() => {
-                          selectedId = feature.id;
-                          if (isInstalled(feature.id)) play(feature);
-                          else if (isInstalling(feature.id)) page = 'downloads';
-                          else openInstall(feature);
-                        }}
-                        >{isInstalled(feature.id)
-                          ? 'Play demo'
-                          : isInstalling(feature.id)
-                            ? 'View installation'
-                            : 'Install setup'}<ArrowRight size={18} /></button
-                      ><button
-                        class="hero-details"
-                        onclick={() => {
-                          selectedId = feature.id;
-                          modal = 'details';
-                        }}>Explore setup<ArrowUpRight size={15} /></button
-                      >
-                    </div>
-                  </div>
-                  <span class="hero-caption"
-                    >A BETTER WAY<br />BACK INTO THE WORLD.</span
-                  >
-                </section>
-                <div class="setup-grid">
-                  {#each visibleCatalog.filter((x) => x.id !== feature.id) as setup}<button
-                      class="setup-card art {setup.art}"
-                      onclick={() => (selectedId = setup.id)}
-                      ><div class="card-shade"></div>
-                      <span class="card-game">{setup.shortGame}</span>
-                      <div class="card-bottom">
-                        <div>
-                          <h3>{setup.name}</h3>
-                          <p>{setup.description}</p>
-                        </div>
-                        <span class="round-arrow"
-                          ><ChevronRight size={20} /></span
-                        >
-                      </div></button
-                    >{/each}
-                </div>
-                <div class="trust-row">
-                  <span><ShieldCheck size={17} /> Curated with care</span><span
-                    ><Layers size={17} /> Separate profiles</span
-                  ><span><RotateCcw size={17} /> Made to be maintained</span>
-                </div>
+          {#if !appState.settings.dummyData}
+            <LiveCatalog />
+          {:else}
+            <div class="filter-row">
+              <div class="filter-tabs" aria-label="Filter by game">
+                {#each ['All games', 'New Vegas', 'Skyrim SE', 'Fallout 4'] as game}<button
+                    class:selected={filter === game}
+                    onclick={() => (filter = game)}>{game}</button
+                  >{/each}
               </div>
-              <aside class="details-panel">
-                <div class="detail-cover art {feature.art}"></div>
-                <div class="detail-body">
-                  <p class="eyebrow">YOUR SELECTED SETUP</p>
-                  <h3>{feature.name}</h3>
-                  <p class="detail-game">{feature.game}</p>
-                  <div class="detail-meta">
-                    <span>v{feature.version}</span><span
-                      >{feature.mods} mods</span
-                    ><span>Windows</span>
-                  </div>
-                  <div class="divider"></div>
-                  <h4>Before you install</h4>
-                  <ul class="requirements">
-                    <li>
-                      <Gamepad2 size={17} /><span
-                        >{feature.shortGame} + required DLC</span
-                      >
-                    </li>
-                    <li>
-                      <ShieldCheck size={17} /><span
-                        >Nexus account required</span
-                      >
-                    </li>
-                    <li>
-                      <Download size={17} /><span
-                        >Automatic downloads with Premium</span
-                      >
-                    </li>
-                    <li>
-                      <Monitor size={17} /><span
-                        >Optional desktop & Steam shortcuts</span
-                      >
-                    </li>
-                  </ul>
-                  <div class="divider"></div>
-                  <h4>Room for adventure</h4>
-                  <div class="size-row">
-                    <span><Download size={16} /> Download</span><strong
-                      >{feature.downloadGB} GB</strong
-                    >
-                  </div>
-                  <div class="size-row">
-                    <span><HardDrive size={16} /> Installed</span><strong
-                      >{feature.installGB} GB</strong
-                    >
-                  </div>
-                  <div class="divider"></div>
-                  <div class="ready-status">
-                    <CheckCircle2 size={19} />{isInstalled(feature.id)
-                      ? 'Installed in demo library'
-                      : isInstalling(feature.id)
-                        ? 'Installation in progress'
-                        : 'Ready for a demo install'}
-                  </div>
-                  <button
-                    class="primary full"
-                    onclick={() => {
-                      selectedId = feature.id;
-                      if (isInstalled(feature.id)) play(feature);
-                      else if (isInstalling(feature.id)) page = 'downloads';
-                      else openInstall(feature);
-                    }}
-                    >{isInstalled(feature.id)
-                      ? 'Play demo'
-                      : isInstalling(feature.id)
-                        ? 'View installation'
-                        : 'Install setup'}<ArrowRight size={17} /></button
-                  ><button
-                    class="text-button full"
-                    onclick={() => {
-                      selectedId = feature.id;
-                      modal = 'details';
-                    }}>View setup details<ArrowUpRight size={13} /></button
-                  >
-                </div>
-              </aside>
-            </div>
-          {:else}<div class="empty-state">
-              <Compass size={40} />
-              <h2>
-                {appState.settings.dummyData
-                  ? 'No journeys found'
-                  : 'Your next chapter starts here'}
-              </h2>
-              <p>
-                {appState.settings.dummyData
-                  ? 'Try a different search or game filter.'
-                  : 'The live catalog isn’t connected yet. Enable dummy data to explore three curated setups and the complete demo workflow.'}
-              </p>
-              <button
-                class="secondary"
-                onclick={() => {
-                  if (appState?.settings.dummyData) {
-                    search = '';
-                    filter = 'All games';
-                  } else page = 'settings';
-                }}
-                >{appState.settings.dummyData
-                  ? 'Clear filters'
-                  : 'Open settings'}<ArrowRight size={16} /></button
+              <span class="result-count"
+                >{visibleCatalog.length}
+                {visibleCatalog.length === 1
+                  ? 'setup'
+                  : 'setups'}<SlidersHorizontal size={15} /></span
               >
-            </div>{/if}
+            </div>
+            {#if feature}
+              <div class="discover-grid">
+                <div class="showcase">
+                  <section
+                    class="hero art {feature.art}"
+                    aria-label={feature.name}
+                  >
+                    <div class="hero-shade"></div>
+                    <div class="hero-content">
+                      <p class="hero-kicker">
+                        <span></span>THE FEATURED JOURNEY
+                      </p>
+                      <h2>{feature.name}</h2>
+                      <p>{feature.description}</p>
+                      <div class="tag-row">
+                        {#each feature.tags as tag, i}<span class="tag"
+                            >{#if i === 0}<Leaf size={13} />{:else}<ShieldCheck
+                                size={13}
+                              />{/if}{tag}</span
+                          >{/each}
+                      </div>
+                      <div class="hero-bottom">
+                        <button
+                          class="primary"
+                          onclick={() => {
+                            selectedId = feature.id;
+                            if (isInstalled(feature.id)) play(feature);
+                            else if (isInstalling(feature.id))
+                              page = 'downloads';
+                            else openInstall(feature);
+                          }}
+                          >{isInstalled(feature.id)
+                            ? 'Play demo'
+                            : isInstalling(feature.id)
+                              ? 'View installation'
+                              : 'Install setup'}<ArrowRight size={18} /></button
+                        ><button
+                          class="hero-details"
+                          onclick={() => {
+                            selectedId = feature.id;
+                            modal = 'details';
+                          }}>Explore setup<ArrowUpRight size={15} /></button
+                        >
+                      </div>
+                    </div>
+                    <span class="hero-caption"
+                      >A BETTER WAY<br />BACK INTO THE WORLD.</span
+                    >
+                  </section>
+                  <div class="setup-grid">
+                    {#each visibleCatalog.filter((x) => x.id !== feature.id) as setup}<button
+                        class="setup-card art {setup.art}"
+                        onclick={() => (selectedId = setup.id)}
+                        ><div class="card-shade"></div>
+                        <span class="card-game">{setup.shortGame}</span>
+                        <div class="card-bottom">
+                          <div>
+                            <h3>{setup.name}</h3>
+                            <p>{setup.description}</p>
+                          </div>
+                          <span class="round-arrow"
+                            ><ChevronRight size={20} /></span
+                          >
+                        </div></button
+                      >{/each}
+                  </div>
+                  <div class="trust-row">
+                    <span><ShieldCheck size={17} /> Curated with care</span
+                    ><span><Layers size={17} /> Separate profiles</span><span
+                      ><RotateCcw size={17} /> Made to be maintained</span
+                    >
+                  </div>
+                </div>
+                <aside class="details-panel">
+                  <div class="detail-cover art {feature.art}"></div>
+                  <div class="detail-body">
+                    <p class="eyebrow">YOUR SELECTED SETUP</p>
+                    <h3>{feature.name}</h3>
+                    <p class="detail-game">{feature.game}</p>
+                    <div class="detail-meta">
+                      <span>v{feature.version}</span><span
+                        >{feature.mods} mods</span
+                      ><span>Windows</span>
+                    </div>
+                    <div class="divider"></div>
+                    <h4>Before you install</h4>
+                    <ul class="requirements">
+                      <li>
+                        <Gamepad2 size={17} /><span
+                          >{feature.shortGame} + required DLC</span
+                        >
+                      </li>
+                      <li>
+                        <ShieldCheck size={17} /><span
+                          >Nexus account required</span
+                        >
+                      </li>
+                      <li>
+                        <Download size={17} /><span
+                          >Automatic downloads with Premium</span
+                        >
+                      </li>
+                      <li>
+                        <Monitor size={17} /><span
+                          >Optional desktop & Steam shortcuts</span
+                        >
+                      </li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h4>Room for adventure</h4>
+                    <div class="size-row">
+                      <span><Download size={16} /> Download</span><strong
+                        >{feature.downloadGB} GB</strong
+                      >
+                    </div>
+                    <div class="size-row">
+                      <span><HardDrive size={16} /> Installed</span><strong
+                        >{feature.installGB} GB</strong
+                      >
+                    </div>
+                    <div class="divider"></div>
+                    <div class="ready-status">
+                      <CheckCircle2 size={19} />{isInstalled(feature.id)
+                        ? 'Installed in demo library'
+                        : isInstalling(feature.id)
+                          ? 'Installation in progress'
+                          : 'Ready for a demo install'}
+                    </div>
+                    <button
+                      class="primary full"
+                      onclick={() => {
+                        selectedId = feature.id;
+                        if (isInstalled(feature.id)) play(feature);
+                        else if (isInstalling(feature.id)) page = 'downloads';
+                        else openInstall(feature);
+                      }}
+                      >{isInstalled(feature.id)
+                        ? 'Play demo'
+                        : isInstalling(feature.id)
+                          ? 'View installation'
+                          : 'Install setup'}<ArrowRight size={17} /></button
+                    ><button
+                      class="text-button full"
+                      onclick={() => {
+                        selectedId = feature.id;
+                        modal = 'details';
+                      }}>View setup details<ArrowUpRight size={13} /></button
+                    >
+                  </div>
+                </aside>
+              </div>
+            {:else}<div class="empty-state">
+                <Compass size={40} />
+                <h2>
+                  {appState.settings.dummyData
+                    ? 'No journeys found'
+                    : 'Your next chapter starts here'}
+                </h2>
+                <p>
+                  {appState.settings.dummyData
+                    ? 'Try a different search or game filter.'
+                    : 'The live catalog isn’t connected yet. Enable dummy data to explore three curated setups and the complete demo workflow.'}
+                </p>
+                <button
+                  class="secondary"
+                  onclick={() => {
+                    if (appState?.settings.dummyData) {
+                      search = '';
+                      filter = 'All games';
+                    } else page = 'settings';
+                  }}
+                  >{appState.settings.dummyData
+                    ? 'Clear filters'
+                    : 'Open settings'}<ArrowRight size={16} /></button
+                >
+              </div>{/if}
+          {/if}
         {:else if page === 'library'}
           <div class="page-heading">
             <div>

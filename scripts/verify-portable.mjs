@@ -58,7 +58,7 @@ try {
   await page.getByRole('switch', { name: 'Use dummy data' }).click();
   await page.getByRole('button', { name: 'Discover', exact: true }).click();
   await page
-    .getByRole('heading', { name: 'Your next chapter starts here' })
+    .getByRole('heading', { name: 'No live setups imported' })
     .waitFor();
   await page.evaluate(() => window.loadstone.window('close')).catch(() => {});
   await browser.close().catch(() => {});

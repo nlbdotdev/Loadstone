@@ -2,7 +2,9 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { Store } = require('./store.cjs');
-let window, store, timer;
+const { LiveCatalog } = require('./live-catalog.cjs');
+const { steamRoots, discoverGames } = require('./game-discovery.cjs');
+let window, store, timer, live;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
 const locked = app.requestSingleInstanceLock();
@@ -18,6 +20,7 @@ else {
     .whenReady()
     .then(() => {
       store = new Store(app.getPath('userData'));
+      live = new LiveCatalog(app.getPath('userData'));
       window = new BrowserWindow({
         width: 1480,
         height: 980,
@@ -63,6 +66,27 @@ else {
       handle('demo:job', (action, id) => store.job(action, id));
       handle('demo:library', (action, id) => store.library(action, id));
       handle('demo:reset', () => store.reset());
+      handle('live:catalog', () => live.list());
+      handle('live:install-root', () => {
+        const root = store.state.settings.installRoot;
+        const relative = path.relative(app.getPath('userData'), root);
+        return relative === '' ||
+          (!relative.startsWith('..' + path.sep) &&
+            relative !== '..' &&
+            !path.isAbsolute(relative))
+          ? path.join(app.getPath('documents'), 'Loadstone', 'Setups')
+          : root;
+      });
+      handle('live:games', async () => discoverGames(await steamRoots()));
+      handle('live:preflight', (options) => live.preflight(options));
+      handle('live:import', async () => {
+        const result = await dialog.showOpenDialog(window, {
+          title: 'Import a Loadstone setup manifest',
+          properties: ['openFile'],
+          filters: [{ name: 'Loadstone manifest', extensions: ['json'] }],
+        });
+        return result.canceled ? null : live.import(result.filePaths[0]);
+      });
       handle('dialog:directory', async () => {
         const result = await dialog.showOpenDialog(window, {
           title: 'Choose setup installation folder',
