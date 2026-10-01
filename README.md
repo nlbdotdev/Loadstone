@@ -4,6 +4,12 @@
 
 A Windows desktop UI MVP for a curated Bethesda modlist installer, built with Svelte 5, TypeScript, and Electron. Charcoal panels, copper accents, and original cinematic artwork carry the approved Loadstone visual direction into an interactive app.
 
+![Loadstone Discover](docs/screenshots/discover.png)
+
+## Windows preview
+
+Download `Loadstone-0.1.0-Windows.exe` from the repository's private **v0.1.0 preview release**, or run the local copy in `release/`. It is a portable executable: no Node.js, pnpm, or installation wizard is needed to review it. The preview is unsigned.
+
 ## Run locally
 
 Requires Node.js 22+ and pnpm 11+.
@@ -18,6 +24,17 @@ pnpm check     # Svelte and TypeScript diagnostics
 pnpm test      # State-engine tests and real Electron end-to-end tests
 pnpm package   # Portable Windows x64 executable in release/
 ```
+
+To test the actual packaged application and portable wrapper:
+
+```powershell
+$env:LOADSTONE_TEST_EXE = "$PWD\release\win-unpacked\Loadstone.exe"
+node --test tests/electron.test.mjs
+Remove-Item Env:\LOADSTONE_TEST_EXE
+node scripts/verify-portable.mjs
+```
+
+See [the review checklist and verification notes](docs/review.md).
 
 ## Review the MVP
 
