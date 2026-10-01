@@ -15,7 +15,10 @@ const { Runtime } = require('./runtime.cjs');
 const { NexusAccount } = require('./nexus.cjs');
 const { Installer } = require('./installer.cjs');
 const { Launcher } = require('./launcher.cjs');
-const { createDesktopShortcut } = require('./shortcuts.cjs');
+const {
+  createDesktopShortcut,
+  removeDesktopShortcut,
+} = require('./shortcuts.cjs');
 const { SteamShortcuts } = require('./steam-shortcuts.cjs');
 const { diagnostics } = require('./diagnostics.cjs');
 const { Maintenance } = require('./maintenance.cjs');
@@ -42,6 +45,31 @@ else {
       launcher = new Launcher(installer);
       const maintenance = new Maintenance(installer);
       const steamShortcuts = new SteamShortcuts();
+      const cleanupShortcuts = async (id) => {
+        if (store.state.settings.dummyData)
+          throw new Error(
+            'Switch to the live workspace before cleaning up shortcuts.',
+          );
+        const job = installer.jobs.find((item) => item.id === id);
+        if (job?.status !== 'removed')
+          throw new Error('Only removed setups can clean up shortcuts.');
+        const errors = [];
+        try {
+          removeDesktopShortcut(job, app.getPath('desktop'), shell);
+        } catch (error) {
+          errors.push(error.message);
+        }
+        try {
+          await steamShortcuts.remove(job);
+        } catch (error) {
+          errors.push(error.message);
+        }
+        installer.change(id, {
+          shortcutCleanupError: errors.join(' ') || null,
+          shortcutsCleaned: !errors.length,
+        });
+        return launcher.list();
+      };
       const steamShortcut = async (id, accountId) => {
         const result = await steamShortcuts.create(
           installer.jobs.find((item) => item.id === id),
@@ -148,6 +176,7 @@ else {
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
       handle('live:jobs', () => launcher.list());
+      handle('live:cleanup-shortcuts', cleanupShortcuts);
       handle('live:remove', async (id) => {
         if (store.state.settings.dummyData)
           throw new Error(
@@ -158,7 +187,7 @@ else {
           type: 'warning',
           title: 'Remove installed setup files?',
           message: `Remove ${plan.files} installed files (${(plan.bytes / 1e9).toFixed(2)} GB)?`,
-          detail: `Setup: ${plan.destination}\n\nProfiles, saves folders, overwrite files, ModOrganizer.ini, downloads and files outside the profile folder are retained here:\n${plan.recovery}\n\nOther files inside the profile folder, including custom mods, will be deleted. Global game saves are not changed. Desktop and Steam shortcuts may need to be removed manually.`,
+          detail: `Setup: ${plan.destination}\n\nProfiles, saves folders, overwrite files, ModOrganizer.ini, downloads and files outside the profile folder are retained here:\n${plan.recovery}\n\nOther files inside the profile folder, including custom mods, will be deleted. Global game saves are not changed. Loadstone will remove its owned desktop and Steam shortcuts. Exit Steam to allow Steam shortcut cleanup; cleanup can be retried afterwards.`,
           buttons: ['Cancel', 'Remove installed files'],
           defaultId: 0,
           cancelId: 0,
@@ -167,7 +196,8 @@ else {
         if (result.response !== 1) return launcher.list();
         if (store.state.settings.dummyData)
           throw new Error('Return to the live workspace to continue.');
-        return maintenance.remove(id);
+        await maintenance.remove(id);
+        return cleanupShortcuts(id);
       });
       handle('steam:accounts', () => steamShortcuts.list());
       handle('live:steam-shortcut', (id, accountId) => {

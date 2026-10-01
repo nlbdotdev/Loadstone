@@ -13,12 +13,9 @@ function quoteArgument(value) {
     '"' + value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/g, '$1$1') + '"'
   );
 }
-function createDesktopShortcut(job, desktop, shell) {
-  if (process.platform !== 'win32')
-    throw new Error('Desktop shortcuts currently require Windows.');
+function desktopIdentity(job, desktop) {
   if (!/^[a-f0-9-]{36}$/.test(job?.id))
     throw new Error('Invalid installation identity.');
-  const plan = launchPlan(job);
   const root = canonical(desktop);
   if (!fs.statSync(root).isDirectory())
     throw new Error('Your Desktop folder is unavailable.');
@@ -29,6 +26,30 @@ function createDesktopShortcut(job, desktop, shell) {
       .slice(0, 70) || 'Setup';
   const file = path.join(root, `Loadstone - ${name} - ${job.id}.lnk`);
   const description = `Loadstone setup ${job.id}`;
+  return { root, file, description };
+}
+function removeDesktopShortcut(job, desktop, shell) {
+  if (job?.status !== 'removed')
+    throw new Error('Only removed setups can clean up shortcuts.');
+  const { file, description } = desktopIdentity(job, desktop);
+  if (!fs.existsSync(file)) return;
+  if (
+    fs.lstatSync(file).isSymbolicLink() ||
+    canonical(file).toLowerCase() !== file.toLowerCase() ||
+    shell.readShortcutLink(file).description !== description
+  )
+    throw new Error(
+      'A different desktop shortcut uses this filename. It was left unchanged.',
+    );
+  fs.unlinkSync(file);
+}
+function createDesktopShortcut(job, desktop, shell) {
+  if (process.platform !== 'win32')
+    throw new Error('Desktop shortcuts currently require Windows.');
+  if (!/^[a-f0-9-]{36}$/.test(job?.id))
+    throw new Error('Invalid installation identity.');
+  const plan = launchPlan(job);
+  const { file, description, root } = desktopIdentity(job, desktop);
   const exists = fs.existsSync(file);
   if (exists) {
     if (
@@ -67,4 +88,8 @@ function createDesktopShortcut(job, desktop, shell) {
     if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
   }
 }
-module.exports = { createDesktopShortcut, quoteArgument };
+module.exports = {
+  createDesktopShortcut,
+  removeDesktopShortcut,
+  quoteArgument,
+};

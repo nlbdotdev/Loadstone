@@ -462,6 +462,22 @@ test(
         await page.evaluate(() => window.loadstone.liveJobs())
       )[0];
       assert.equal(removed.status, 'removed');
+      assert.deepEqual(fs.readFileSync(shortcut), unrelated);
+      const cleanup = await page.evaluate(
+        (id) => window.loadstone.cleanupShortcuts(id),
+        jobId,
+      );
+      assert.match(cleanup[0].shortcutCleanupError, /left unchanged/);
+      await app.evaluate(
+        ({ shell }, { shortcut, jobId }) => {
+          shell.writeShortcutLink(shortcut, 'update', {
+            description: `Loadstone setup ${jobId}`,
+          });
+        },
+        { shortcut, jobId },
+      );
+      await page.evaluate((id) => window.loadstone.cleanupShortcuts(id), jobId);
+      assert.equal(fs.existsSync(shortcut), false);
       assert.equal(fs.existsSync(destination), false);
       assert.equal(
         fs.readFileSync(

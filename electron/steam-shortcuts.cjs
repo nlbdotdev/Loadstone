@@ -66,6 +66,85 @@ class SteamShortcuts {
   async list() {
     return (await this.accounts()).map(({ folder, ...account }) => account);
   }
+  read(account) {
+    const file = path.join(account.folder, 'shortcuts.vdf');
+    if (canonical(file).toLowerCase() !== file.toLowerCase())
+      throw new Error('The Steam shortcuts file points to another location.');
+    const exists = fs.existsSync(file);
+    if (exists && fs.statSync(file).size > 16_000_000)
+      throw new Error('The Steam shortcuts file is too large.');
+    const original = exists ? fs.readFileSync(file) : null;
+    const tree = original
+      ? decode(original)
+      : [{ type: 0, key: 'shortcuts', value: [] }];
+    if (tree.length !== 1 || tree[0].type !== 0 || tree[0].key !== 'shortcuts')
+      throw new Error('Unexpected Steam shortcuts structure.');
+    const entries = tree[0].value;
+    if (entries.some((node) => node.type !== 0 || !/^\d{1,9}$/.test(node.key)))
+      throw new Error('Unexpected Steam shortcut entries.');
+    return { file, exists, original, entries };
+  }
+  async write({ file, exists, original }, output) {
+    decode(output);
+    await this.closed();
+    if (
+      exists !== fs.existsSync(file) ||
+      (exists && !fs.readFileSync(file).equals(original))
+    )
+      throw new Error('Steam shortcuts changed during preparation. Try again.');
+    if (canonical(file).toLowerCase() !== file.toLowerCase())
+      throw new Error('Steam shortcut location changed.');
+    const suffix = crypto.randomUUID();
+    const backup = exists ? `${file}.loadstone-${suffix}.bak` : null;
+    const temporary = `${file}.loadstone-${suffix}.tmp`;
+    if (backup) fs.writeFileSync(backup, original, { flag: 'wx', flush: true });
+    try {
+      fs.writeFileSync(temporary, output, { flag: 'wx', flush: true });
+      if (exists) fs.renameSync(temporary, file);
+      else fs.copyFileSync(temporary, file, fs.constants.COPYFILE_EXCL);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
+    return backup;
+  }
+  async remove(job) {
+    if (!/^[a-f0-9-]{36}$/.test(job?.id) || job.status !== 'removed')
+      throw new Error('Only removed setups can clean up shortcuts.');
+    if (this.busy) throw new Error('Another Steam shortcut update is running.');
+    this.busy = true;
+    try {
+      const backups = [];
+      for (const account of await this.accounts()) {
+        const snapshot = this.read(account);
+        const kept = snapshot.entries.filter((node) => {
+          const tags = field(node.value, 'tags');
+          return !(
+            tags?.type === 0 &&
+            tags.value.some(
+              (tag) => tag.type === 1 && tag.value === `Loadstone:${job.id}`,
+            )
+          );
+        });
+        if (kept.length === snapshot.entries.length) continue;
+        await this.closed();
+        // Steam uses sequential indices; preserve every field and app ID.
+        const entries = kept.map((node, index) =>
+          node.key === String(index)
+            ? node
+            : { type: 0, key: String(index), value: node.value },
+        );
+        backups.push(
+          await this.write(
+            snapshot,
+            encode([{ type: 0, key: 'shortcuts', value: entries }]),
+          ),
+        );
+      }
+      return backups;
+    } finally {
+      this.busy = false;
+    }
+  }
   async create(job, accountId) {
     if (this.busy) throw new Error('Another Steam shortcut update is running.');
     this.busy = true;
@@ -76,27 +155,8 @@ class SteamShortcuts {
       );
       if (!account) throw new Error('Select an available local Steam account.');
       await this.closed();
-      const file = path.join(account.folder, 'shortcuts.vdf');
-      if (canonical(file).toLowerCase() !== file.toLowerCase())
-        throw new Error('The Steam shortcuts file points to another location.');
-      const exists = fs.existsSync(file);
-      if (exists && fs.statSync(file).size > 16_000_000)
-        throw new Error('The Steam shortcuts file is too large.');
-      const original = exists ? fs.readFileSync(file) : null;
-      const tree = original
-        ? decode(original)
-        : [{ type: 0, key: 'shortcuts', value: [] }];
-      if (
-        tree.length !== 1 ||
-        tree[0].type !== 0 ||
-        tree[0].key !== 'shortcuts'
-      )
-        throw new Error('Unexpected Steam shortcuts structure.');
-      const entries = tree[0].value;
-      if (
-        entries.some((node) => node.type !== 0 || !/^\d{1,9}$/.test(node.key))
-      )
-        throw new Error('Unexpected Steam shortcut entries.');
+      const snapshot = this.read(account);
+      const { entries } = snapshot;
       const marker = `Loadstone:${job.id}`,
         appname = `${job.name} — Loadstone`;
       const exe = quoteArgument(plan.executable);
@@ -171,29 +231,7 @@ class SteamShortcuts {
         ? entries.map((node) => (node === previous ? replacement : node))
         : [...entries, replacement];
       const output = encode([{ type: 0, key: 'shortcuts', value: updated }]);
-      decode(output);
-      await this.closed();
-      if (
-        exists !== fs.existsSync(file) ||
-        (exists && !fs.readFileSync(file).equals(original))
-      )
-        throw new Error(
-          'Steam shortcuts changed during preparation. Try again.',
-        );
-      if (canonical(file).toLowerCase() !== file.toLowerCase())
-        throw new Error('Steam shortcut location changed.');
-      const suffix = crypto.randomUUID();
-      const backup = exists ? `${file}.loadstone-${suffix}.bak` : null;
-      const temporary = `${file}.loadstone-${suffix}.tmp`;
-      if (backup)
-        fs.writeFileSync(backup, original, { flag: 'wx', flush: true });
-      try {
-        fs.writeFileSync(temporary, output, { flag: 'wx', flush: true });
-        if (exists) fs.renameSync(temporary, file);
-        else fs.copyFileSync(temporary, file, fs.constants.COPYFILE_EXCL);
-      } finally {
-        if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-      }
+      const backup = await this.write(snapshot, output);
       return {
         accountId,
         appid,
