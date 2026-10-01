@@ -39,6 +39,13 @@ async function fixture() {
     'dist/index.html',
   ])
     fs.writeFileSync(path.join(app, file), 'fixture');
+  fs.writeFileSync(
+    path.join(app, 'dist/frontend-notices.json'),
+    JSON.stringify({
+      schemaVersion: 1,
+      packages: [{ name: 'fixture', version: '1.0.0', notices: [] }],
+    }),
+  );
   await asar.createPackage(app, path.join(source, 'resources/app.asar'));
   for (const file of [
     'LICENSE.electron.txt',
@@ -49,7 +56,14 @@ async function fixture() {
   fs.writeFileSync(
     path.join(source, 'resources/notices/dependencies.json'),
     JSON.stringify({
-      packages: [{ name: 'fixture' }],
+      packages: [
+        {
+          name: 'fixture',
+          version: '1.0.0',
+          scopes: ['renderer-bundle'],
+          notices: [],
+        },
+      ],
       missingLicenseTexts: ['fixture-gap'],
     }),
   );
@@ -100,4 +114,17 @@ test('depot staging rejects missing notices, wrong architecture, nested output a
   fs.unlinkSync(path.join(other.source, 'LICENSE.electron.txt'));
   await assert.rejects(stagePackage(other.source, other.destination));
   assert.equal(fs.existsSync(other.destination), false);
+});
+
+test('depot rejects a renderer dependency omitted from shipped attribution', async () => {
+  const h = await fixture();
+  const file = path.join(h.source, 'resources/notices/dependencies.json');
+  const notices = JSON.parse(fs.readFileSync(file, 'utf8'));
+  notices.packages[0].name = 'unrelated';
+  fs.writeFileSync(file, JSON.stringify(notices));
+  await assert.rejects(
+    stagePackage(h.source, h.destination),
+    /absent from shipped notices/,
+  );
+  assert.equal(fs.existsSync(h.destination), false);
 });

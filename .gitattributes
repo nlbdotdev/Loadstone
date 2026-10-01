@@ -3,3 +3,5 @@ notices/*.txt text eol=lf
 notices/*.json text eol=lf
 *.png binary
 *.ico binary
+# Preserve upstream license formatting verbatim.
+notices/THIRD-PARTY.txt whitespace=-blank-at-eol

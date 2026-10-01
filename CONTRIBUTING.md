@@ -30,7 +30,7 @@ pnpm notices
 pnpm package
 ```
 
-Notice generation reads the installed production graph and Electron license. Review changes to `notices/` before committing. Packaging includes that directory in application resources and retains Electron/Chromium notices. The current portable package is unsigned; it is not the Steam depot build. See [the acceptance plan](docs/1.0-plan.md) and [publication checklist](docs/open-source.md).
+Notice generation first builds the UI, then combines rendered dependency modules, generated Vite runtime attribution, the installed main-process production graph and the Electron license. Frontend packages are development dependencies because their runtime code is bundled; their notices still ship. The bundle provenance file carries original license texts without machine paths. Review changes to `notices/` before committing. Packaging includes that directory in application resources and retains Electron/Chromium notices. The current portable package is unsigned; it is not the Steam depot build. See [the acceptance plan](docs/1.0-plan.md) and [publication checklist](docs/open-source.md).
 
 Do not treat a passing fixture suite as completion of install-to-play acceptance. Record the exact game, list, engine and application versions for real release validation.
 

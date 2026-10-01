@@ -103,6 +103,40 @@ export function inspectPackage(content) {
     !Array.isArray(notices.missingLicenseTexts)
   )
     throw new Error('Invalid dependency notice inventory.');
+  const frontend = JSON.parse(
+    asar.extractFile(archive, 'dist/frontend-notices.json').toString(),
+  );
+  if (
+    frontend.schemaVersion !== 1 ||
+    !Array.isArray(frontend.packages) ||
+    !frontend.packages.length
+  )
+    throw new Error('Invalid renderer notice provenance.');
+  for (const dependency of frontend.packages) {
+    const recorded = notices.packages.find(
+      (item) =>
+        item.name === dependency.name && item.version === dependency.version,
+    );
+    if (
+      !recorded?.scopes?.includes('renderer-bundle') ||
+      !Array.isArray(dependency.notices)
+    )
+      throw new Error('Renderer dependency is absent from shipped notices.');
+    for (const notice of dependency.notices) {
+      const digest = crypto
+        .createHash('sha256')
+        .update(notice.text)
+        .digest('hex');
+      if (
+        !recorded.notices?.some(
+          (item) => item.file === notice.name && item.sha256 === digest,
+        )
+      )
+        throw new Error(
+          'Renderer license text differs from shipped notice inventory.',
+        );
+    }
+  }
   return {
     version: metadata.version,
     license: metadata.license,
