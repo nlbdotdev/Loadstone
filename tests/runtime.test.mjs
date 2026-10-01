@@ -82,6 +82,7 @@ test(
     assert.equal((await runtime.verify()).status, 'ready');
     assert.equal(runtime.status().version, PIN.version);
     await runtime.gameLocations();
+    await runtime.gameLocations();
     assert.equal(
       (await runtime.verify()).status,
       'ready',

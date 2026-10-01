@@ -27,7 +27,7 @@ test('numbered CLI logs are sanitized, oversized logs bounded, and unrelated fil
   const root = folder(),
     logs = path.join(root, 'logs');
   fs.mkdirSync(logs);
-  fs.writeFileSync(path.join(logs, 'wabbajack-cli.1000.log'), 'synthetic-key');
+  fs.writeFileSync(path.join(logs, 'wabbajack-cli_1000.log'), 'synthetic-key');
   fs.writeFileSync(
     path.join(logs, 'wabbajack-cli.current.log'),
     Buffer.alloc(10_000_001, 65),
@@ -35,7 +35,7 @@ test('numbered CLI logs are sanitized, oversized logs bounded, and unrelated fil
   fs.writeFileSync(path.join(logs, 'other.log'), 'untouched');
   sanitizeLogs(root, 'synthetic-key');
   assert.equal(
-    fs.readFileSync(path.join(logs, 'wabbajack-cli.1000.log'), 'utf8'),
+    fs.readFileSync(path.join(logs, 'wabbajack-cli_1000.log'), 'utf8'),
     '[redacted]',
   );
   assert.match(

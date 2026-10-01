@@ -22,7 +22,7 @@ function redact(line, secret = '') {
 }
 
 function isRuntimeLog(relative) {
-  return /^logs\/wabbajack-cli\.(?:current|[0-9]+)\.log$/i.test(relative);
+  return /^logs\/wabbajack-cli(?:\.current|\.[0-9]+|_[0-9]+)\.log$/i.test(relative);
 }
 function sanitizeLogs(root, key) {
   const logs = path.join(root, 'logs');
