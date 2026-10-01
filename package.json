@@ -15,7 +15,7 @@
     "package": "pnpm build && electron-builder --win portable --x64"
   },
   "dependencies": {
-    "lucide-svelte": "^0.468.0",
+    "@lucide/svelte": "^1.0.0",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
@@ -35,6 +35,5 @@
     "files": ["dist/**/*", "electron/**/*", "package.json"],
     "win": { "target": "portable", "icon": "build/icon.ico", "signAndEditExecutable": false },
     "portable": { "artifactName": "Loadstone-${version}-Windows.exe" }
-  },
-  "pnpm": { "onlyBuiltDependencies": ["electron", "esbuild"] }
+  }
 }
