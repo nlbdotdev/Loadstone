@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -18,6 +19,63 @@ const fingerprint = (data) => ({
   bytes: data.length,
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
+
+test(
+  'single-pass solid 7z hashing preserves file boundaries and rejects mismatched framing',
+  { skip: !executable || typeof zlib.crc32 !== 'function' },
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-solid-'));
+    const input = path.join(root, 'input');
+    fs.mkdirSync(input);
+    const files = new Map();
+    for (let i = 0; i < 180; i++) {
+      const name = `${String(i).padStart(3, '0')}-${i % 2 ? 'ü' : 'sample'}.bin`;
+      const data = Buffer.alloc(i % 17 === 0 ? 0 : 32000 + i * 257, i);
+      files.set(name, data);
+      fs.writeFileSync(path.join(input, name), data);
+    }
+    const archive = path.join(root, 'solid.7z');
+    execFileSync(executable, ['a', '-t7z', '-ms=on', '--', archive, '.'], {
+      cwd: input,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    const adapter = await createSevenZip(executable),
+      candidate = { archive, ...fingerprint(fs.readFileSync(archive)) };
+    assert.equal(adapter.batch7z, true);
+    const inspected = await adapter.inspect(candidate);
+    const wanted = new Set(
+      [...files.values()].map((data) => {
+        const f = fingerprint(data);
+        return `${f.bytes}:${f.sha256}`;
+      }),
+    );
+    const mapped = await adapter.hashArchive(candidate, inspected, wanted);
+    for (const [name, data] of files) {
+      const f = fingerprint(data);
+      assert.ok(mapped.get(`${f.bytes}:${f.sha256}`).includes(name));
+    }
+    const sample = inspected.entries.find((v) => v.bytes > 0);
+    const single = await adapter.hashMember(candidate, inspected, sample);
+    assert.ok(mapped.get(single).includes(sample.name));
+    const bad = structuredClone(inspected);
+    bad.entries.find((v) => v.bytes > 0).crc32 = '00000000';
+    await assert.rejects(
+      adapter.hashArchive(candidate, bad, wanted),
+      /boundary checksum/,
+    );
+    const controller = new AbortController();
+    const pending = adapter.hashArchive(
+      candidate,
+      inspected,
+      wanted,
+      controller.signal,
+    );
+    controller.abort();
+    await assert.rejects(pending, { name: 'AbortError' });
+    assert.deepEqual(fs.readdirSync(root).sort(), ['input', 'solid.7z']);
+  },
+);
 
 test('archive listing rejects unsafe names, links, collisions, encryption and ambiguous metadata', () => {
   const record = (name, extra = '') =>

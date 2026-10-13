@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { crc32 } = require('node:zlib');
 const { spawn } = require('node:child_process');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
@@ -113,7 +114,16 @@ function parseListing(text) {
     if (directory && bytes !== 0)
       throw new Error('Invalid archive directory size.');
     paths.set(name.toLowerCase(), directory ? 'directory' : 'file');
-    entries.push({ name, selector: raw, bytes, directory });
+    const crc = fields.get('CRC');
+    if (crc && !/^[a-f0-9]{8}$/i.test(crc))
+      throw new Error('Invalid archive member checksum.');
+    entries.push({
+      name,
+      selector: raw,
+      bytes,
+      directory,
+      ...(crc ? { crc32: crc.toLowerCase() } : {}),
+    });
     total += bytes;
     if (entries.length > 500000 || total > 100_000_000_000)
       throw new Error('Archive inventory exceeds limits.');
@@ -278,7 +288,116 @@ async function createSevenZip(executable, { signal } = {}) {
       );
     return `${count}:${hash.digest('hex')}`;
   }
-  return { version: `${version[1]}.${version[2]}`, inspect, hashMember };
+  async function hashArchive(candidate, inspected, wanted, operationSignal) {
+    guard();
+    // Listing and extraction use ascending archive item indices in 26.04.
+    // CRC checks at every boundary additionally reject wrong byte framing.
+    if (
+      version[1] !== '26' ||
+      version[2] !== '04' ||
+      typeof crc32 !== 'function' ||
+      path.extname(candidate.archive).toLowerCase() !== '.7z'
+    )
+      throw new Error(
+        'Single-pass inspection is not verified for this tool or format.',
+      );
+    const files = inspected.entries.filter((v) => !v.directory);
+    const total = files.reduce((sum, v) => sum + v.bytes, 0);
+    if (total > 20_000_000_000 || files.some((v) => v.bytes > 0 && !v.crc32))
+      throw new Error(
+        'Single-pass inspection requires bounded content and per-file checksums.',
+      );
+    if (
+      !sameFile(
+        inspected.snapshot,
+        ordinaryFile(candidate.archive, 50_000_000_000),
+      )
+    )
+      throw new Error('Archive changed before reading.');
+    const sizes = new Set([...wanted].map((v) => Number(v.split(':')[0]))),
+      matches = new Map();
+    let index = 0,
+      remaining = files[0]?.bytes || 0,
+      checksum = 0;
+    let hash =
+      files[0] && sizes.has(files[0].bytes)
+        ? crypto.createHash('sha256')
+        : null;
+    function finish() {
+      const entry = files[index];
+      if (entry.crc32 && checksum.toString(16).padStart(8, '0') !== entry.crc32)
+        throw new Error(
+          'Archive stream boundary checksum differs from its listing.',
+        );
+      if (hash) {
+        const identity = `${entry.bytes}:${hash.digest('hex')}`;
+        if (wanted.has(identity)) {
+          const names = matches.get(identity) || [];
+          names.push(entry.name);
+          if (names.length > 128)
+            throw new Error('Too many equivalent archive members.');
+          matches.set(identity, names);
+        }
+      }
+      index++;
+      remaining = files[index]?.bytes || 0;
+      checksum = 0;
+      hash =
+        files[index] && sizes.has(files[index].bytes)
+          ? crypto.createHash('sha256')
+          : null;
+    }
+    function emptyFiles() {
+      while (index < files.length && remaining === 0) finish();
+    }
+    emptyFiles();
+    const count = await runTool(
+      executable,
+      ['x', '-so', '-bd', '-y', '-p-', '--', candidate.archive],
+      {
+        signal: operationSignal,
+        maxBytes: total,
+        timeoutMs: 300000,
+        consume: (chunk) => {
+          let offset = 0;
+          while (offset < chunk.length) {
+            if (index >= files.length)
+              throw new Error(
+                'Unexpected bytes after the final archive member.',
+              );
+            const size = Math.min(remaining, chunk.length - offset),
+              part = chunk.subarray(offset, offset + size);
+            checksum = crc32(part, checksum);
+            hash?.update(part);
+            remaining -= size;
+            offset += size;
+            if (remaining === 0) {
+              finish();
+              emptyFiles();
+            }
+          }
+        },
+      },
+    );
+    if (
+      count !== total ||
+      index !== files.length ||
+      !sameFile(
+        inspected.snapshot,
+        ordinaryFile(candidate.archive, 50_000_000_000),
+      )
+    )
+      throw new Error('Archive stream is incomplete or its input changed.');
+    return matches;
+  }
+  return {
+    version: `${version[1]}.${version[2]}`,
+    inspect,
+    hashMember,
+    hashArchive,
+    batch7z:
+      version[1] === '26' && version[2] === '04' && typeof crc32 === 'function',
+  };
 }
 
 async function inspectSevenZipMembers(candidate, wanted, adapter, signal) {
@@ -291,13 +410,23 @@ async function inspectSevenZipMembers(candidate, wanted, adapter, signal) {
   const selected = inspected.entries.filter(
     (entry) => !entry.directory && sizes.has(entry.bytes),
   );
+  if (!selected.length) return new Map();
+  const batch =
+    adapter.batch7z &&
+    path.extname(candidate.archive).toLowerCase() === '.7z' &&
+    inspected.entries.every(
+      (entry) => entry.directory || entry.bytes === 0 || entry.crc32,
+    ) &&
+    inspected.entries.reduce((total, entry) => total + entry.bytes, 0) <=
+      20_000_000_000;
   if (
-    selected.length > 10000 ||
+    selected.length > (batch ? 100000 : 10000) ||
     selected.reduce((total, entry) => total + entry.bytes, 0) >
       20_000_000_000 ||
     selected.some((entry) => entry.bytes > 1_000_000_000)
   )
     throw new Error('Archive member hashing exceeds limits.');
+  if (batch) return adapter.hashArchive(candidate, inspected, wanted, signal);
   let scanned = 0,
     count = 0;
   for (const entry of selected) {
