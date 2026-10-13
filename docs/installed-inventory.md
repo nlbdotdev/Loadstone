@@ -1,0 +1,50 @@
+# Installed-setup inventory and native format direction
+
+This work uses the selected profiles of the user's installed setups as the source of truth. Original modlist archives are source hints, not authoritative descriptions of the current installation. No live profile, mod, game, save or shortcut is modified by inventory.
+
+## Read-only inventory
+
+```powershell
+node scripts/inspect-mo2.mjs <portable-instance> <new-local-report.json>
+node scripts/inspect-mo2.mjs <portable-instance> <new-local-report.json> --hash-files
+```
+
+Keep reports under ignored `test-results/` or another private local directory. They contain personal paths and local filenames and must not be committed or published. The CLI refuses to replace a report. It reads the selected MO2 profile, resolves configured mod/profile locations, preserves the profile's recorded priority, inventories enabled mod directories and overwrite, and hashes profile files plus the installed loose plugin winning each conflict. Known source fields from `meta.ini` are hints only; other fields are excluded.
+
+Default file inventories record size and modification time. `--hash-files` additionally hashes every enabled-mod and overwrite file. Neither mode is an atomic filesystem snapshot. File hashing rejects a file that changes while being read, and profile/configuration hashes are rechecked at the end. Stop active modding or gameplay before producing release evidence. Symlinks/junctions, ambiguous INI fields, duplicate mod entries and traversal names are rejected. Missing enabled mods/plugins are reported explicitly, not called a successful installation.
+
+The report is **not installable and not publication-approved**. It does not establish archive contents/conflict resolution, full game-directory equivalence, runtime compatibility, source-download reproducibility or redistribution rights. Saves are not read from the profile. No network request or program launch is required to inspect an instance.
+
+## Native `.loadstone` format
+
+The user chose a documented format and open implementation on 2026-10-13. This is Loadstone's native format, not an opaque replacement for upstream archives. The implementation and specification will be developed together from the real inventories. The project license remains a separate maintainer decision.
+
+The target is a versioned, bounded container with a canonical recipe, source lock and content hashes. It must describe:
+
+- Game/storefront/DLC requirements and exact accepted source hashes; TTW requires both owned games while running through the New Vegas engine.
+- Mod priority, enabled and disabled state, plugin order, archive behavior, loose-file overrides, root files and generated output.
+- Source URLs/provider file IDs and original archive hashes; an installed version string alone cannot identify a reproducible download.
+- Differences between original archives and installed files, including locally edited INIs, generated LOD, compatibility patches, custom assets and menu-music transformations.
+- Typed, bounded local reconstruction operations. No arbitrary shell recipes or remote scripts.
+- A rights record for each payload: original source download, local owned-game input, redistributable content with evidence, or unresolved. Unresolved records block publication of the affected payload.
+- Save compatibility, provenance, attribution and exact tested application/list/game versions.
+
+A public list recipe must exclude personal machine paths, accounts, saves and raw logs. Source hashes and dependency references can describe a setup without uploading its game/mod payload. Any bundled files need separately established distribution rights. Local custom menu music built from owned game themes must be reconstructed locally or replaced with permitted material, not assumed redistributable.
+
+## Compatibility and hosting boundaries
+
+Wabbajack remains an external installation adapter. Native MO2 inspection is implemented here; import/compile/reconstruction are separate steps. Nexus collection compatibility requires study of the actual supported export/API format and applicable permissions before claiming support. Do not call every Nexus mod or arbitrary MO2 directory a directly installable Loadstone list.
+
+GOG states that games are for personal use; DRM-free does not grant distribution rights. A paid storage service is therefore an architecture candidate for authorized assets and permitted backup scenarios, not an entitlement to serve common game mirrors. Evaluate Backblaze B2/AWS or alternatives after defining the rights, retention, encryption and cost model. No hosting subscription or paid infrastructure has been created. Sources: [GOG sharing guidance](https://support.gog.com/hc/en-us/articles/212184489-Can-I-share-games-with-others?product=gog), [Nexus API policy](https://help.nexusmods.com/article/114-api-acceptable-use-policy), [Wabbajack compilation guidance](https://wiki.wabbajack.org/modlist_author_documentation/Pre-Compilation.html).
+
+## First live inventory findings (2026-10-13)
+
+| Candidate | Selected installed profile | Enabled mods | Plugin entries | Enabled-mod files | Overwrite files |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Combined TTW | Tale of Two Wastelands | 95 | 35 | 12,314 | 0 |
+| FO3 Remastered | Fallout 3 Remastered | 88 | 30 | 8,982 | 0 |
+| FNV Revamped | Viva New Vegas Extended | 196 | 82 | 93,106 | 207 |
+
+These are inventory observations, not release or gameplay certification. All three had their enabled mod directories and listed loose plugins present. The two TTW instances point at their own isolated game folders; the customized New Vegas profile points at the installed Steam game. New Vegas retains enabled local prototypes and generated output, so publishing it faithfully requires reviewing those actual files rather than substituting the upstream VNV recipe.
+
+Source-ID coverage is incomplete: 82/95 combined TTW mods, 78/88 FO3 Remastered mods and 144/196 New Vegas mods carry a nonzero Nexus mod ID in their local metadata. Even those IDs do not establish exact download file IDs, original archive hashes, unchanged installed bytes, compatibility or redistribution rights. Establish an explicit source/transform/permission ledger before producing featured installable packs.
