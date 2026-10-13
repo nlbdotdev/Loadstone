@@ -245,6 +245,7 @@ class NativeBuilder {
         ),
         outputs: inspected.summary.outputs,
         installBytes: inspected.summary.installBytes,
+        generatedConfigurations: inspected.summary.generatedConfigurations,
         requiredGames: inspected.summary.requiredGames,
         prerequisites: inspected.summary.prerequisites,
         archiveCount: Object.keys(inputs.archives).length,

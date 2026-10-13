@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const { configBytes } = require('./native-mo2-config.cjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const yauzl = require('yauzl');
@@ -135,7 +136,13 @@ async function inspectNativePackage(file) {
     summary: {
       sources: recipe.sources.length,
       outputs: recipe.outputs.length,
-      installBytes: recipe.outputs.reduce((n, v) => n + v.bytes, 0),
+      installBytes: recipe.outputs.reduce(
+        (n, v) => n + (v.action.type === 'mo2-config' ? configBytes : v.bytes),
+        0,
+      ),
+      generatedConfigurations: recipe.outputs.filter(
+        (v) => v.action.type === 'mo2-config',
+      ).length,
       payloadBytes,
       requiredGames: recipe.requirements.map((v) => v.id),
       prerequisites: (recipe.prerequisites || []).map((v) => ({

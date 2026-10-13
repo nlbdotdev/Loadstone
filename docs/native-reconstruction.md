@@ -1,6 +1,6 @@
 # Experimental native reconstruction
 
-The native materializer creates the exact outputs of a validated `.loadstone` recipe from local owned-game files, local prerequisites, pre-downloaded ZIP/7z/RAR archives and permitted bundled payloads. This is developer/creator tooling, available through the CLI and Settings, separate from the playable library. It does not yet download sources, perform TTW conversion, apply transforms, rebase MO2 configuration, launch a game or create shortcuts. Do not advertise a playable featured list from a fixture result.
+The native materializer creates the exact outputs of a validated `.loadstone` recipe from local owned-game files, local prerequisites, pre-downloaded ZIP/7z/RAR archives and permitted bundled payloads. It can also [generate bounded MO2 configuration](native-mo2-configuration.md) for the new destination. This is developer/creator tooling, available through the CLI and Settings, separate from the playable library. It does not yet download sources, perform TTW conversion, apply arbitrary transforms, migrate all profile/tool settings, launch a game or create shortcuts. Do not advertise a playable featured list from a fixture result.
 
 ## Desktop creator workflow
 
@@ -41,7 +41,7 @@ All requirements and archive hashes are checked before creating the installation
 
 Destinations cannot overlap selected game inputs, source archive/package folders, the selected tool directory, the application, system folders or additional protected roots supplied by the caller. Redirected directories and existing destinations are rejected. Directory creation is exclusive; output files use exclusive creation. The materializer never modifies source game files or downloads, executes archive content or writes save paths.
 
-Each output stream is bounded and hashed, then all final files are re-hashed before success. The new directory contains `.loadstone-recipe.json` and `.loadstone-native.json`. The receipt records the recipe fingerprint, progress and one of `materializing`, `verified`, `failed` or `cancelled`. `verified` means reconstructed bytes matched the recipe; `launchVerified` remains false.
+Each output stream is bounded and hashed, then all final files are re-hashed before success. Static outputs use recipe fingerprints; generated MO2 configuration uses the destination-specific fingerprint computed before writing. The new directory contains `.loadstone-recipe.json` and `.loadstone-native.json`. The receipt records the recipe fingerprint, generated-configuration fingerprints when present, progress and one of `materializing`, `verified`, `failed` or `cancelled`. `verified` means reconstructed bytes matched the static or derived expectations; `launchVerified` remains false.
 
 Cancellation or failure retains the newly created directory and receipt for diagnosis. An existing or partial destination cannot be reused automatically. The writer does not recursively delete failed setups. A hard process kill may leave a `materializing` receipt and an incomplete file; automatic resume/repair is not implemented. Desktop history marks such a build interrupted after restart.
 
@@ -49,4 +49,4 @@ These checks supplement standard Windows access controls; they are not a sandbox
 
 ## Acceptance remaining
 
-Integrate source resolution/downloads, conversion, typed configuration transforms, partial-build repair and ownership-aware maintenance. Creator reconstruction is exercised through real Electron with original synthetic ZIP, solid 7z and stored RAR5 inputs, including cancellation, failed writes and tool replacement. The RAR5 fixture is generated from the [published format](https://www.rarlab.com/technote.htm), without third-party archive contents or encoder code. Clean-machine installation and gameplay acceptance remain unfinished. The separate package inspection card stays read-only.
+Integrate source resolution/downloads, conversion, profile/tool configuration reconstruction, partial-build repair and ownership-aware maintenance. Creator reconstruction is exercised through real Electron with original synthetic ZIP, solid 7z and stored RAR5 inputs, including cancellation, failed writes and tool replacement. The RAR5 fixture is generated from the [published format](https://www.rarlab.com/technote.htm), without third-party archive contents or encoder code. Clean-machine installation and gameplay acceptance remain unfinished. The separate package inspection card stays read-only.

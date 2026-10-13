@@ -122,6 +122,7 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface NativePackageSummary {
+  generatedConfigurations: number;
   name: string;
   version: string;
   author: string;
@@ -247,6 +248,7 @@ declare global {
 }
 
 export interface NativeBuildPlan {
+  generatedConfigurations: number;
   id: string;
   name: string;
   version: string;

@@ -1,4 +1,5 @@
 const { relativeFile } = require('./manifest.cjs');
+const { configBytes, validateMo2Config } = require('./native-mo2-config.cjs');
 
 const limits = Object.freeze({
   recipeBytes: 64_000_000,
@@ -304,6 +305,11 @@ function validateRecipe(value) {
     used = new Set();
   let installBytes = 0;
   for (const output of value.outputs) {
+    if (output.action?.type === 'mo2-config') {
+      validateMo2Config(output, value);
+      installBytes += configBytes;
+      continue;
+    }
     shape(output, ['path', 'sha256', 'bytes', 'action']);
     fingerprint(output);
     demand(

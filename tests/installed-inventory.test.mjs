@@ -20,7 +20,7 @@ function fixture() {
   const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
   write(
     'ModOrganizer.ini',
-    '[General]\ngameName=TTW\nselected_profile=@ByteArray(Actual profile)\ngamePath=Game\n',
+    '[General]\ngameName=TTW\nselected_profile=@ByteArray(Actual profile)\ngamePath=Game\nwindow_state=@ByteArray(\\xff)\n',
   );
   write(
     'profiles/Actual profile/modlist.txt',
@@ -130,19 +130,27 @@ test('configured external MO2 folders determine winners and are protected from r
   }
   f.write(
     'ModOrganizer.ini',
-    `[General]\ngameName=TTW\nselected_profile=Actual profile\ngamePath=Game\n[Settings]\nbase_directory=${external.replaceAll('\\', '/')}\nmods_directory=%BASE_DIR%/mods\nprofiles_directory=%BASE_DIR%/profiles\noverwrite_directory=%BASE_DIR%/overwrite\n`,
+    `[General]\ngameName=TTW\nselected_profile=Actual profile\ngamePath=Game\n[Settings]\nbase_directory=${external.replaceAll('\\', '/')}\nmod_directory=%BASE_DIR%/custom-mods\nprofiles_directory=%BASE_DIR%/profiles\noverwrite_directory=%BASE_DIR%/overwrite\n`,
+  );
+  fs.cpSync(path.join(external, 'mods'), path.join(external, 'custom-mods'), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(external, 'custom-mods/High/Test.esp'),
+    'custom mod bytes',
   );
   fs.writeFileSync(
     path.join(external, 'overwrite/Test.esp'),
     'external winner',
   );
   const report = await inspectMo2(f.root, { hashFiles: true });
+  assert.equal(report.source.modsFolder, path.join(external, 'custom-mods'));
   assert.equal(report.plugins[1].winner, 'overwrite');
   assert.equal(
     report.overwrite[0].sha256,
     crypto.createHash('sha256').update('external winner').digest('hex'),
   );
-  for (const folder of ['mods', 'profiles', 'overwrite']) {
+  for (const folder of ['custom-mods', 'profiles', 'overwrite']) {
     const output = path.join(external, folder, 'inventory.json');
     const result = spawnSync(
       process.execPath,

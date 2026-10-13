@@ -10,8 +10,8 @@ const require = createRequire(import.meta.url);
 const { NativeBuilder } = require('../electron/native-builder.cjs');
 const { currentActivity } = require('../electron/close-guard.cjs');
 
-async function fixture(prerequisite = false) {
-  const f = createNativeFixture({ prerequisite });
+async function fixture(prerequisite = false, mo2Config = false) {
+  const f = createNativeFixture({ prerequisite, mo2Config });
   f.game = path.join(f.root, 'owned');
   f.packages = path.join(f.root, 'packages');
   f.parent = path.join(f.root, 'candidates');
@@ -155,7 +155,7 @@ test(
   'real Electron reviews and reconstructs a local candidate with durable status and no playable library entry',
   { timeout: 60000 },
   async () => {
-    const f = await fixture(true);
+    const f = await fixture(true, true);
     const env = { ...process.env, LOADSTONE_DATA_DIR: f.state };
     delete env.ELECTRON_RUN_AS_NODE;
     const options = {
@@ -191,6 +191,10 @@ test(
       const review = page.getByRole('region', { name: 'Review native build' });
       await review.waitFor();
       assert.match(await review.textContent(), /Fixture prerequisite 1/);
+      assert.match(
+        await review.textContent(),
+        /MO2 configuration will be generated/,
+      );
       await review
         .getByRole('button', { name: 'Build candidate', exact: true })
         .click();
@@ -200,6 +204,21 @@ test(
       const jobs = await page.evaluate(() => window.loadstone.nativeBuilds());
       assert.equal(jobs.length, 1);
       assert.equal(jobs[0].status, 'verified');
+      const config = fs.readFileSync(
+        path.join(jobs[0].destination, 'ModOrganizer.ini'),
+        'utf8',
+      );
+      assert.ok(
+        config.includes(
+          jobs[0].destination.replaceAll('\\', '/') + '/Game/FalloutNV.exe',
+        ),
+      );
+      const receipt = JSON.parse(
+        fs.readFileSync(
+          path.join(jobs[0].destination, '.loadstone-native.json'),
+        ),
+      );
+      assert.equal(receipt.generatedConfigurations[0].path, 'ModOrganizer.ini');
       assert.equal(
         fs.readFileSync(
           path.join(jobs[0].destination, 'mods/Support/support.bin'),
