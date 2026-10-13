@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import asar from '@electron/asar';
+import { finished } from 'node:stream/promises';
 import {
   stagePackage,
   verifyKit,
@@ -46,7 +47,13 @@ async function fixture() {
       packages: [{ name: 'fixture', version: '1.0.0', notices: [] }],
     }),
   );
-  await asar.createPackage(app, path.join(source, 'resources/app.asar'));
+  // ASAR 3.4 returns the writer after end(), before its final writes finish.
+  // A fixture reader must wait for those bytes instead of racing the stream.
+  const archiveWriter = await asar.createPackage(
+    app,
+    path.join(source, 'resources/app.asar'),
+  );
+  await finished(archiveWriter, { cleanup: true });
   for (const file of [
     'LICENSE.electron.txt',
     'LICENSES.chromium.html',
