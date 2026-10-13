@@ -161,7 +161,9 @@ class NativeMaintenance {
   locate(id) {
     const entry = this.library.record(id);
     demand(
-      ['installed', 'removing', 'removal-failed'].includes(entry.status),
+      ['installed', 'repair-failed', 'removing', 'removal-failed'].includes(
+        entry.status,
+      ),
       'This native setup cannot be removed in its current state.',
     );
     const recovery = `${entry.root}.loadstone-recovery-${entry.id}`;
@@ -172,7 +174,7 @@ class NativeMaintenance {
       'Both native candidate and recovery folders exist. Resolve the conflict before removal.',
     );
     demand(
-      entry.status !== 'installed' || !recoveryExists,
+      !['installed', 'repair-failed'].includes(entry.status) || !recoveryExists,
       'The native recovery folder already exists. It was left unchanged.',
     );
     const root = !originalExists && recoveryExists ? recovery : entry.root;
@@ -388,4 +390,4 @@ class NativeMaintenance {
     }
   }
 }
-module.exports = { NativeMaintenance, scanNativeRemoval };
+module.exports = { NativeMaintenance, scanNativeRemoval, preserve };

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import SteamShortcut from './SteamShortcut.svelte';
   import type { NativeLibraryState, NativeLibraryPlan } from './types';
+  let { onrepair }: { onrepair?: () => void } = $props();
   let libraryState = $state<NativeLibraryState>({
     entries: [],
     busy: false,
@@ -85,6 +86,9 @@
           inventory: 'Scanning candidate entries',
           'removal-review': 'Reviewing removal',
           removal: 'Processing reviewed files',
+          'repair-review': 'Reviewing repair files',
+          'repair-downloads': 'Acquiring repair archives',
+          repair: 'Repairing and verifying files',
         }[libraryState.progress.phase || 'verification']}:
         {libraryState.progress.completed.toLocaleString()}
         {#if libraryState.progress.total}
@@ -99,9 +103,11 @@
       <button
         class="secondary"
         onclick={() => window.loadstone.cancelNativeVerification()}
-        >{libraryState.progress.phase === 'removal'
-          ? 'Stop removal'
-          : 'Cancel verification'}</button
+        >{libraryState.progress.phase?.startsWith('repair')
+          ? 'Stop repair'
+          : libraryState.progress.phase === 'removal'
+            ? 'Stop removal'
+            : 'Cancel verification'}</button
       >
     </div>
   {/if}
@@ -161,6 +167,34 @@
       {#if entry.maintenanceError}<p class="error">
           {entry.maintenanceError}
         </p>{/if}
+      {#if entry.repair}
+        <p role="status">
+          {entry.repair.completedAt
+            ? 'Repair completed. Recipe replacements and retained personal files were verified.'
+            : entry.status === 'repairing'
+              ? 'Repair in progress. Launch is disabled.'
+              : 'Repair is incomplete. Review again to continue.'}
+        </p>
+        <p class="path">Repair copies: {entry.root}/{entry.repair.directory}</p>
+        {#if entry.repair.completedAt}<p>
+            {entry.repair.preserved.toLocaleString()} changed personal files preserved.
+            A strict recipe comparison may still report these differences.
+          </p>{/if}
+      {/if}
+      {#if ['installed', 'repair-failed'].includes(entry.status)}
+        <button
+          class="secondary"
+          disabled={locked}
+          onclick={() =>
+            action(async () => {
+              if (await window.loadstone.repairNativeSetup(entry.id))
+                onrepair?.();
+            })}
+          >{entry.status === 'repair-failed'
+            ? 'Review repair again'
+            : 'Repair native setup'}</button
+        >
+      {/if}
       {#if entry.status === 'installed'}
         <p>
           Profile {entry.profile} · {entry.fileCount.toLocaleString()} recipe outputs
@@ -227,13 +261,13 @@
           {/if}
         {/if}
       {/if}
-      {#if entry.status !== 'removed'}
+      {#if !['removed', 'repairing'].includes(entry.status)}
         <button
           class="secondary"
           disabled={locked}
           onclick={() => action(() => window.loadstone.removeNative(entry.id))}
         >
-          {entry.status === 'installed'
+          {['installed', 'repair-failed'].includes(entry.status)
             ? 'Remove native setup'
             : 'Resume native removal'}
         </button>

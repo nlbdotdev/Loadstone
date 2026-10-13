@@ -437,7 +437,9 @@
             </div>
           </div>
           {#if !appState.settings.dummyData}
-            <NativeInstall onstarted={() => navigate('downloads')} />
+            <NativeInstall
+              onstarted={(repair) => navigate(repair ? 'library' : 'downloads')}
+            />
             <LiveCatalog onstarted={() => navigate('downloads')} />
           {:else}
             <div class="filter-row">
@@ -632,7 +634,7 @@
               </div>{/if}
           {/if}
         {:else if page === 'library' && !appState.settings.dummyData}
-          <NativeLibrary />
+          <NativeLibrary onrepair={() => navigate('discover')} />
           <LiveJobs library />
         {:else if page === 'downloads' && !appState.settings.dummyData}
           <NativeBuilds

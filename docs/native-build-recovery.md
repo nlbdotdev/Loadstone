@@ -24,4 +24,4 @@ History remains schema 1, with no saved source map or recovery plan. External hi
 
 Destination free-space checks count outputs still needing reconstruction plus recipe metadata and the normal reserve. Existing matching outputs and retained same-volume copies are not charged as a complete second installation. All final outputs are rehashed before success. These checks supplement Windows access controls; they are not a sandbox against an actively hostile process racing filesystem changes.
 
-This workflow is available through the desktop builder. The local CLI still requires a new destination. Native library repair/update, clean-machine install-to-play, game/save compatibility and actual Steam-client acceptance remain separate work.
+This workflow is available through the desktop builder. The local CLI still requires a new destination. Native library updates, clean-machine install-to-play, game/save compatibility and actual Steam-client acceptance remain separate work.

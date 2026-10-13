@@ -61,6 +61,12 @@ class NativeGuide {
       })),
       parent: d.parent,
       resumeId: d.resumeId || null,
+      repair: d.repair
+        ? {
+            ...d.repair,
+            restoreConfiguration: this.builder.restoreConfiguration,
+          }
+        : null,
       ready:
         recipe.requirements.every((v) => Boolean(d.inputs.games[v.id])) &&
         (recipe.prerequisites || []).every((v) =>
@@ -93,6 +99,9 @@ class NativeGuide {
       )
         throw new Error('Choose a .loadstone package.');
       const inspected = await inspectNativePackage(file);
+      const repair = this.options.repair?.();
+      if (repair && repair.recipeSha256 !== inspected.recipeSha256)
+        throw new Error('Repair requires the exact registered recipe.');
       if (job && job.recipeSha256 !== inspected.recipeSha256)
         throw new Error(
           'Resume requires the exact recipe from this installation.',
@@ -124,7 +133,9 @@ class NativeGuide {
         inputs.archives[source.id] = null;
       let parent = job
         ? path.dirname(job.destination)
-        : this.options.defaultParent?.();
+        : repair
+          ? path.dirname(repair.destination)
+          : this.options.defaultParent?.();
       try {
         identity(parent, true);
       } catch {
@@ -138,6 +149,7 @@ class NativeGuide {
         parent,
         detected,
         resumeId,
+        repair,
       };
       return this.state();
     });
@@ -153,13 +165,22 @@ class NativeGuide {
       const d = this.record(id),
         recipe = d.inspected.recipe;
       if (
-        !['game', 'prerequisite', 'archive', 'download', 'parent'].includes(
-          kind,
-        )
+        ![
+          'game',
+          'prerequisite',
+          'archive',
+          'download',
+          'parent',
+          'configuration',
+        ].includes(kind)
       )
         throw new Error('Unsupported native selection.');
-      if (kind === 'parent') {
-        if (d.resumeId)
+      if (kind === 'configuration') {
+        if (!d.repair || !['preserve', 'restore'].includes(key))
+          throw new Error('Choose a configuration policy for repair.');
+        this.builder.restoreConfiguration = key === 'restore';
+      } else if (kind === 'parent') {
+        if (d.resumeId || d.repair)
           throw new Error(
             'A resumed installation keeps its original destination.',
           );

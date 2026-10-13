@@ -514,4 +514,4 @@ class NativeBuilder {
     }
   }
 }
-module.exports = { NativeBuilder, validateHistory };
+module.exports = { NativeBuilder, validateHistory, validateInputs };

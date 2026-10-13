@@ -7,10 +7,16 @@
     Download,
     CheckCircle2,
   } from '@lucide/svelte';
-  import type { NativeGuideState, NativeBuild, Bridge } from './types';
-  let { onstarted }: { onstarted: () => void } = $props();
+  import type {
+    NativeGuideState,
+    NativeBuild,
+    NativeLibraryState,
+    Bridge,
+  } from './types';
+  let { onstarted }: { onstarted: (repair: boolean) => void } = $props();
   let setup = $state<NativeGuideState | null>(null);
   let recoveryActivity = $state<NativeBuild['activity']>(undefined);
+  let repairProgress = $state<NativeLibraryState['progress']>(null);
   let busy = $state(false),
     error = $state(''),
     query = $state(''),
@@ -72,13 +78,19 @@
       setup = await window.loadstone.nativeGuide();
     });
     const timer = setInterval(async () => {
-      if (!busy || !setup?.resumeId) {
+      if (!busy || (!setup?.resumeId && !setup?.repair)) {
         recoveryActivity = undefined;
+        repairProgress = null;
         return;
       }
       if (reading) return;
       reading = true;
       try {
+        if (setup.repair) {
+          const state = await window.loadstone.nativeLibrary();
+          if (!stopped) repairProgress = state.progress;
+          return;
+        }
         const jobs = await window.loadstone.nativeBuilds();
         if (!stopped)
           recoveryActivity = jobs.find(
@@ -101,7 +113,11 @@
   <div class="toolbar">
     <div>
       <p class="eyebrow">YOUR NEXT JOURNEY</p>
-      <h2>Bring your .loadstone setup.</h2>
+      <h2>
+        {setup?.repair
+          ? 'Repair your installed setup.'
+          : 'Bring your .loadstone setup.'}
+      </h2>
       <p>
         Select your games and sources. Loadstone handles reconstruction and
         verification.
@@ -123,6 +139,16 @@
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   {#if busy}<p role="status">Preparing your selection…</p>{/if}
+  {#if busy && setup?.repair}
+    {#if repairProgress}<p role="status">
+        Checking repair files: {repairProgress.completed.toLocaleString()} / {repairProgress.total.toLocaleString()}
+      </p>{/if}
+    <button
+      class="secondary"
+      onclick={() => window.loadstone.cancelNativeVerification()}
+      >Cancel repair review</button
+    >
+  {/if}
   {#if busy && setup?.resumeId}
     {#if recoveryActivity}<p role="status">
         Checking retained files: {recoveryActivity.completed.toLocaleString()} / {recoveryActivity.total.toLocaleString()}
@@ -170,6 +196,33 @@
         requires gameplay acceptance.
       </p>
     </div>
+    {#if setup.repair}
+      <div class="save-note">
+        <strong>Repair the registered version in its existing folder</strong>
+        <p>
+          Missing files are rebuilt. Changed game/mod files are retained before
+          replacement. Saves and untracked files stay in place. Existing
+          profiles and configuration are kept by default.
+        </p>
+        <label
+          ><input
+            type="checkbox"
+            disabled={busy}
+            checked={setup.repair.restoreConfiguration}
+            onchange={(event) =>
+              select(
+                'configuration',
+                event.currentTarget.checked ? 'restore' : 'preserve',
+              )}
+          />Restore changed profiles and configuration to this recipe too</label
+        >
+        {#if setup.repair.restoreConfiguration}<p>
+            This restores recipe settings and mod order. Previous versions are
+            retained in the repair recovery folder; saves are never restored or
+            imported.
+          </p>{/if}
+      </div>
+    {/if}
     <h4>1. Your owned games</h4>
     {#each setup.games as game}
       <div class="input-row">
@@ -284,14 +337,20 @@
     <h4>Installation location</h4>
     <div class="input-row">
       <div>
-        <code>{setup.parent || 'Choose a folder for this installation'}</code>
+        <code
+          >{setup.repair?.destination ||
+            setup.parent ||
+            'Choose a folder for this installation'}</code
+        >
         <p class="note">
-          {setup.resumeId
-            ? 'Resume keeps the original installation folder.'
-            : 'A separate folder is created here. Existing game installations stay intact.'}
+          {setup.repair
+            ? 'Repair keeps this registered installation folder.'
+            : setup.resumeId
+              ? 'Resume keeps the original installation folder.'
+              : 'A separate folder is created here. Existing game installations stay intact.'}
         </p>
       </div>
-      {#if !setup.resumeId}<button
+      {#if !setup.resumeId && !setup.repair}<button
           class="secondary"
           disabled={busy}
           onclick={() => select('parent')}
@@ -304,12 +363,21 @@
       onclick={() =>
         run(async () => {
           if (setup) setup = await window.loadstone.reviewNativeSetup(setup.id);
-        })}><CheckCircle2 size={17} />Review installation</button
+        })}
+      ><CheckCircle2 size={17} />{setup.repair
+        ? 'Review repair'
+        : 'Review installation'}</button
     >
     {#if setup.plan}{@const plan = setup.plan}
       <section class="confirmation" aria-label="Review native installation">
         <span class="eyebrow">READY FOR SOURCE VERIFICATION</span>
-        <h3>{plan.resume ? 'Resume this setup' : 'Install this setup'}</h3>
+        <h3>
+          {plan.repair
+            ? 'Repair this setup'
+            : plan.resume
+              ? 'Resume this setup'
+              : 'Install this setup'}
+        </h3>
         <code>{plan.destination}</code>
         <p>
           {plan.outputs.toLocaleString()} output files · {(
@@ -323,18 +391,36 @@
         {#if plan.archiveTool}<p class="note">
             Archive reader: {plan.archiveTool}
           </p>{/if}
+        {#if plan.repair}
+          <p>
+            {plan.repair.reused.toLocaleString()} matching files · {plan.repair.missing.toLocaleString()}
+            missing files · {plan.repair.conflicts.toLocaleString()} changed files
+            to retain and replace · {plan.repair.preserved.toLocaleString()} changed
+            personal files to keep.
+          </p>
+          {#if plan.repair.preservedPaths.length}<p class="note">
+              Kept changes (up to 20): {plan.repair.preservedPaths.join(' · ')}
+            </p>{/if}
+          <code>{plan.repair.recoveryRoot}</code>
+          <p class="note">
+            Stop repair from My library. An interrupted repair requires a fresh
+            review and keeps launch disabled until the files and isolated
+            profile pass. Existing direct shortcuts do not run Loadstone’s
+            checks; keep MO2 and games closed.
+          </p>
+        {/if}
         {#if plan.resume}<p>
             {plan.resume.reused.toLocaleString()} matching files to reuse · {plan.resume.missing.toLocaleString()}
             missing files · {plan.resume.conflicts.toLocaleString()} changed files
             to retain before rebuilding.
           </p>
           <code>{plan.resume.recoveryRoot}</code>{/if}
-        <p class="note">
-          Inputs and final files must pass their checks. Keep games and MO2
-          closed. You can cancel in Downloads and review a resume later.
-          Completion offers library review and optional shortcuts; it starts no
-          game and imports no saves.
-        </p>
+        {#if !plan.repair}<p class="note">
+            Inputs and final files must pass their checks. Keep games and MO2
+            closed. You can cancel in Downloads and review a resume later.
+            Completion offers library review and optional shortcuts; it starts
+            no game and imports no saves.
+          </p>{/if}
         <button
           class="primary"
           disabled={busy}
@@ -342,12 +428,14 @@
             run(async () => {
               if (setup) {
                 await window.loadstone.installNativeSetup(setup.id, plan.id);
-                onstarted();
+                onstarted(Boolean(setup.repair));
               }
             })}
-          >{plan.resume
-            ? 'Resume installation'
-            : 'Install native setup'}<ArrowRight size={17} /></button
+          >{plan.repair
+            ? 'Repair installed setup'
+            : plan.resume
+              ? 'Resume installation'
+              : 'Install native setup'}<ArrowRight size={17} /></button
         >
       </section>
     {/if}
@@ -450,6 +538,11 @@
     border-radius: 6px;
     color: #f0eee9;
     background: #151819;
+  }
+  input[type='checkbox'] {
+    display: inline;
+    width: auto;
+    margin-right: 8px;
   }
   .error {
     color: #edaa95;

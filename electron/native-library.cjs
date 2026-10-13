@@ -295,7 +295,7 @@ const text = (v, max = 2000) =>
   !/[\x00-\x1f]/.test(v);
 function validateRegistry(state) {
   demand(
-    [1, 2].includes(state?.schemaVersion) &&
+    [1, 2, 3].includes(state?.schemaVersion) &&
       state.kind === 'loadstone-native-library' &&
       Array.isArray(state.entries) &&
       state.entries.length <= 100,
@@ -316,7 +316,7 @@ function validateRegistry(state) {
     'saveNotes',
     'verifiedAt',
     'fileCount',
-    ...(state.schemaVersion === 2
+    ...(state.schemaVersion >= 2
       ? [
           'status',
           'recoveryRoot',
@@ -325,6 +325,7 @@ function validateRegistry(state) {
           'shortcutError',
         ]
       : []),
+    ...(state.schemaVersion === 3 ? ['repair'] : []),
   ];
   for (const entry of state.entries) {
     demand(
@@ -355,12 +356,16 @@ function validateRegistry(state) {
     );
     ids.add(entry.id);
     roots.add(entry.root.toLowerCase());
-    if (state.schemaVersion === 2)
+    if (state.schemaVersion >= 2)
       demand(
-        ['installed', 'removing', 'removal-failed', 'removed'].includes(
-          entry.status,
-        ) &&
-          (entry.status === 'installed'
+        [
+          'installed',
+          'removing',
+          'removal-failed',
+          'removed',
+          ...(state.schemaVersion === 3 ? ['repairing', 'repair-failed'] : []),
+        ].includes(entry.status) &&
+          (['installed', 'repairing', 'repair-failed'].includes(entry.status)
             ? entry.recoveryRoot === null
             : entry.recoveryRoot ===
               `${entry.root}.loadstone-recovery-${entry.id}`) &&
@@ -370,6 +375,31 @@ function validateRegistry(state) {
           (!entry.shortcutsCleaned || entry.status === 'removed'),
         'Native library maintenance state is invalid. Preserve it before recovery.',
       );
+    if (state.schemaVersion === 3) {
+      const repair = entry.repair;
+      demand(
+        repair === null ||
+          (repair &&
+            Object.keys(repair).length === 4 &&
+            /^\.loadstone-repair-recovery\/[a-f0-9-]{36}$/.test(
+              repair.directory,
+            ) &&
+            text(repair.startedAt, 40) &&
+            Number.isFinite(Date.parse(repair.startedAt)) &&
+            (repair.completedAt === null ||
+              (text(repair.completedAt, 40) &&
+                Number.isFinite(Date.parse(repair.completedAt)))) &&
+            Number.isSafeInteger(repair.preserved) &&
+            repair.preserved >= 0 &&
+            repair.preserved <= entry.fileCount),
+        'Native repair state is invalid. Preserve it before recovery.',
+      );
+      demand(
+        !['repairing', 'repair-failed'].includes(entry.status) ||
+          (repair && repair.completedAt === null),
+        'Interrupted native repair has no recovery record.',
+      );
+    }
   }
   return state.entries.map((entry) =>
     state.schemaVersion === 1
@@ -380,8 +410,11 @@ function validateRegistry(state) {
           maintenanceError: null,
           shortcutsCleaned: false,
           shortcutError: null,
+          repair: null,
         }
-      : entry,
+      : state.schemaVersion === 2
+        ? { ...entry, repair: null }
+        : entry,
   );
 }
 class NativeLibrary {
@@ -406,7 +439,14 @@ class NativeLibrary {
                 maintenanceError:
                   'Removal was interrupted. Review the remaining files to resume.',
               }
-            : entry,
+            : entry.status === 'repairing'
+              ? {
+                  ...entry,
+                  status: 'repair-failed',
+                  maintenanceError:
+                    'Repair was interrupted. Review the same package and sources to continue; retained files remain in place.',
+                }
+              : entry,
         );
       }
     } catch {
@@ -453,7 +493,7 @@ class NativeLibrary {
   }
   persist(next) {
     const state = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       kind: 'loadstone-native-library',
       entries: next,
     };
@@ -575,6 +615,7 @@ class NativeLibrary {
       maintenanceError: null,
       shortcutsCleaned: false,
       shortcutError: null,
+      repair: null,
     };
     this.persist([...this.entries, entry]);
     this.pending = null;
