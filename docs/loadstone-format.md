@@ -85,4 +85,6 @@ The compiler validates and hashes all bundled bytes, creates the output exclusiv
 
 ## Next implementation gates
 
-Connect exact installed-file/source mapping to creator tooling; add bounded local reconstruction for edited/generated files; integrate native imports and preflight into the Electron UI; implement authenticated original-source downloads and archive extraction; add durable native jobs, recovery and exact final verification. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
+An [experimental local materializer](native-reconstruction.md) reconstructs copy/ZIP-extract recipes in a new isolated directory and verifies every output hash. It is separate from the desktop queue and does not establish playability.
+
+Complete installed-file/source mapping; add bounded reconstruction for edited/generated files; integrate native imports and preflight into the Electron UI; implement authenticated original-source downloads and additional archive formats; add durable native jobs and recovery. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
