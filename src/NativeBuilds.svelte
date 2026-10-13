@@ -19,6 +19,18 @@
     cancelled: 'Build cancelled',
     interrupted: 'Build interrupted',
   };
+  const phases = {
+    inputs: 'Checking source files',
+    archives: 'Checking archive contents',
+    outputs: 'Writing candidate files',
+    verification: 'Verifying finished files',
+  };
+  const fileSize = (bytes: number) =>
+    bytes < 1000
+      ? `${bytes} B`
+      : bytes < 1e6
+        ? `${(bytes / 1000).toFixed(1)} KB`
+        : `${(bytes / 1e6).toFixed(1)} MB`;
   async function action(operation: () => Promise<void>) {
     if (busy) return;
     busy = true;
@@ -147,16 +159,39 @@
         <article>
           <h3>{job.name} <span>v{job.version}</span></h3>
           <p class:verified={job.status === 'verified'} role="status">
-            {labels[job.status]}
+            {job.status === 'building' && job.activity
+              ? phases[job.activity.phase]
+              : labels[job.status]}
           </p>
           <p class="note">
             {job.completed.toLocaleString()} / {job.total.toLocaleString()} files
             reconstructed
           </p>
-          {#if active(job)}<progress
-              value={job.completed}
-              max={job.total}
-              aria-label="Reconstructed files"
+          {#if active(job) && job.activity}
+            <p class="note">
+              {job.activity.completed.toLocaleString()} / {job.activity.total.toLocaleString()}
+              {job.activity.phase === 'archives'
+                ? 'archives checked'
+                : 'files in this stage'}
+            </p>
+            <progress
+              value={job.activity.completed}
+              max={Math.max(1, job.activity.total)}
+              aria-label={phases[job.activity.phase]}
+            ></progress>
+            {#if job.activity.totalBytes > 0 && job.activity.completed < job.activity.total}
+              <p class="note">
+                Current file: {fileSize(job.activity.bytes)} / {fileSize(
+                  job.activity.totalBytes,
+                )}
+              </p>
+              <progress
+                value={job.activity.bytes}
+                max={job.activity.totalBytes}
+                aria-label="Current file bytes"
+              ></progress>
+            {/if}
+          {:else if active(job)}<progress aria-label="Preparing build"
             ></progress>{/if}
           <code>{job.destination}</code>
           {#if job.error}<p class="error">{job.error}</p>{/if}

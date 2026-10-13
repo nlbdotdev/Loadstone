@@ -201,7 +201,7 @@ async function createSevenZip(executable, { signal } = {}) {
       throw new Error('Selected archive tool changed.');
   }
   guard();
-  async function inspect(candidate, operationSignal) {
+  async function inspect(candidate, operationSignal, onBytes) {
     guard();
     if (
       !candidate ||
@@ -222,6 +222,7 @@ async function createSevenZip(executable, { signal } = {}) {
     for await (const chunk of fs.createReadStream(candidate.archive)) {
       operationSignal?.throwIfAborted();
       hash.update(chunk);
+      onBytes?.(chunk.length);
     }
     if (hash.digest('hex') !== candidate.sha256)
       throw new Error('Archive differs from its fingerprint.');

@@ -126,6 +126,7 @@ class NativeBuilder {
     this.file = path.join(root, 'native-builds.json');
     this.options = options;
     this.jobs = [];
+    this.activities = new Map();
     this.preparing = false;
     this.controller = null;
     this.plan = null;
@@ -156,7 +157,14 @@ class NativeBuilder {
     return this.preparing || Boolean(this.controller);
   }
   list() {
-    return structuredClone(this.jobs);
+    return structuredClone(
+      this.jobs.map((job) => ({
+        ...job,
+        ...(this.activities.has(job.id)
+          ? { activity: this.activities.get(job.id) }
+          : {}),
+      })),
+    );
   }
   save(jobs) {
     validateHistory({
@@ -323,6 +331,7 @@ class NativeBuilder {
         ],
         progress: ({ completed }) =>
           this.change(id, { completed }, completed % 100 === 0),
+        activity: (value) => this.activities.set(id, value),
       });
       this.change(id, {
         status: 'verified',
@@ -349,6 +358,7 @@ class NativeBuilder {
         );
       }
     } finally {
+      this.activities.delete(id);
       this.controller = null;
     }
   }

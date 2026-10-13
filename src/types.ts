@@ -280,6 +280,13 @@ export interface NativeBuild {
   error: string | null;
   createdAt: string;
   updatedAt: string;
+  activity?: {
+    phase: 'inputs' | 'archives' | 'outputs' | 'verification';
+    completed: number;
+    total: number;
+    bytes: number;
+    totalBytes: number;
+  };
 }
 export interface NativePrerequisiteSummary {
   id: string;

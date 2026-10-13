@@ -195,9 +195,64 @@ test(
         await review.textContent(),
         /MO2 configuration will be generated/,
       );
+      // Slow only synthetic executable reads so the real bridge/UI can expose
+      // all three long-running file phases, including verification at 100% written.
+      await app.evaluate(async (_electron, root) => {
+        const fs = process.getBuiltinModule('fs');
+        const { Readable } = process.getBuiltinModule('stream');
+        const original = fs.createReadStream;
+        fs.createReadStream = function (file, options) {
+          if (
+            typeof file === 'string' &&
+            file.startsWith(root) &&
+            /[\\/]FalloutNV[.]exe$/.test(file)
+          ) {
+            const data = fs.readFileSync(file);
+            return Readable.from(
+              (async function* () {
+                yield data.subarray(0, 6);
+                await new Promise((resolve) => setTimeout(resolve, 350));
+                yield data.subarray(6, 12);
+                await new Promise((resolve) => setTimeout(resolve, 1700));
+                yield data.subarray(12);
+              })(),
+            );
+          }
+          return original.call(this, file, options);
+        };
+      }, f.root);
       await review
         .getByRole('button', { name: 'Build candidate', exact: true })
         .click();
+      for (const phase of [
+        'Checking source files',
+        'Writing candidate files',
+        'Verifying finished files',
+      ]) {
+        await page.getByText(phase, { exact: true }).waitFor();
+        const active = (
+          await page.evaluate(() => window.loadstone.nativeBuilds())
+        )[0];
+        assert.equal(active.status, 'building');
+        assert.ok(active.activity);
+        assert.equal(
+          active.activity.totalBytes,
+          Buffer.byteLength('fixture owned game'),
+        );
+        const history = JSON.parse(
+          fs.readFileSync(path.join(f.state, 'native-builds.json')),
+        );
+        assert.equal(history.jobs[0].activity, undefined);
+        if (phase === 'Verifying finished files') {
+          assert.equal(active.completed, active.total);
+          fs.mkdirSync('test-results', { recursive: true });
+          await page
+            .getByRole('region', { name: 'Native candidate builds' })
+            .screenshot({
+              path: 'test-results/native-verification-progress.png',
+            });
+        }
+      }
       await page
         .getByText('Files verified · Launch untested', { exact: true })
         .waitFor();
