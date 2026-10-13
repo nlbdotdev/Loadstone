@@ -19,11 +19,8 @@ function archiveKind(file) {
   if (signature.startsWith('504b0304') || signature.startsWith('504b0506'))
     return 'zip';
   if (signature.startsWith('377abcaf271c')) return '7z';
-  if (
-    signature.startsWith('526172211a0700') ||
-    signature.startsWith('526172211a070100')
-  )
-    return 'rar';
+  if (signature.startsWith('526172211a0700')) return 'rar';
+  if (signature.startsWith('526172211a070100')) return 'rar5';
   throw new Error('Unsupported or embedded archive signature.');
 }
 module.exports = { archiveKind };

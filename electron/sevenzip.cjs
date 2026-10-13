@@ -208,7 +208,7 @@ async function createSevenZip(executable, { signal } = {}) {
     )
       throw new Error('Use a locked absolute archive input.');
     const kind = archiveKind(candidate.archive);
-    if (!['7z', 'rar'].includes(kind))
+    if (!['7z', 'rar', 'rar5'].includes(kind))
       throw new Error('This adapter accepts local 7z/RAR archives only.');
     const before = ordinaryFile(candidate.archive, 50_000_000_000);
     if (before.size !== candidate.bytes)

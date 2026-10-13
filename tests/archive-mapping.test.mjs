@@ -127,3 +127,17 @@ test('content detection maps mislabeled ZIPs without renaming originals and refu
     0,
   );
 });
+
+test('RAR signatures select the correct legacy or RAR5 parser', () => {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'loadstone-rar-signature-'),
+  );
+  const file = path.join(root, 'sample.7z');
+  for (const [signature, expected] of [
+    ['526172211a0700', 'rar'],
+    ['526172211a070100', 'rar5'],
+  ]) {
+    fs.writeFileSync(file, Buffer.from(signature, 'hex'));
+    assert.equal(archiveKind(file), expected);
+  }
+});
