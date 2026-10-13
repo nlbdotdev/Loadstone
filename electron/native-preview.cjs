@@ -31,6 +31,7 @@ function createNativePreview() {
         game: recipe.game,
         profile: recipe.launch.profile,
         requiredGames: summary.requiredGames,
+        prerequisites: summary.prerequisites,
         outputs: summary.outputs,
         installBytes: summary.installBytes,
         downloadSources: recipe.sources.filter((v) =>
@@ -38,6 +39,9 @@ function createNativePreview() {
         ).length,
         gameSources: recipe.sources.filter((v) => v.type === 'game-file')
           .length,
+        prerequisiteSources: recipe.sources.filter(
+          (v) => v.type === 'prerequisite-file',
+        ).length,
         payloadSources: recipe.sources.filter((v) => v.type === 'payload')
           .length,
         recipeSha256,

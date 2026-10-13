@@ -10,8 +10,8 @@ const require = createRequire(import.meta.url);
 const { NativeBuilder } = require('../electron/native-builder.cjs');
 const { currentActivity } = require('../electron/close-guard.cjs');
 
-async function fixture() {
-  const f = createNativeFixture();
+async function fixture(prerequisite = false) {
+  const f = createNativeFixture({ prerequisite });
   f.game = path.join(f.root, 'owned');
   f.packages = path.join(f.root, 'packages');
   f.parent = path.join(f.root, 'candidates');
@@ -21,9 +21,19 @@ async function fixture() {
   f.packageFile = path.join(f.packages, 'fixture.loadstone');
   await packNativeRecipe(f.recipe, f.payloads, f.packageFile);
   f.inputsFile = path.join(f.packages, 'inputs.json');
+  const local = {};
+  if (prerequisite) {
+    const folder = path.join(f.root, 'prerequisite');
+    fs.mkdirSync(folder);
+    fs.writeFileSync(
+      path.join(folder, 'support.bin'),
+      'user-provided prerequisite bytes',
+    );
+    local.prerequisites = { 'prepared-support': folder };
+  }
   fs.writeFileSync(
     f.inputsFile,
-    JSON.stringify({ games: { fnv: f.game }, archives: {} }),
+    JSON.stringify({ games: { fnv: f.game }, archives: {}, ...local }),
   );
   f.selected = {
     packageFile: f.packageFile,
@@ -145,7 +155,7 @@ test(
   'real Electron reviews and reconstructs a local candidate with durable status and no playable library entry',
   { timeout: 60000 },
   async () => {
-    const f = await fixture();
+    const f = await fixture(true);
     const env = { ...process.env, LOADSTONE_DATA_DIR: f.state };
     delete env.ELECTRON_RUN_AS_NODE;
     const options = {
@@ -180,6 +190,7 @@ test(
       await choose.click();
       const review = page.getByRole('region', { name: 'Review native build' });
       await review.waitFor();
+      assert.match(await review.textContent(), /Fixture prerequisite 1/);
       await review
         .getByRole('button', { name: 'Build candidate', exact: true })
         .click();
@@ -189,6 +200,13 @@ test(
       const jobs = await page.evaluate(() => window.loadstone.nativeBuilds());
       assert.equal(jobs.length, 1);
       assert.equal(jobs[0].status, 'verified');
+      assert.equal(
+        fs.readFileSync(
+          path.join(jobs[0].destination, 'mods/Support/support.bin'),
+          'utf8',
+        ),
+        'user-provided prerequisite bytes',
+      );
       assert.equal(
         await page.evaluate(
           async () => (await window.loadstone.liveJobs()).length,

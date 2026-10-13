@@ -80,11 +80,20 @@
             ).toFixed(2)} GB
           </dd>
         </div>
+        {#if result.prerequisites.length}<div>
+            <dt>Local prerequisites</dt>
+            <dd>
+              {result.prerequisites
+                .map((v) => `${v.name} ${v.version} (${v.files} files)`)
+                .join(' · ')}
+            </dd>
+          </div>{/if}
         <div>
           <dt>Sources</dt>
           <dd>
             {result.downloadSources} downloads · {result.gameSources} local game inputs
-            · {result.payloadSources} bundled files
+            · {result.prerequisiteSources} prerequisite files · {result.payloadSources}
+            bundled files
           </dd>
         </div>
         <div>

@@ -6,7 +6,7 @@ const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
-export function createNativeFixture() {
+export function createNativeFixture({ prerequisite = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-native-'));
   const payloads = path.join(root, 'payloads');
   fs.mkdirSync(payloads);
@@ -73,6 +73,31 @@ export function createNativeFixture() {
       path: name,
       ...locked,
       action: { type: 'copy', source: id },
+    });
+  }
+  if (prerequisite) {
+    const locked = fingerprint('user-provided prerequisite bytes');
+    recipe.prerequisites = [
+      {
+        id: 'prepared-support',
+        name: 'Fixture prerequisite',
+        version: '1',
+        instructions: 'https://example.org/prepare',
+        credit: { name: 'Fixture creator', url: 'https://example.org/credits' },
+        files: [{ path: 'support.bin', ...locked }],
+      },
+    ];
+    recipe.sources.push({
+      id: 'local-support',
+      type: 'prerequisite-file',
+      prerequisite: 'prepared-support',
+      path: 'support.bin',
+      ...locked,
+    });
+    recipe.outputs.push({
+      path: 'mods/Support/support.bin',
+      ...locked,
+      action: { type: 'copy', source: 'local-support' },
     });
   }
   return { root, payloads, recipe };

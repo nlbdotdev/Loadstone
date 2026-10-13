@@ -138,6 +138,12 @@ async function inspectNativePackage(file) {
       installBytes: recipe.outputs.reduce((n, v) => n + v.bytes, 0),
       payloadBytes,
       requiredGames: recipe.requirements.map((v) => v.id),
+      prerequisites: (recipe.prerequisites || []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        version: v.version,
+        files: v.files.length,
+      })),
     },
     publicationApproved: false,
   };

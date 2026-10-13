@@ -100,6 +100,7 @@ function validateRecipe(value) {
     'website',
     'game',
     'requirements',
+    'prerequisites',
     'launch',
     'sources',
     'outputs',
@@ -161,6 +162,53 @@ function validateRecipe(value) {
       expectedGames.every((v) => required.has(v)),
     'required games do not match the target variant.',
   );
+  // Local prerequisites describe user-supplied material, never bundled bytes
+  // or an instruction to run an arbitrary installer/converter.
+  const prerequisites = new Map();
+  let prerequisiteFiles = 0,
+    prerequisiteBytes = 0;
+  if (value.prerequisites !== undefined) {
+    array(value.prerequisites, 20, 1);
+    for (const prerequisite of value.prerequisites) {
+      shape(prerequisite, [
+        'id',
+        'name',
+        'version',
+        'instructions',
+        'credit',
+        'files',
+      ]);
+      demand(
+        id(prerequisite.id) && !prerequisites.has(prerequisite.id),
+        'invalid or duplicate local prerequisite ID.',
+      );
+      demand(
+        text(prerequisite.name) &&
+          text(prerequisite.version) &&
+          publicUrl(prerequisite.instructions),
+        'declare local prerequisite identity and public setup instructions.',
+      );
+      credit(prerequisite.credit);
+      array(prerequisite.files, 100000, 1);
+      uniquePaths(prerequisite.files);
+      for (const file of prerequisite.files) {
+        shape(file, ['path', 'bytes', 'sha256']);
+        fingerprint(file);
+        prerequisiteFiles++;
+        prerequisiteBytes += file.bytes;
+      }
+      demand(
+        prerequisiteFiles <= 100000 && bytes(prerequisiteBytes),
+        'local prerequisite inventory exceeds supported bounds.',
+      );
+      prerequisites.set(
+        prerequisite.id,
+        new Map(
+          prerequisite.files.map((file) => [file.path.toLowerCase(), file]),
+        ),
+      );
+    }
+  }
   shape(value.launch, ['profile', 'executable', 'gameRoot']);
   demand(
     filePath(value.launch.profile) &&
@@ -189,6 +237,18 @@ function validateRecipe(value) {
           locked.sha256 === source.sha256 &&
           locked.bytes === source.bytes,
         'owned-game inputs must match a required-game file.',
+      );
+    } else if (source.type === 'prerequisite-file') {
+      shape(source, [...common, 'prerequisite', 'path']);
+      demand(filePath(source.path), 'unsafe local prerequisite file path.');
+      const locked = prerequisites
+        .get(source.prerequisite)
+        ?.get(source.path.toLowerCase());
+      demand(
+        locked &&
+          locked.bytes === source.bytes &&
+          locked.sha256 === source.sha256,
+        'local prerequisite inputs must match a declared prerequisite file.',
       );
     } else if (source.type === 'nexus-archive') {
       shape(source, [...common, 'game', 'modId', 'fileId', 'credit']);
@@ -262,7 +322,7 @@ function validateRecipe(value) {
     if (action.type === 'copy') {
       shape(action, ['type', 'source']);
       demand(
-        ['game-file', 'payload'].includes(source.type) &&
+        ['game-file', 'prerequisite-file', 'payload'].includes(source.type) &&
           source.sha256 === output.sha256 &&
           source.bytes === output.bytes,
         'copy output must equal its file input.',
@@ -286,6 +346,14 @@ function validateRecipe(value) {
     'output storage exceeds supported bounds.',
   );
   demand(used.size === sources.size, 'unused sources are not allowed.');
+  demand(
+    [...prerequisites.keys()].every((id) =>
+      [...sources.values()].some(
+        (v) => v.type === 'prerequisite-file' && v.prerequisite === id,
+      ),
+    ),
+    'unused local prerequisites are not allowed.',
+  );
   for (const name of [
     'ModOrganizer.exe',
     'ModOrganizer.ini',
