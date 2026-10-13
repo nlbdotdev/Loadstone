@@ -1,6 +1,6 @@
 # Resuming native candidate builds
 
-Settings → Reconstruct a local candidate offers **Review resume** for failed, cancelled and interrupted builds. Select the same `.loadstone` recipe and a private local-inputs JSON again, plus a trusted local archive tool when required. Source paths and credentials are not saved in build history. The existing history record fixes the destination; the renderer cannot substitute another folder.
+Downloads offers **Review resume** for failed, cancelled and interrupted builds. Select the same `.loadstone` package and reselect its inputs through the [guided installer](native-guided-install.md), plus a trusted local archive tool when required. The creator path in Settings → Reconstruct a local candidate still accepts a private local-inputs JSON. Source paths and credentials are not saved in build history. The existing history record fixes the destination; the renderer cannot substitute another folder.
 
 Keep MO2, supported games, script extenders and Wabbajack closed. Resume checks this before review, before acquisition and again before reconstruction. The candidate cannot overlap a registered native setup, another build, source inputs, app data or protected application/system folders. Completed library installations use separate maintenance controls; build resume is not an update or repair operation for an active playthrough.
 
