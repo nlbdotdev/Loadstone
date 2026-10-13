@@ -157,3 +157,179 @@ test('configured external MO2 folders determine winners and are protected from r
     assert.equal(fs.existsSync(output), false);
   }
 });
+
+test('expanded inventory hashes disabled mods, game/tool files and full selected profile while excluding personal state', async () => {
+  const f = fixture();
+  for (const folder of [
+    'mods/Inactive',
+    'dlls',
+    'downloads',
+    'webcache',
+    'profiles/Actual profile/saves_backup_old',
+    'mods/High/saves',
+    'logs',
+  ])
+    fs.mkdirSync(path.join(f.root, folder), { recursive: true });
+  const expected = new Map([
+    ['mods/Inactive/Optional.esp', 'inactive installed bytes'],
+    ['dlls/fixture.dll', 'tool library'],
+    ['ModOrganizer.exe', 'tool executable'],
+    ['Game/FalloutNV.exe', 'patched game executable'],
+    ['profiles/Actual profile/FalloutCustom.ini', 'custom profile settings'],
+    ['profiles/Actual profile/lockedorder.txt', 'locked load order'],
+  ]);
+  for (const [file, data] of expected) f.write(file, data);
+  const forbidden = [
+    'downloads/archive.7z',
+    'downloads/_nexus_headers.txt',
+    'webcache/Cookies',
+    'profiles/Actual profile/saves_backup_old/slot.fos',
+    'mods/High/saves/slot.fos',
+    'api-key.txt',
+    '.env.local',
+    'tokens.json',
+    'logs/game.txt',
+    'Game/session.log',
+  ];
+  for (const file of forbidden) f.write(file, 'synthetic-private-state');
+  const originalStream = fs.createReadStream;
+  fs.createReadStream = (file, ...args) => {
+    assert.equal(
+      forbidden.some((v) => path.resolve(file) === path.join(f.root, v)),
+      false,
+      'Excluded file was opened',
+    );
+    return originalStream(file, ...args);
+  };
+  let report;
+  try {
+    report = await inspectMo2(f.root, {
+      hashFiles: true,
+      installationFiles: true,
+    });
+  } finally {
+    fs.createReadStream = originalStream;
+  }
+  const actual = new Map([
+    ...report.installation.instanceFiles.map((v) => [v.path, v.sha256]),
+    ...report.installation.gameFiles.map((v) => [`Game/${v.path}`, v.sha256]),
+    ...report.installation.profileFiles.map((v) => [
+      `profiles/Actual profile/${v.path}`,
+      v.sha256,
+    ]),
+    ...report.mods.flatMap((mod) =>
+      (mod.files || []).map((v) => [`mods/${mod.name}/${v.path}`, v.sha256]),
+    ),
+  ]);
+  for (const [file, data] of expected)
+    assert.equal(
+      actual.get(file),
+      crypto.createHash('sha256').update(data).digest('hex'),
+    );
+  assert.equal(report.mods.find((v) => v.name === 'Inactive').enabled, false);
+  assert.equal(report.summary.inventoriedDisabledModFiles, 1);
+  assert.equal(
+    report.installation.instanceFiles.some((v) =>
+      /^(mods|profiles|Game|downloads)\//i.test(v.path),
+    ),
+    false,
+  );
+  assert.ok(
+    report.exclusions.some(
+      (v) =>
+        v.scope === 'profile' &&
+        v.path === 'saves_backup_old' &&
+        v.reason === 'saved-game-state',
+    ),
+  );
+  assert.ok(
+    report.exclusions.some(
+      (v) =>
+        v.path === 'tokens.json' && v.reason === 'credential-or-browser-state',
+    ),
+  );
+  assert.equal(
+    JSON.stringify(report).includes('synthetic-private-state'),
+    false,
+  );
+  for (const file of forbidden)
+    assert.equal(
+      fs.readFileSync(path.join(f.root, file), 'utf8'),
+      'synthetic-private-state',
+    );
+  const ordinaryReport = await inspectMo2(f.root);
+  assert.equal(ordinaryReport.installation, undefined);
+  assert.equal(
+    ordinaryReport.mods.find((v) => v.name === 'Inactive').files,
+    undefined,
+  );
+});
+
+test('final inventory guards reject added, removed and changed files or replaced trees', async () => {
+  for (const mutation of ['added', 'removed', 'changed', 'replaced']) {
+    const f = fixture();
+    fs.mkdirSync(path.join(f.root, 'dlls'));
+    fs.mkdirSync(path.join(f.root, 'backups'));
+    let mutated = false;
+    await assert.rejects(
+      inspectMo2(f.root, {
+        hashFiles: true,
+        installationFiles: true,
+        progress(value) {
+          if (value.phase !== 'stability' || mutated) return;
+          mutated = true;
+          if (mutation === 'added') f.write('mods/High/Added.esp', 'new file');
+          if (mutation === 'removed')
+            fs.unlinkSync(path.join(f.root, 'mods/High/Test.esp'));
+          if (mutation === 'changed')
+            f.write('mods/High/Test.esp', 'changed after hashing');
+          if (mutation === 'replaced') {
+            fs.renameSync(
+              path.join(f.root, 'dlls'),
+              path.join(f.root, 'backups/dlls'),
+            );
+            fs.mkdirSync(path.join(f.root, 'dlls'));
+          }
+        },
+      }),
+      /changed|ENOENT/,
+    );
+    assert.equal(mutated, true);
+  }
+});
+
+test('expanded inventory supports cancellation and protects configured download folders from report output', async () => {
+  const f = fixture();
+  const external = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'loadstone-download-input-'),
+  );
+  f.write(
+    'ModOrganizer.ini',
+    `[General]\ngameName=TTW\nselected_profile=Actual profile\ngamePath=Game\n[Settings]\ndownload_directory=${external.replaceAll('\\', '/')}\n`,
+  );
+  const controller = new AbortController();
+  await assert.rejects(
+    inspectMo2(f.root, {
+      installationFiles: true,
+      signal: controller.signal,
+      progress(value) {
+        if (value.phase === 'stability') controller.abort();
+      },
+    }),
+    { name: 'AbortError' },
+  );
+  const { spawnSync } = await import('node:child_process');
+  const target = path.join(external, 'report.json');
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.resolve('scripts/inspect-mo2.mjs'),
+      f.root,
+      target,
+      '--installation-files',
+    ],
+    { encoding: 'utf8', windowsHide: true },
+  );
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.existsSync(target), false);
+});

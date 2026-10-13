@@ -64,6 +64,19 @@ test('ZIP mapping proves member bytes while retaining local changes and private 
   assert.equal(result.publicationApproved, false);
   assert.equal(result.installable, false);
 });
+
+test('archive mapping retains disabled state while resolving inventoried optional mod files', async () => {
+  const f = await fixture();
+  f.ledger.mods[0].enabled = false;
+  const result = await mapZipSources(f.ledger);
+  assert.equal(result.mods[0].enabled, false);
+  assert.equal(result.mapping.matchedInstalledFiles, 1);
+  assert.equal(
+    result.mods[0].installedFiles[0].sourceMatches[0].member,
+    'Data/Example.esp',
+  );
+  assert.equal(result.installable, false);
+});
 test('ZIP mapping accepts no partial matches from changed, redirected or ambiguous archives and supports cancellation', async () => {
   for (const extra of [
     [['Data/example.ESP', 'duplicate']],

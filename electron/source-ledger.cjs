@@ -129,7 +129,7 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
     files += installed.length;
     if (files > 1000000) throw new Error('Source ledger file limit exceeded.');
     const candidates = [];
-    if (mod.enabled && !mod.separator) {
+    if ((mod.enabled || installed.length) && !mod.separator && !mod.unmanaged) {
       const hint =
         typeof mod.metadata?.installationFile === 'string'
           ? path.win32
@@ -173,7 +173,9 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
       installedFiles: installed,
       archiveCandidates: candidates,
       reconstruction:
-        mod.enabled && !mod.separator ? 'unresolved' : 'not-inventoried',
+        (mod.enabled || mod.files !== undefined) && !mod.separator
+          ? 'unresolved'
+          : 'not-inventoried',
       permissions: 'unreviewed',
     });
     options.progress?.({
@@ -183,6 +185,58 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
     });
   }
   const overwrite = inventory.overwrite.map(fileRecord);
+  files += overwrite.length;
+  if (files > 1000000) throw new Error('Source ledger file limit exceeded.');
+  let exclusions;
+  if (inventory.exclusions !== undefined) {
+    const reasons = new Set([
+      'saved-game-state',
+      'credential-or-browser-state',
+      'cache-log-or-backup-directory',
+      'runtime-log-or-cache',
+      'mod-directory-inventoried-separately',
+      'profiles-inventoried-separately',
+      'overwrite-inventoried-separately',
+      'download-cache',
+      'game-inventoried-separately',
+    ]);
+    if (
+      !Array.isArray(inventory.exclusions) ||
+      inventory.exclusions.length > 100000
+    )
+      throw new Error('Invalid inventory exclusions.');
+    exclusions = inventory.exclusions.map((entry) => {
+      if (
+        !entry ||
+        !relativeFile(entry.path) ||
+        !reasons.has(entry.reason) ||
+        !(
+          ['instance', 'game', 'profile', 'overwrite'].includes(entry.scope) ||
+          (typeof entry.scope === 'string' &&
+            entry.scope.startsWith('mod:') &&
+            relativeFile(entry.scope.slice(4)) &&
+            !/[\\/]/.test(entry.scope.slice(4)))
+        )
+      )
+        throw new Error('Invalid inventory exclusion record.');
+      return { scope: entry.scope, path: entry.path, reason: entry.reason };
+    });
+  }
+  let installation;
+  if (inventory.installation !== undefined) {
+    if (inventory.installation?.schemaVersion !== 1)
+      throw new Error('Use a supported installation inventory.');
+    installation = { schemaVersion: 1 };
+    for (const key of ['instanceFiles', 'gameFiles', 'profileFiles']) {
+      const entries = inventory.installation[key];
+      if (!Array.isArray(entries) || entries.length > 1000000)
+        throw new Error('Invalid installation file inventory.');
+      files += entries.length;
+      if (files > 1000000)
+        throw new Error('Source ledger file limit exceeded.');
+      installation[key] = entries.map(fileRecord);
+    }
+  }
   return {
     kind: 'loadstone-source-ledger',
     schemaVersion: 1,
@@ -190,13 +244,28 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
     profile: inventory.source?.profile,
     mods,
     overwrite,
+    ...(installation ? { installation } : {}),
+    ...(exclusions ? { exclusions } : {}),
     summary: {
       enabledMods: mods.filter((v) => v.enabled && !v.separator).length,
       enabledModsWithArchiveCandidates: mods.filter(
         (v) => v.enabled && !v.separator && v.archiveCandidates.length,
       ).length,
       fingerprintedArchives: fingerprints.size,
-      installedModFiles: files,
+      installedModFiles: mods.reduce(
+        (sum, mod) => sum + mod.installedFiles.length,
+        0,
+      ),
+      inventoriedDisabledModFiles: mods
+        .filter((v) => !v.enabled)
+        .reduce((sum, mod) => sum + mod.installedFiles.length, 0),
+      ...(installation
+        ? {
+            installationFiles: Object.values(installation)
+              .filter(Array.isArray)
+              .reduce((sum, entries) => sum + entries.length, 0),
+          }
+        : {}),
       overwriteFiles: overwrite.length,
       resolvedFiles: 0,
     },
