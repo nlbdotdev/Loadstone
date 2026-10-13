@@ -8,7 +8,7 @@ A Windows developer preview of a curated Bethesda modlist installer, built with 
 
 ## Windows preview
 
-Build the current **0.2.0 developer preview** with `pnpm package`, then run `release/Loadstone-0.2.0-Windows.exe`. The portable executable needs no Node.js, pnpm or installation wizard to run. It is unsigned and has not been published as a new hosted release. The existing private v0.1.0 release is the older demo-only build.
+Build the current **0.3.0 native creator preview** with `pnpm package`, then run `release/Loadstone-0.3.0-Windows.exe`. The portable executable needs no Node.js, pnpm or installation wizard to run. It is unsigned and has not been published as a new hosted release. The existing private v0.1.0 release is the older demo-only build.
 
 ## Run locally
 
@@ -83,4 +83,4 @@ See [contributor setup](CONTRIBUTING.md), [security reporting](SECURITY.md), [pr
 
 For a separate unpacked Windows Steam depot preview, run `pnpm package:steam`. See [Steam packaging and acceptance](docs/steam-release.md) for file verification, packaged-executable tests, templates and remaining submission gates. This command does not upload or publish.
 
-See [0.2.0 release notes](CHANGELOG.md) for implemented live features and outstanding release gates.
+See [0.3.0 release notes](CHANGELOG.md) for implemented creator/live features and outstanding release gates.
