@@ -1,6 +1,6 @@
 # Native .loadstone format, version 1
 
-Status: experimental creator tooling. This is a documented format with an open implementation planned for the project's open-source release. The project license remains pending. **Settings → Native package preview** inspects a user-selected package through the Electron bridge and shows a bounded summary. The desktop catalog and installation adapter currently use Wabbajack; successfully compiling or inspecting a native package does not make it installable in the desktop app yet.
+Status: experimental creator tooling. This is a documented format with an open implementation planned for the project's open-source release. The project license remains pending. **Settings → Native package preview** inspects a user-selected package through the Electron bridge and shows a bounded summary. **Reconstruct a local candidate** can build local copy/ZIP-extract recipes with durable history. The playable desktop catalog still uses Wabbajack; a native candidate needs configuration and launch acceptance before playable-library integration.
 
 ## Purpose and trust boundary
 
@@ -87,4 +87,4 @@ The compiler validates and hashes all bundled bytes, creates the output exclusiv
 
 An [experimental local materializer](native-reconstruction.md) reconstructs copy/ZIP-extract recipes in a new isolated directory and verifies every output hash. It is separate from the desktop queue and does not establish playability.
 
-Complete installed-file/source mapping; add bounded reconstruction for edited/generated files; integrate native imports and preflight into the Electron UI; implement authenticated original-source downloads and additional archive formats; add durable native jobs and recovery. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
+Complete installed-file/source mapping; add bounded reconstruction for edited/generated files; implement authenticated original-source downloads and additional archive formats; extend durable creator jobs with partial-build recovery and playable-library integration. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
