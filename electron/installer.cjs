@@ -1,3 +1,4 @@
+const { replaceStateFile } = require('./replace-state-file.cjs');
 const { childEnvironment } = require('./child-environment.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -211,7 +212,7 @@ class Installer {
       JSON.stringify({ schemaVersion: 1, jobs }, null, 2),
       { flush: true },
     );
-    fs.renameSync(this.file + '.tmp', this.file);
+    replaceStateFile(this.file + '.tmp', this.file);
   }
   list() {
     return this.jobs.map(({ manifest, ...job }) =>

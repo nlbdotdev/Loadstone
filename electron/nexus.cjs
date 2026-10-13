@@ -1,3 +1,4 @@
+const { replaceStateFile } = require('./replace-state-file.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { version } = require('../package.json');
@@ -141,7 +142,7 @@ class NexusAccount {
           flush: true,
           mode: 0o600,
         });
-        fs.renameSync(this.file + '.tmp', this.file);
+        replaceStateFile(this.file + '.tmp', this.file);
       } catch {
         throw new Error(
           'Could not save the protected Nexus connection. Check available disk space and workspace access.',
