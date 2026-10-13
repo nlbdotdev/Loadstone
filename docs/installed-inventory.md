@@ -7,13 +7,18 @@ This work uses the selected profiles of the user's installed setups as the sourc
 ```powershell
 node scripts/inspect-mo2.mjs <portable-instance> <new-local-report.json>
 node scripts/inspect-mo2.mjs <portable-instance> <new-local-report.json> --hash-files
+node scripts/inspect-mo2.mjs <portable-instance> <new-local-report.json> --hash-files --installation-files
 ```
 
 Keep reports under ignored `test-results/` or another private local directory. They contain personal paths and local filenames and must not be committed or published. The CLI refuses to replace a report. It reads the selected MO2 profile, resolves configured mod/profile locations, preserves the profile's recorded priority, inventories enabled mod directories and overwrite, and hashes profile files plus the installed loose plugin winning each conflict. Known source fields from `meta.ini` are hints only; other fields are excluded.
 
-Default file inventories record size and modification time. `--hash-files` additionally hashes every enabled-mod and overwrite file. Neither mode is an atomic filesystem snapshot. File hashing rejects a file that changes while being read, and profile/configuration hashes are rechecked at the end. Stop active modding or gameplay before producing release evidence. Symlinks/junctions, ambiguous INI fields, duplicate mod entries and traversal names are rejected. Missing enabled mods/plugins are reported explicitly, not called a successful installation.
+Default file inventories record size and modification time. `--hash-files` additionally hashes every included enabled-mod and overwrite file. Add `--installation-files` to include selected-profile disabled mods, instance files and tools, the configured game directory, and all files in the selected profile, including configuration outside the original six-file snapshot. The additive `installation` record carries `instanceFiles`, `gameFiles` and `profileFiles`; mod records keep their original enabled/disabled state and priority. Unlisted mod directories and other profiles are outside this selected-profile baseline.
 
-The report is **not installable and not publication-approved**. It does not establish archive contents/conflict resolution, full game-directory equivalence, runtime compatibility, source-download reproducibility or redistribution rights. Saves are not read from the profile. No network request or program launch is required to inspect an instance.
+Configured mod/profile/game/overwrite directories are captured separately without duplicating their contents under the instance tree. The configured download cache is excluded. All scans skip known save/cosave paths, credential/browser stores, logs, caches and backup directories by path, before opening them; each excluded file or subtree is recorded with its scope and reason in `exclusions`. This is an explicit inventory boundary, not a claim that excluded state is reproducible. General configuration can contain private fields: its content is hashed, while only the existing allowlisted source hints are exported. Reports remain private. No file is executed, edited or uploaded.
+
+Neither mode is an atomic filesystem snapshot. File hashing rejects changes while reading. At the end, every scanned tree is enumerated again and checked for added/removed files, file identity/size/timestamp changes and replaced directories; selected profile/configuration hashes are also rechecked. Stop active modding or gameplay before producing release evidence. Symlinks/junctions outside excluded state, ambiguous INI fields, duplicate mod entries and traversal names are rejected. Missing enabled mods/plugins are reported explicitly, not called a successful installation. Ctrl+C cancels scanning; no final report is written. Across scanned trees, inventories are bounded to one million included files, 100,000 excluded paths and 100,000 directories per tree.
+
+The report is **not installable and not publication-approved**. Even with complete hashes for the included files, it does not establish upstream game equivalence, archive contents/conflict resolution, runtime compatibility, source-download reproducibility or redistribution rights. Saves are not read from the profile. No network request or program launch is required to inspect an instance.
 
 ## Private source ledger
 
@@ -22,6 +27,8 @@ node scripts/source-ledger.mjs hashed-inventory.json new-private-ledger.json dow
 ```
 
 This command preserves the hashed installed-file records and finds candidate ZIP/7z/RAR archives using the recorded installation filename or a matching game/mod ID. It fingerprints candidate archives and reads only `gameName`, `modID` and `fileID` from their adjacent `[General]` metadata. It does not read credential header files, copy arbitrary metadata fields, extract archives or contact Nexus. Conflicting metadata and multiple versions remain explicit candidates; none is selected automatically.
+
+Expanded inventories retain their instance/game/profile hashes and explicit exclusions in the private ledger, with an allowlist of record fields. Inventoried disabled mods can receive archive candidates and exact member matches without being enabled. These added root/profile records remain unresolved until separately mapped or transformed; retaining hashes does not infer their sources or permission to distribute them.
 
 The resulting ledger references the input inventory's SHA-256 and records unresolved reconstruction and unreviewed permissions. Matching a filename or Nexus mod ID does not prove an archive member equals an installed file. Exact member comparison, local edits, root/profile reconstruction and generated output remain separate work. Keep these ledgers private alongside inventories; the CLI refuses to replace them or write inside source/download directories.
 

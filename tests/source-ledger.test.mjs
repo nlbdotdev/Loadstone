@@ -98,3 +98,51 @@ test('source ledger retains ambiguity, rejects incomplete hashes, and refuses re
     /redirected/,
   );
 });
+
+test('source ledger retains expanded installation hashes and disabled mod candidates without copying arbitrary fields', async () => {
+  const f = fixture();
+  f.inventory.mods[0].enabled = false;
+  f.inventory.installation = {
+    schemaVersion: 1,
+    instanceFiles: [
+      {
+        path: 'ModOrganizer.exe',
+        ...fingerprint('tool'),
+        privateField: 'synthetic-secret',
+      },
+    ],
+    gameFiles: [{ path: 'FalloutNV.exe', ...fingerprint('game') }],
+    profileFiles: [
+      { path: 'FalloutCustom.ini', ...fingerprint('custom config') },
+    ],
+    privateField: 'synthetic-secret',
+  };
+  f.inventory.exclusions = [
+    {
+      scope: 'profile',
+      path: 'saves',
+      reason: 'saved-game-state',
+      privateField: 'synthetic-secret',
+    },
+  ];
+  const ledger = await buildSourceLedger(f.inventory, [f.root]);
+  assert.equal(ledger.mods[0].enabled, false);
+  assert.equal(ledger.mods[0].archiveCandidates.length, 1);
+  assert.equal(ledger.mods[0].reconstruction, 'unresolved');
+  assert.equal(ledger.summary.installedModFiles, 1);
+  assert.equal(ledger.summary.inventoriedDisabledModFiles, 1);
+  assert.equal(ledger.summary.installationFiles, 3);
+  assert.deepEqual(
+    ledger.installation.gameFiles,
+    f.inventory.installation.gameFiles,
+  );
+  assert.deepEqual(ledger.exclusions, [
+    { scope: 'profile', path: 'saves', reason: 'saved-game-state' },
+  ]);
+  assert.equal(JSON.stringify(ledger).includes('synthetic-secret'), false);
+  f.inventory.installation.profileFiles[0].path = '../outside';
+  await assert.rejects(
+    buildSourceLedger(f.inventory, [f.root]),
+    /complete SHA-256/,
+  );
+});

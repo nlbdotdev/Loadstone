@@ -129,7 +129,7 @@ async function mapArchiveSources(ledger, options = {}) {
         throw new Error('Invalid installed file fingerprint.');
       file.sourceMatches = [];
     }
-    if (!mod.enabled || mod.separator) continue;
+    if (mod.separator || !mod.installedFiles.length) continue;
     for (const candidate of mod.archiveCandidates) {
       if (
         !candidate ||

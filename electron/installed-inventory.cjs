@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const { ordinary, fingerprint, tree } = require('./inventory-files.cjs');
+const { contains } = require('./live-catalog.cjs');
 
 function decode(value) {
   let result = value.replace(/^"(.*)"$/, '$1');
@@ -41,89 +42,10 @@ function safeName(value) {
     throw new Error('Unsafe profile or mod directory name.');
   return value;
 }
-function ordinary(file, directory = false) {
-  const stat = fs.lstatSync(file);
-  if (
-    stat.isSymbolicLink() ||
-    !(directory ? stat.isDirectory() : stat.isFile()) ||
-    fs.realpathSync(file).toLowerCase() !== path.resolve(file).toLowerCase()
-  )
-    throw new Error('Redirected or non-ordinary inventory path.');
-  return stat;
-}
 function read(file, limit = 2_000_000) {
   if (ordinary(file).size > limit)
     throw new Error('Inventory text exceeds size limit.');
   return fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
-}
-async function fingerprint(file) {
-  const before = ordinary(file);
-  const digest = crypto.createHash('sha256');
-  for await (const chunk of fs.createReadStream(file)) digest.update(chunk);
-  const after = ordinary(file);
-  if (
-    before.size !== after.size ||
-    before.mtimeMs !== after.mtimeMs ||
-    before.ino !== after.ino
-  )
-    throw new Error(
-      'A file changed during inventory. Stop active modding or gameplay and retry.',
-    );
-  return { bytes: after.size, sha256: digest.digest('hex') };
-}
-async function tree(root, hashFiles, progress) {
-  ordinary(root, true);
-  const files = [],
-    stack = [''];
-  while (stack.length) {
-    const relative = stack.pop();
-    const folder = path.join(root, relative);
-    ordinary(folder, true);
-    for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
-      const item = path.join(relative, entry.name),
-        full = path.join(root, item);
-      if (entry.isSymbolicLink())
-        throw new Error('Inventory refuses redirected files and folders.');
-      if (entry.isDirectory()) {
-        stack.push(item);
-        continue;
-      }
-      const stat = ordinary(full);
-      files.push({
-        path: item.replaceAll('\\', '/'),
-        bytes: stat.size,
-        mtimeMs: stat.mtimeMs,
-      });
-      if (files.length > 1_000_000)
-        throw new Error('Inventory file limit exceeded.');
-      if (files.length % 1000 === 0)
-        progress({ phase: 'files', files: files.length });
-    }
-  }
-  if (hashFiles) {
-    let next = 0,
-      completed = 0,
-      failure;
-    await Promise.all(
-      Array.from({ length: Math.min(4, files.length) }, async () => {
-        while (!failure && next < files.length) {
-          const index = next++,
-            relative = files[index].path;
-          try {
-            const hash = await fingerprint(path.join(root, relative));
-            files[index] = { path: relative, ...hash };
-            completed++;
-            if (completed % 1000 === 0)
-              progress({ phase: 'hashes', files: completed });
-          } catch (error) {
-            failure ||= error;
-          }
-        }
-      }),
-    );
-    if (failure) throw failure;
-  }
-  return files.sort((a, b) => a.path.localeCompare(b.path, 'en'));
 }
 function lines(text) {
   return text
@@ -132,11 +54,32 @@ function lines(text) {
     .filter((v) => v && !v.startsWith('#'));
 }
 async function inspectMo2(root, options = {}) {
+  options.signal?.throwIfAborted();
   root = path.resolve(root);
   ordinary(root, true);
   const progress = options.progress || (() => {});
+  const guards = [],
+    exclusions = [],
+    budget = { files: 0 };
+  const scan = (folder, scope, exclude) =>
+    tree(
+      folder,
+      options.hashFiles === true,
+      (value) => progress({ ...value, scope }),
+      {
+        guards,
+        budget,
+        signal: options.signal,
+        exclude,
+        excluded: (entry) => {
+          if (exclusions.length >= 100000)
+            throw new Error('Inventory exclusion limit exceeded.');
+          exclusions.push({ scope, ...entry });
+        },
+      },
+    );
   const configFile = path.join(root, 'ModOrganizer.ini');
-  const configBefore = await fingerprint(configFile);
+  const configBefore = await fingerprint(configFile, options.signal);
   const config = ini(read(configFile));
   const base = path.resolve(root, config.get('Settings/base_directory') || '.');
   const location = (key, fallback) =>
@@ -149,6 +92,10 @@ async function inspectMo2(root, options = {}) {
     );
   const profiles = location('profiles_directory', path.join(base, 'profiles'));
   const mods = location('mods_directory', path.join(base, 'mods'));
+  const downloads = location(
+    'download_directory',
+    path.join(base, 'downloads'),
+  );
   const overwritePath = location(
     'overwrite_directory',
     path.join(base, 'overwrite'),
@@ -170,7 +117,8 @@ async function inspectMo2(root, options = {}) {
     'initweaks.ini',
   ]) {
     const file = path.join(profile, name);
-    if (fs.existsSync(file)) snapshots[name] = await fingerprint(file);
+    if (fs.existsSync(file))
+      snapshots[name] = await fingerprint(file, options.signal);
   }
   if (!snapshots['modlist.txt'] || !snapshots['plugins.txt'])
     throw new Error('Missing profile modlist or plugin list.');
@@ -213,8 +161,8 @@ async function inspectMo2(root, options = {}) {
           if (value) item.metadata[field] = value;
         }
       }
-      if (item.enabled)
-        item.files = await tree(folder, options.hashFiles === true, progress);
+      if (item.enabled || (options.installationFiles && !item.unmanaged))
+        item.files = await scan(folder, `mod:${name}`);
     }
     entries.push(item);
     progress({ phase: 'mods', completed: entries.length });
@@ -242,26 +190,58 @@ async function inspectMo2(root, options = {}) {
       enabled,
       winner: candidates[0]?.layer || null,
       shadowed: candidates.slice(1).map((v) => v.layer),
-      ...(candidates[0] ? await fingerprint(candidates[0].file) : {}),
+      ...(candidates[0]
+        ? await fingerprint(candidates[0].file, options.signal)
+        : {}),
     });
   }
   const overwrite = fs.existsSync(overwritePath)
-    ? await tree(overwritePath, options.hashFiles === true, progress)
+    ? await scan(overwritePath, 'overwrite')
     : [];
+  let installation;
+  if (options.installationFiles) {
+    // Configured collections are captured separately or deliberately excluded.
+    // Match absolute boundaries, not directory-name substrings.
+    const separated = [
+      [mods, 'mod-directory-inventoried-separately'],
+      [profiles, 'profiles-inventoried-separately'],
+      [overwritePath, 'overwrite-inventoried-separately'],
+      [downloads, 'download-cache'],
+      [game, 'game-inventoried-separately'],
+    ];
+    if (
+      [mods, profiles, overwritePath, downloads, game].some((folder) =>
+        contains(folder, root),
+      )
+    )
+      throw new Error(
+        'Installation inventory requires distinct instance and configured collection roots.',
+      );
+    const instanceFiles = await scan(root, 'instance', (relative) => {
+      const full = path.join(root, relative);
+      return separated.find(([folder]) => contains(folder, full))?.[1];
+    });
+    const gameFiles = await scan(game, 'game');
+    const profileFiles = await scan(profile, 'profile');
+    installation = { schemaVersion: 1, instanceFiles, gameFiles, profileFiles };
+  }
   for (const [name, before] of Object.entries(snapshots)) {
     if (
-      JSON.stringify(await fingerprint(path.join(profile, name))) !==
-      JSON.stringify(before)
+      JSON.stringify(
+        await fingerprint(path.join(profile, name), options.signal),
+      ) !== JSON.stringify(before)
     )
       throw new Error(
         'Profile changed during inventory. Retry from a settled instance.',
       );
   }
   if (
-    JSON.stringify(await fingerprint(configFile)) !==
+    JSON.stringify(await fingerprint(configFile, options.signal)) !==
     JSON.stringify(configBefore)
   )
     throw new Error('Mod Organizer configuration changed during inventory.');
+  progress({ phase: 'stability', trees: guards.length });
+  for (const guard of guards) await guard();
   const missingMods = entries
     .filter((v) => v.enabled && !v.present && !v.separator)
     .map((v) => v.name);
@@ -280,6 +260,7 @@ async function inspectMo2(root, options = {}) {
       profileFolder: profile,
       profilesFolder: profiles,
       overwriteFolder: overwritePath,
+      downloadsFolder: downloads,
       gameName: config.get('General/gameName'),
       configuration: configBefore,
     },
@@ -288,6 +269,8 @@ async function inspectMo2(root, options = {}) {
     mods: entries,
     plugins,
     overwrite,
+    ...(installation ? { installation } : {}),
+    exclusions,
     summary: {
       enabledMods: entries.filter((v) => v.enabled && !v.separator).length,
       disabledMods: entries.filter(
@@ -298,6 +281,17 @@ async function inspectMo2(root, options = {}) {
         (n, v) => n + (v.files?.length || 0),
         0,
       ),
+      inventoriedDisabledModFiles: entries
+        .filter((v) => !v.enabled)
+        .reduce((sum, v) => sum + (v.files?.length || 0), 0),
+      ...(installation
+        ? {
+            instanceFiles: installation.instanceFiles.length,
+            gameFiles: installation.gameFiles.length,
+            profileFiles: installation.profileFiles.length,
+          }
+        : {}),
+      excludedPaths: exclusions.length,
       missingMods,
       missingPlugins,
     },
@@ -306,7 +300,10 @@ async function inspectMo2(root, options = {}) {
     limitations: [
       'Local inventory only: not a distributable install recipe.',
       'MO2 metadata is a source hint, not proof that installed files equal an upstream archive.',
-      'Base game files, archive contents, archive conflicts, plugin compatibility and gameplay require separate validation.',
+      options.installationFiles
+        ? 'Installation hashes preserve local bytes, not ownership, upstream equivalence, configuration portability or playability. Excluded state is listed explicitly.'
+        : 'Base game and instance files, disabled mods and additional profile configuration are outside this scan; use --installation-files to inventory them.',
+      'Archive contents, archive conflicts, plugin compatibility and gameplay require separate validation.',
       'No redistribution rights are inferred from local ownership or installation.',
     ],
   };
