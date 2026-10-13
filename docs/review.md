@@ -1,4 +1,4 @@
-# Reviewing the 0.3.0 native creator preview
+# Reviewing the 0.4.0 native installation preview
 
 This build includes the live installer and maintenance features developed after the original demo. It is unsigned and remains a private developer preview. A real supported install-to-play run, clean Windows/Steam acceptance, Nexus registration and distribution/asset license review are still required before public release. Original source is licensed under GPL-3.0-or-later; new builds include its license offline.
 
@@ -18,7 +18,7 @@ The existing VNV archive needs additional game preparation. Read [the real prefl
 
 ## Reproduce package verification
 
-Run `pnpm check`, `pnpm test`, then `pnpm package` from a clean commit. Set `LOADSTONE_TEST_EXE` to `release/win-unpacked/Loadstone.exe` and run the Electron, live, Nexus, onboarding, close-guard, native-preview and native-builder tests. Clear that environment variable, then run `node scripts/verify-portable.mjs` to exercise the actual self-extracting executable. The script derives its filename/version from package metadata and records the artifact's SHA-256, size and checked workflows under ignored `test-results/`.
+Run `pnpm check`, `pnpm test`, then `pnpm package` from a clean commit. Set `LOADSTONE_TEST_EXE` to `release/win-unpacked/Loadstone.exe` and run the complete staged-executable test selection in `.github/workflows/windows.yml`, including native installation, library, repair, version updates and manual downloads. Clear that environment variable, then run `node scripts/verify-portable.mjs` to exercise the actual self-extracting executable. The script derives its filename/version from package metadata and checks the full license and scope offline. It records the artifact's SHA-256, size and checked workflows under ignored `test-results/`. Optional package/evidence directory arguments preserve previous artifacts; see [private preview packaging](private-preview.md).
 
 Use a dedicated `LOADSTONE_DATA_DIR` for manual review. This isolates settings and credentials, but does not redirect Desktop or Steam operations. Automated shortcut tests use explicit temporary targets. Do not point a test workspace at data you need to preserve.
 
