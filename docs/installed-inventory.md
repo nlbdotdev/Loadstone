@@ -25,6 +25,14 @@ This command preserves the hashed installed-file records and finds candidate ZIP
 
 The resulting ledger references the input inventory's SHA-256 and records unresolved reconstruction and unreviewed permissions. Matching a filename or Nexus mod ID does not prove an archive member equals an installed file. Exact member comparison, local edits, root/profile reconstruction and generated output remain separate work. Keep these ledgers private alongside inventories; the CLI refuses to replace them or write inside source/download directories.
 
+```powershell
+node scripts/map-zip-sources.mjs private-ledger.json new-private-mapping.json
+```
+
+The first member mapper verifies each candidate ZIP against its locked archive hash, then streams member hashes and compares them with installed size/SHA-256 pairs. It records exact member paths, retains all matching candidates and leaves locally changed files unresolved. It does not extract files or execute content. MO2 `meta.ini` is excluded because it needs privacy-aware regeneration. Each ZIP is accepted as a whole: unsafe paths, duplicate/colliding names, links, changed input or limit violations discard its potential matches. A cancellation aborts the pass.
+
+Limits per archive: 50 GB compressed input, 500,000 entries, 100 GB declared uncompressed content, 1 GB per hashed member and 20 GB of hashed member data. Equivalent member candidates are limited to 128 per size/hash pair; the report accepts at most 500,000 match references. 7z/RAR comparison is not yet implemented and remains explicit in the unresolved-archive list. Exact byte matches still require source/rights review, profile and root reconstruction, and actual installation acceptance.
+
 ## Native `.loadstone` format
 
 The user chose a documented format and open implementation on 2026-10-13. This is Loadstone's native format, not an opaque replacement for upstream archives. The implementation and specification will be developed together from the real inventories. The project license remains a separate maintainer decision.
@@ -62,3 +70,5 @@ These are inventory observations, not release or gameplay certification. All thr
 Source-ID coverage is incomplete: 82/95 combined TTW mods, 78/88 FO3 Remastered mods and 144/196 New Vegas mods carry a nonzero Nexus mod ID in their local metadata. Even those IDs do not establish exact download file IDs, original archive hashes, unchanged installed bytes, compatibility or redistribution rights. Establish an explicit source/transform/permission ledger before producing featured installable packs.
 
 The first local archive-ledger pass found candidates for 77/95 combined TTW mods, 73/88 FO3 Remastered mods and 146/196 New Vegas mods. It fingerprinted 78, 74 and 146 distinct archive paths respectively. Multiple candidates remain for 17, 17 and 43 mods; none had a conflicting filename/mod-ID hint in that pass. These counts measure source leads, not verified member mappings or publication readiness. No game/mod payload was uploaded.
+
+The ZIP-only comparison then inspected 30, 29 and 58 archives and matched 650, 903 and 4,346 installed mod files respectively. The remaining 11,664, 8,079 and 88,760 mod files are unresolved in this pass, including private MO2 metadata and content whose candidates are 7z/RAR. Overwrite, game-root and profile reconstruction remain separate. A missing match does not by itself prove that a file was edited.
