@@ -1,6 +1,6 @@
 # Contributing to Loadstone
 
-Loadstone is a private preview under active development. The project license has not been selected, and this repository is not yet an open-source release. Coordinate contributions with the maintainer until licensing and public reporting channels are finalized.
+Loadstone is a private preview under active development, with original source licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) for the terms and scope. By submitting a contribution to the covered code or documentation, you agree to license that contribution under the same terms and confirm that you have the right to do so. Preserve third-party attribution and identify externally sourced material. No copyright assignment is required. Coordinate contributions with the maintainer while public reporting channels and publication review are finalized.
 
 ## Development on Windows
 
@@ -30,7 +30,7 @@ pnpm notices
 pnpm package
 ```
 
-Notice generation first builds the UI, then combines rendered dependency modules, generated Vite runtime attribution, the installed main-process production graph and the Electron license. Frontend packages are development dependencies because their runtime code is bundled; their notices still ship. The bundle provenance file carries original license texts without machine paths. Review changes to `notices/` before committing. Packaging includes that directory in application resources and retains Electron/Chromium notices. The current portable package is unsigned; it is not the Steam depot build. See [the acceptance plan](docs/1.0-plan.md) and [publication checklist](docs/open-source.md).
+Notice generation first builds the UI, then combines rendered dependency modules, generated Vite runtime attribution, the installed main-process production graph and the Electron license. Frontend packages are development dependencies because their runtime code is bundled; their notices still ship. The bundle provenance file carries original license texts without machine paths. Review changes to `notices/` before committing. Packaging includes that directory, Loadstone's GPL text and copyright/scope notice in application resources and retains Electron/Chromium notices. The current portable package is unsigned; it is not the Steam depot build. See [the acceptance plan](docs/1.0-plan.md) and [publication checklist](docs/open-source.md).
 
 Do not treat a passing fixture suite as completion of install-to-play acceptance. Record the exact game, list, engine and application versions for real release validation.
 

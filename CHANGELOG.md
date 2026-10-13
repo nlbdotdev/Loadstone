@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Adopt GPL-3.0-or-later for Loadstone's original source, with the full license, explicit scope and contribution terms. New packages and the About screen include the license offline; third-party notices remain intact.
 - Recognize archive contents independently of cached filenames, preserving original names and bytes. ZIP reconstruction and ZIP/7z/RAR source comparison retain full hash and structural checks.
 - Allow large members in the verified single-pass 7z mapper within its existing 20 GB total stream limit.
 
