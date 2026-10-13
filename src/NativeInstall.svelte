@@ -116,7 +116,9 @@
       <h2>
         {setup?.repair
           ? 'Repair your installed setup.'
-          : 'Bring your .loadstone setup.'}
+          : setup?.update
+            ? 'Try another version. Keep your playthrough.'
+            : 'Bring your .loadstone setup.'}
       </h2>
       <p>
         Select your games and sources. Loadstone handles reconstruction and
@@ -196,6 +198,29 @@
         requires gameplay acceptance.
       </p>
     </div>
+    {#if setup.update}
+      <div class="save-note">
+        <strong
+          >{setup.update.version} → {setup.version}: a separate installation</strong
+        >
+        <p>
+          Your current setup, personal settings, saves and shortcuts stay
+          available here:
+        </p>
+        <code>{setup.update.root}</code>
+        <p>
+          The selected version uses its own profile and recipe settings.
+          Personal mods, settings and saves are not copied. Review the creator’s
+          save guidance above before considering a manual transfer; “compatible”
+          is the creator’s claim.
+        </p>
+        <p>
+          After verification, add the new folder as a separate library entry.
+          You can continue using the original version and remove either setup
+          separately.
+        </p>
+      </div>
+    {/if}
     {#if setup.repair}
       <div class="save-note">
         <strong>Repair the registered version in its existing folder</strong>
@@ -374,11 +399,19 @@
         <h3>
           {plan.repair
             ? 'Repair this setup'
-            : plan.resume
-              ? 'Resume this setup'
-              : 'Install this setup'}
+            : setup.update
+              ? 'Install a separate version'
+              : plan.resume
+                ? 'Resume this setup'
+                : 'Install this setup'}
         </h3>
         <code>{plan.destination}</code>
+        {#if setup.update}<p>
+            Keep {setup.update.name}
+            {setup.update.version} in its current folder. Install {setup.version}
+            here with fresh settings and no imported saves. Existing shortcuts continue
+            to open the original version.
+          </p>{/if}
         <p>
           {plan.outputs.toLocaleString()} output files · {(
             plan.installBytes / 1e9
@@ -433,9 +466,11 @@
             })}
           >{plan.repair
             ? 'Repair installed setup'
-            : plan.resume
-              ? 'Resume installation'
-              : 'Install native setup'}<ArrowRight size={17} /></button
+            : setup.update
+              ? 'Install separate version'
+              : plan.resume
+                ? 'Resume installation'
+                : 'Install native setup'}<ArrowRight size={17} /></button
         >
       </section>
     {/if}

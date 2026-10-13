@@ -38,4 +38,4 @@ jobs:
           node scripts/steam-depot.mjs --verify $kit.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:LOADSTONE_TEST_EXE = Join-Path $kit.FullName 'content/Loadstone.exe'
-          node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs tests/close-guard.test.mjs tests/native-preview.test.mjs tests/native-builder.test.mjs tests/native-archives.test.mjs tests/native-library-electron.test.mjs tests/native-guide-electron.test.mjs tests/native-repair-electron.test.mjs
+          node --test tests/electron.test.mjs tests/live.test.mjs tests/nexus.test.mjs tests/onboarding.test.mjs tests/close-guard.test.mjs tests/native-preview.test.mjs tests/native-builder.test.mjs tests/native-archives.test.mjs tests/native-library-electron.test.mjs tests/native-guide-electron.test.mjs tests/native-repair-electron.test.mjs tests/native-update-electron.test.mjs

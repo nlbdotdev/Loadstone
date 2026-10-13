@@ -105,6 +105,7 @@ export interface Bridge {
   nativeBuilds(): Promise<NativeBuild[]>;
   nativeGuide(): Promise<NativeGuideState | null>;
   repairNativeSetup(id: string): Promise<NativeGuideState | null>;
+  updateNativeSetup(id: string): Promise<NativeGuideState | null>;
   importNativeSetup(resumeId?: string): Promise<NativeGuideState | null>;
   selectNativeInput(
     id: string,
@@ -372,6 +373,12 @@ export interface NativeBuildPlan {
   archiveTool: string | null;
 }
 export interface NativeGuideState {
+  update: {
+    entryId: string;
+    name: string;
+    version: string;
+    root: string;
+  } | null;
   repair: {
     entryId: string;
     destination: string;
