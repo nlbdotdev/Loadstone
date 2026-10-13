@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import yazl from 'yazl';
 const require = createRequire(import.meta.url);
 const { mapZipSources } = require('../electron/archive-mapping.cjs');
+const { archiveKind } = require('../electron/archive-kind.cjs');
 const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
@@ -91,6 +92,52 @@ test('ZIP mapping accepts no partial matches from changed, redirected or ambiguo
     'unread.7z',
   );
   const unsupported = await mapZipSources(f.ledger);
-  assert.match(unsupported.mapping.issues[0].reason, /Only ZIP/);
+  assert.equal(unsupported.mapping.issues.length, 1);
   assert.equal(unsupported.mapping.matchedInstalledFiles, 0);
+});
+
+test('content detection maps mislabeled ZIPs without renaming originals and refuses fake or embedded signatures', async () => {
+  const f = await fixture();
+  const mislabeled = path.join(f.root, 'download.7z');
+  fs.copyFileSync(f.archive, mislabeled);
+  const original = fs.readFileSync(mislabeled);
+  f.ledger.mods[0].archiveCandidates[0].archive = mislabeled;
+  assert.equal(archiveKind(mislabeled), 'zip');
+  const mapped = await mapZipSources(f.ledger);
+  assert.equal(mapped.mapping.inspected.length, 1);
+  assert.equal(mapped.mapping.matchedInstalledFiles, 1);
+  assert.deepEqual(fs.readFileSync(mislabeled), original);
+  for (const data of [
+    Buffer.from('PK'),
+    Buffer.from('not an archive'),
+    Buffer.concat([Buffer.from('MZ'), original]),
+  ]) {
+    const bad = path.join(f.root, 'fake.zip');
+    fs.writeFileSync(bad, data);
+    assert.throws(() => archiveKind(bad), /signature/);
+  }
+  // A valid prefix chooses a parser, but never substitutes for archive validity.
+  fs.writeFileSync(mislabeled, Buffer.from('504b030400000000', 'hex'));
+  Object.assign(
+    f.ledger.mods[0].archiveCandidates[0],
+    fingerprint(fs.readFileSync(mislabeled)),
+  );
+  assert.equal(
+    (await mapZipSources(f.ledger)).mapping.matchedInstalledFiles,
+    0,
+  );
+});
+
+test('RAR signatures select the correct legacy or RAR5 parser', () => {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'loadstone-rar-signature-'),
+  );
+  const file = path.join(root, 'sample.7z');
+  for (const [signature, expected] of [
+    ['526172211a0700', 'rar'],
+    ['526172211a070100', 'rar5'],
+  ]) {
+    fs.writeFileSync(file, Buffer.from(signature, 'hex'));
+    assert.equal(archiveKind(file), expected);
+  }
 });

@@ -58,6 +58,19 @@ test(
     const sample = inspected.entries.find((v) => v.bytes > 0);
     const single = await adapter.hashMember(candidate, inspected, sample);
     assert.ok(mapped.get(single).includes(sample.name));
+    const mislabeled = path.join(root, 'solid.zip');
+    fs.copyFileSync(archive, mislabeled);
+    const mislabeledCandidate = { ...candidate, archive: mislabeled };
+    const mislabeledInspection = await adapter.inspect(mislabeledCandidate);
+    assert.equal(mislabeledInspection.kind, '7z');
+    assert.deepEqual(
+      await adapter.hashArchive(
+        mislabeledCandidate,
+        mislabeledInspection,
+        wanted,
+      ),
+      mapped,
+    );
     const bad = structuredClone(inspected);
     bad.entries.find((v) => v.bytes > 0).crc32 = '00000000';
     await assert.rejects(
@@ -73,7 +86,11 @@ test(
     );
     controller.abort();
     await assert.rejects(pending, { name: 'AbortError' });
-    assert.deepEqual(fs.readdirSync(root).sort(), ['input', 'solid.7z']);
+    assert.deepEqual(fs.readdirSync(root).sort(), [
+      'input',
+      'solid.7z',
+      'solid.zip',
+    ]);
   },
 );
 

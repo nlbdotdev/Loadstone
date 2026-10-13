@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Recognize archive contents independently of cached filenames, preserving original names and bytes. ZIP reconstruction and ZIP/7z/RAR source comparison retain full hash and structural checks.
+- Allow large members in the verified single-pass 7z mapper within its existing 20 GB total stream limit.
+
 ## 0.3.0 — native creator preview
 
 - Documented experimental `.loadstone` format, strict validator, deterministic compiler and bounded package inspection.

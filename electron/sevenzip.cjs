@@ -5,6 +5,7 @@ const { crc32 } = require('node:zlib');
 const { spawn } = require('node:child_process');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
+const { archiveKind } = require('./archive-kind.cjs');
 
 // This optional creator dependency is chosen by the operator, never by a recipe.
 // Archive content is emitted only to stdout; 7-Zip never receives an output path.
@@ -206,9 +207,8 @@ async function createSevenZip(executable, { signal } = {}) {
       !/^[a-f0-9]{64}$/.test(candidate.sha256)
     )
       throw new Error('Use a locked absolute archive input.');
-    if (
-      !['.7z', '.rar'].includes(path.extname(candidate.archive).toLowerCase())
-    )
+    const kind = archiveKind(candidate.archive);
+    if (!['7z', 'rar', 'rar5'].includes(kind))
       throw new Error('This adapter accepts local 7z/RAR archives only.');
     const before = ordinaryFile(candidate.archive, 50_000_000_000);
     if (before.size !== candidate.bytes)
@@ -223,7 +223,17 @@ async function createSevenZip(executable, { signal } = {}) {
     const listing = [];
     await runTool(
       executable,
-      ['l', '-slt', '-sccUTF-8', '-bd', '-y', '-p-', '--', candidate.archive],
+      [
+        'l',
+        `-t${kind}`,
+        '-slt',
+        '-sccUTF-8',
+        '-bd',
+        '-y',
+        '-p-',
+        '--',
+        candidate.archive,
+      ],
       {
         signal: operationSignal,
         maxBytes: 128_000_000,
@@ -232,11 +242,11 @@ async function createSevenZip(executable, { signal } = {}) {
     );
     const entries = parseArchiveListing(
       Buffer.concat(listing).toString('utf8'),
-      path.extname(candidate.archive).toLowerCase(),
+      `.${kind}`,
     );
     if (!sameFile(before, ordinaryFile(candidate.archive, 50_000_000_000)))
       throw new Error('Archive changed during inspection.');
-    return { entries, snapshot: before };
+    return { entries, snapshot: before, kind };
   }
   async function hashMember(candidate, inspected, entry, operationSignal) {
     guard();
@@ -258,6 +268,7 @@ async function createSevenZip(executable, { signal } = {}) {
       executable,
       [
         'x',
+        `-t${inspected.kind}`,
         '-so',
         '-spd',
         '-ssc',
@@ -296,7 +307,7 @@ async function createSevenZip(executable, { signal } = {}) {
       version[1] !== '26' ||
       version[2] !== '04' ||
       typeof crc32 !== 'function' ||
-      path.extname(candidate.archive).toLowerCase() !== '.7z'
+      inspected.kind !== '7z'
     )
       throw new Error(
         'Single-pass inspection is not verified for this tool or format.',
@@ -353,7 +364,7 @@ async function createSevenZip(executable, { signal } = {}) {
     emptyFiles();
     const count = await runTool(
       executable,
-      ['x', '-so', '-bd', '-y', '-p-', '--', candidate.archive],
+      ['x', '-t7z', '-so', '-bd', '-y', '-p-', '--', candidate.archive],
       {
         signal: operationSignal,
         maxBytes: total,
@@ -413,7 +424,7 @@ async function inspectSevenZipMembers(candidate, wanted, adapter, signal) {
   if (!selected.length) return new Map();
   const batch =
     adapter.batch7z &&
-    path.extname(candidate.archive).toLowerCase() === '.7z' &&
+    inspected.kind === '7z' &&
     inspected.entries.every(
       (entry) => entry.directory || entry.bytes === 0 || entry.crc32,
     ) &&
@@ -423,7 +434,7 @@ async function inspectSevenZipMembers(candidate, wanted, adapter, signal) {
     selected.length > (batch ? 100000 : 10000) ||
     selected.reduce((total, entry) => total + entry.bytes, 0) >
       20_000_000_000 ||
-    selected.some((entry) => entry.bytes > 1_000_000_000)
+    (!batch && selected.some((entry) => entry.bytes > 1_000_000_000))
   )
     throw new Error('Archive member hashing exceeds limits.');
   if (batch) return adapter.hashArchive(candidate, inspected, wanted, signal);

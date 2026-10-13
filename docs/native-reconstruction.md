@@ -31,7 +31,7 @@ These example paths are illustrative. The executable, required game files and ar
 
 ## Data preservation and verification
 
-All requirements and archive hashes are checked before creating the installation directory. ZIP paths, links, duplicate/colliding names, encrypted/unsupported entries, required members and declared sizes are checked in advance. Available destination space must cover expected outputs, recipe metadata and a 64 MB reserve. Archive limits are 500,000 entries and 100 GB declared uncompressed content; local ZIP inputs are bounded to 50 GB.
+All requirements and archive hashes are checked before creating the installation directory. ZIP inputs are recognized by their signature, allowing mislabeled original filenames without renaming them; signatures never replace hash or structural validation. ZIP paths, links, duplicate/colliding names, encrypted/unsupported entries, required members and declared sizes are checked in advance. Available destination space must cover expected outputs, recipe metadata and a 64 MB reserve. Archive limits are 500,000 entries and 100 GB declared uncompressed content; local ZIP inputs are bounded to 50 GB.
 
 Destinations cannot overlap selected game inputs, source archive/package folders, the application, system folders or additional protected roots supplied by the caller. Redirected directories and existing destinations are rejected. Directory creation is exclusive; output files use exclusive creation. The materializer never modifies source game files or downloads, executes archive content or writes save paths.
 

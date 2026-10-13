@@ -58,6 +58,10 @@ test('native reconstruction copies owned inputs and locked ZIP/payload bytes int
   const f = await fixture(),
     archiveBefore = fs.readFileSync(f.archive),
     packageBefore = fs.readFileSync(f.package);
+  // Cached filenames can be mislabeled; byte identity and parser checks govern.
+  const mislabeled = path.join(f.packages, 'source.7z');
+  fs.copyFileSync(f.archive, mislabeled);
+  f.options.archives['original-archive'] = mislabeled;
   const result = await materializeNative(f.package, f.destination, f.options);
   assert.equal(result.status, 'verified');
   assert.equal(result.completedFiles, 6);
