@@ -20,6 +20,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - name: Prepare pinned archive test tool
+        shell: pwsh
+        run: |
+          $tool = ./scripts/prepare-sevenzip.ps1 -Destination "$env:RUNNER_TEMP/loadstone-7zip"
+          "LOADSTONE_TEST_7ZIP=$tool" >> $env:GITHUB_ENV
       - run: pnpm test
       - run: pnpm notices
       - run: git diff --exit-code -- notices

@@ -3,13 +3,14 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { mapZipSources } = require('../electron/archive-mapping.cjs');
+const { mapArchiveSources } = require('../electron/archive-mapping.cjs');
+const { createSevenZip } = require('../electron/sevenzip.cjs');
 const { ordinaryFile } = require('../electron/native-package.cjs');
 const { canonical, contains } = require('../electron/live-catalog.cjs');
-const [input, output, ...extra] = process.argv.slice(2);
+const [input, output, sevenZipPath, ...extra] = process.argv.slice(2);
 if (!input || !output || extra.length)
   throw new Error(
-    'Usage: map-zip-sources.mjs <private-ledger.json> <new-private-mapping.json>',
+    'Usage: map-zip-sources.mjs <private-ledger.json> <new-private-mapping.json> [absolute-path-to-7z.exe]',
   );
 ordinaryFile(input, 128_000_000);
 const ledger = JSON.parse(fs.readFileSync(input, 'utf8'));
@@ -39,7 +40,8 @@ for (const root of protectedRoots)
     throw new Error(
       'Keep mappings outside source installations and downloads.',
     );
-const mapped = await mapZipSources(ledger, {
+const mapped = await mapArchiveSources(ledger, {
+  sevenZip: sevenZipPath ? await createSevenZip(sevenZipPath) : undefined,
   progress: (v) => {
     if (v.inspected % 10 === 0) console.log(JSON.stringify(v));
   },
@@ -51,7 +53,7 @@ fs.writeFileSync(target, JSON.stringify(mapped, null, 2) + '\n', {
 console.log(
   JSON.stringify(
     {
-      inspectedZipArchives: mapped.mapping.inspected.length,
+      inspectedArchives: mapped.mapping.inspected.length,
       archivesUnresolved: mapped.mapping.issues.length,
       matchedInstalledFiles: mapped.mapping.matchedInstalledFiles,
       unmatchedInstalledFiles: mapped.mapping.unmatchedInstalledFiles,
