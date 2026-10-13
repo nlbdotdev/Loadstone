@@ -85,6 +85,7 @@ export function createNativeFixture({
       path: 'ModOrganizer.ini',
       action: {
         type: 'mo2-config',
+        gameEdition: 'Steam',
         executables: [
           {
             title: 'New Vegas',

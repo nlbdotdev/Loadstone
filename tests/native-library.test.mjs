@@ -73,6 +73,16 @@ test('native checks reject redirected saves, changed executables and unsafe prof
   fs.unlinkSync(path.join(f.destination, 'profiles/Test/saves'));
   const iniFile = path.join(f.destination, 'ModOrganizer.ini'),
     originalIni = fs.readFileSync(iniFile, 'utf8');
+  for (const edition of ['game_edition=GOG', '']) {
+    fs.writeFileSync(iniFile, originalIni.replace(/game_edition=.*/, edition));
+    assert.throws(() => nativeLaunchPlan(record), /game edition differs/);
+  }
+  // QSettings can rewrite quoted values; preserve semantic launch checks.
+  fs.writeFileSync(
+    iniFile,
+    originalIni.replace('game_edition="Steam"', 'game_edition=Steam'),
+  );
+  assert.doesNotThrow(() => nativeLaunchPlan(record));
   fs.writeFileSync(
     iniFile,
     originalIni.replace(/mod_directory=.*/, `mod_directory=${f.owned}`),

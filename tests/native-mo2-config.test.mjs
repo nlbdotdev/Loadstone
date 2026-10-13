@@ -32,6 +32,48 @@ async function fixture() {
   return f;
 }
 
+test('edition declarations match the target storefront, including mixed-store TTW requirements', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  const config = recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  const text = () =>
+    renderMo2Config(config, recipe, 'C:/Loadstone/Edition').data.toString();
+  for (const [store, edition] of [
+    ['steam', 'Steam'],
+    ['gog', 'GOG'],
+  ]) {
+    recipe.requirements[0].store = store;
+    config.action.gameEdition = edition;
+    assert.match(text(), new RegExp(`^game_edition="${edition}"$`, 'm'));
+  }
+  recipe.game.variant = 'ttw';
+  recipe.requirements.unshift({ id: 'fallout3', store: 'steam', files: [] });
+  assert.match(text(), /^game_edition="GOG"$/m);
+  for (const invalid of [
+    'Steam',
+    'Epic Games',
+    'gog',
+    '',
+    null,
+    'GOG\n[Settings]',
+  ]) {
+    config.action.gameEdition = invalid;
+    assert.throws(text, /gameEdition must match/);
+  }
+});
+
+test('recipes without an edition retain their pre-extension configuration fingerprint', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  const config = recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  delete config.action.gameEdition;
+  assert.doesNotThrow(() => validateRecipe(recipe));
+  const rendered = renderMo2Config(config, recipe, 'C:/Loadstone/Legacy');
+  assert.equal(rendered.bytes, 739);
+  assert.equal(
+    rendered.sha256,
+    '64208730d9f197da885102b8c656b97aeac0bdbc803d93cbf2e8f61ab730e2c3',
+  );
+});
+
 test('one recipe generates isolated MO2 paths at two destinations with exact derived fingerprints', async () => {
   const f = await fixture();
   assert.equal(f.inspected.summary.generatedConfigurations, 1);
@@ -102,6 +144,9 @@ test('typed configuration rejects arbitrary fields, external binaries, scripts, 
     },
     (v, c) => {
       c.action.nexus_api_key = 'secret';
+    },
+    (v, c) => {
+      c.action.gameEdition = 'GOG';
     },
     (v, c) => {
       c.path = 'other.ini';

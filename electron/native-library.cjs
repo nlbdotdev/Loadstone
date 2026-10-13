@@ -145,6 +145,11 @@ function launchLayout(meta) {
       expected.get('General').get('gameName'),
     'The MO2 game type differs from the registered recipe.',
   );
+  if (config.action.gameEdition)
+    demand(
+      actual.get('General')?.get('game_edition') === config.action.gameEdition,
+      'The MO2 game edition differs from the registered recipe.',
+    );
   for (const [key, value] of expected.get('Settings')) {
     const configured = actual.get('Settings')?.get(key);
     if (key.endsWith('_directory')) {

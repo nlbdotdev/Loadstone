@@ -36,8 +36,24 @@ function validateMo2Config(output, recipe) {
     output.path === 'ModOrganizer.ini',
     'only ModOrganizer.ini can be generated.',
   );
-  shape(output.action, ['type', 'executables']);
+  shape(output.action, [
+    'type',
+    'executables',
+    ...(Object.hasOwn(output.action || {}, 'gameEdition')
+      ? ['gameEdition']
+      : []),
+  ]);
   demand(output.action.type === 'mo2-config', 'unsupported generator.');
+  if (Object.hasOwn(output.action, 'gameEdition')) {
+    const store = recipe.requirements.find(
+      (v) => v.id === recipe.game.id,
+    )?.store;
+    demand(
+      ['Steam', 'GOG'].includes(output.action.gameEdition) &&
+        output.action.gameEdition === { steam: 'Steam', gog: 'GOG' }[store],
+      'gameEdition must match the target game storefront (Steam or GOG).',
+    );
+  }
   demand(recipe.launch.profile.isWellFormed(), 'invalid profile text.');
   const entries = output.action.executables;
   demand(
@@ -179,6 +195,10 @@ function renderMo2Config(output, recipe, destination) {
     'gamePath=' + qtBytes(local(recipe.launch.gameRoot)),
     'selected_profile=' + qtBytes(recipe.launch.profile),
     'first_start=false',
+    // Omission preserves the exact bytes/receipts of legacy recipes.
+    ...(output.action.gameEdition
+      ? ['game_edition=' + qtString(output.action.gameEdition)]
+      : []),
     '',
     '[Settings]',
     'base_directory=' + qtString(root),
