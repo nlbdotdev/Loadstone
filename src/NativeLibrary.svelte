@@ -145,8 +145,9 @@
     </div>
   {/if}
   {#if !libraryState.entries.length && !plan}<p class="empty">
-      No native candidates registered. Build one in Settings, then select its
-      completed folder here.
+      No native setups registered. Start a .loadstone setup in Discover, then
+      review it for My library from Downloads. You can also add an existing
+      completed candidate here.
     </p>{/if}
   {#each libraryState.entries as entry (entry.id)}
     <article class="card">

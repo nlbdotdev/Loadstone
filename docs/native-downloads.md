@@ -1,6 +1,6 @@
 # Original-source archive downloads
 
-The experimental desktop native builder can acquire `https-archive` and `nexus-archive` sources from a reviewed `.loadstone` package. Its private input map selects either an absolute local archive path or `null` for each archive source ID:
+The experimental desktop native builder can acquire `https-archive` and `nexus-archive` sources from a reviewed `.loadstone` package. [Guided installation](native-guided-install.md) defaults each archive to its original download and offers a native picker for manually downloaded originals. The creator workflow uses a private input map with either an absolute local archive path or `null` for each archive source ID:
 
 ```json
 {
@@ -13,7 +13,7 @@ The source IDs, lengths, hashes and public source references come from the recip
 
 ## Review and execution
 
-Settings shows the archive count, maximum acquisition bytes, original source hostnames, local cache directory and selected archive tool before **Build candidate**. No downloads occur during selection or package inspection. Starting re-inspects the package and rejects a changed recipe before network work. The materializer checks the same recipe fingerprint again before creating candidate outputs.
+Both guided Discover review and creator Settings review show the archive count, maximum acquisition bytes, original source hostnames, local cache directory and selected archive tool before confirmation. No downloads occur during selection or package inspection. Starting re-inspects the package and rejects a changed recipe before network work. The materializer checks the same recipe fingerprint again before creating candidate outputs.
 
 The builder acquires archives sequentially, then runs the existing complete input, archive-structure, write and final-file verification. Archive signatures select the actual parser. Acquisition is a separate progress phase; current-file bytes represent downloaded bytes or bytes rehashed from cache. Cancellation and the app close guard include acquisition.
 

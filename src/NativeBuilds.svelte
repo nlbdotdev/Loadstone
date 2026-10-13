@@ -1,13 +1,29 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { FolderPlus, Hammer, Square } from '@lucide/svelte';
-  import type { NativeBuild, NativeBuildPlan } from './types';
-  let { live }: { live: boolean } = $props();
+  import type {
+    NativeBuild,
+    NativeBuildPlan,
+    NativeLibraryState,
+  } from './types';
+  let {
+    live,
+    creator = true,
+    onresume,
+    onadmitted,
+  }: {
+    live: boolean;
+    creator?: boolean;
+    onresume?: (id: string) => Promise<void>;
+    onadmitted?: () => void;
+  } = $props();
   let jobs = $state<NativeBuild[]>([]);
   let plan = $state<NativeBuildPlan | null>(null);
   let busy = $state(false);
   let error = $state('');
   let reviewing = $state<string | null>(null);
+  let admitting = $state(false);
+  let admissionProgress = $state<NativeLibraryState['progress']>(null);
   const active = (job: NativeBuild) =>
     ['queued', 'building', 'stopping'].includes(job.status);
   const running = $derived(jobs.some(active));
@@ -61,6 +77,10 @@
       try {
         const result = await window.loadstone.nativeBuilds();
         if (!stopped) jobs = result;
+        if (admitting) {
+          const library = await window.loadstone.nativeLibrary();
+          if (!stopped) admissionProgress = library.progress;
+        }
       } catch {
         if (!stopped) error = 'Could not read native build history.';
       } finally {
@@ -80,39 +100,71 @@
   <div class="heading">
     <Hammer size={22} />
     <div>
-      <h2>Reconstruct a local candidate</h2>
-      <p>Creator tools · Experimental</p>
+      <h2>
+        {creator ? 'Reconstruct a local candidate' : 'Native installations'}
+      </h2>
+      <p>
+        {creator
+          ? 'Creator tools · Experimental'
+          : 'Verified files, preserved progress'}
+      </p>
     </div>
   </div>
-  <p>
-    Choose a .loadstone package, its private local-inputs JSON, and a parent
-    folder. Loadstone creates a new candidate from owned game files, local
-    prerequisites, ZIP, 7z or RAR archives and bundled files. Your input file
-    can select local archives or request original-source downloads. For
-    downloads or 7z/RAR, you’ll also select your trusted 7-Zip x64 26.04 or
-    newer installation.
-  </p>
-  <p class="note">
-    Automatic Nexus downloads require Premium; free accounts can select manually
-    downloaded archives. Completed candidates need a separate review in My
-    library before launch and shortcut controls become available.
-  </p>
-  {#if !live}<p class="note">
-      Switch to the live workspace to build real files.
-    </p>{/if}
-  <button
-    class="secondary"
-    disabled={!live || busy || running}
-    onclick={() =>
-      action(async () => {
-        plan = null;
-        plan = await window.loadstone.prepareNativeBuild();
-      })}
-    ><FolderPlus size={16} />{busy
-      ? 'Preparing…'
-      : 'Choose local build inputs'}</button
-  >
+  {#if creator}<p>
+      Choose a .loadstone package, its private local-inputs JSON, and a parent
+      folder. Loadstone creates a new candidate from owned game files, local
+      prerequisites, ZIP, 7z or RAR archives and bundled files. Your input file
+      can select local archives or request original-source downloads. For
+      downloads or 7z/RAR, you’ll also select your trusted 7-Zip x64 26.04 or
+      newer installation.
+    </p>
+    <p class="note">
+      Automatic Nexus downloads require Premium; free accounts can select
+      manually downloaded archives. Completed candidates need a separate review
+      in My library before launch and shortcut controls become available.
+    </p>
+    {#if !live}<p class="note">
+        Switch to the live workspace to build real files.
+      </p>{/if}
+    <button
+      class="secondary"
+      disabled={!live || busy || running}
+      onclick={() =>
+        action(async () => {
+          plan = null;
+          plan = await window.loadstone.prepareNativeBuild();
+        })}
+      ><FolderPlus size={16} />{busy
+        ? 'Preparing…'
+        : 'Choose local build inputs'}</button
+    >
+  {/if}
   {#if error}<p role="alert" class="error">{error}</p>{/if}
+  {#if admitting}
+    <p role="status">Checking this setup for My library…</p>
+    {#if admissionProgress}
+      <p class="note">
+        {admissionProgress.completed.toLocaleString()} / {admissionProgress.total.toLocaleString()}
+        files checked
+      </p>
+      <progress
+        value={admissionProgress.completed}
+        max={Math.max(1, admissionProgress.total)}
+        aria-label="Library admission verification"
+      ></progress>
+    {/if}
+    <button
+      class="secondary"
+      onclick={async () => {
+        try {
+          await window.loadstone.cancelNativeVerification();
+        } catch (e) {
+          error =
+            e instanceof Error ? e.message : 'Could not cancel verification.';
+        }
+      }}>Cancel library verification</button
+    >
+  {/if}
   {#if plan}
     <section class="review" aria-label="Review native build">
       <span class="eyebrow">Ready for input verification</span>
@@ -250,6 +302,10 @@
               disabled={!live || busy || running}
               onclick={() =>
                 action(async () => {
+                  if (onresume) {
+                    await onresume(job.id);
+                    return;
+                  }
                   plan = null;
                   reviewing = job.id;
                   try {
@@ -258,6 +314,24 @@
                     reviewing = null;
                   }
                 })}>Review resume</button
+            >
+          {/if}
+          {#if !creator && job.status === 'verified'}
+            <button
+              class="primary"
+              disabled={!live || busy || running}
+              onclick={() =>
+                action(async () => {
+                  admitting = true;
+                  admissionProgress = null;
+                  try {
+                    if (await window.loadstone.admitNativeBuild(job.id))
+                      onadmitted?.();
+                  } finally {
+                    admitting = false;
+                    admissionProgress = null;
+                  }
+                })}>Review for My library</button
             >
           {/if}
           {#if active(job)}<button
@@ -271,6 +345,10 @@
         </article>
       {/each}
     </div>{/if}
+  {#if !creator && !jobs.length}<p>
+      Your native installations will appear here after you start a setup in
+      Discover.
+    </p>{/if}
 </section>
 
 <style>

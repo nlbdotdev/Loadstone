@@ -43,6 +43,7 @@
   import NexusSettings from './NexusSettings.svelte';
   import NativePackagePreview from './NativePackagePreview.svelte';
   import NativeBuilds from './NativeBuilds.svelte';
+  import NativeInstall from './NativeInstall.svelte';
   import LiveJobs from './LiveJobs.svelte';
   import NativeLibrary from './NativeLibrary.svelte';
   import { catalog } from './data';
@@ -436,6 +437,7 @@
             </div>
           </div>
           {#if !appState.settings.dummyData}
+            <NativeInstall onstarted={() => navigate('downloads')} />
             <LiveCatalog onstarted={() => navigate('downloads')} />
           {:else}
             <div class="filter-row">
@@ -633,6 +635,15 @@
           <NativeLibrary />
           <LiveJobs library />
         {:else if page === 'downloads' && !appState.settings.dummyData}
+          <NativeBuilds
+            live
+            creator={false}
+            onresume={async (id) => {
+              if (await window.loadstone.importNativeSetup(id))
+                navigate('discover');
+            }}
+            onadmitted={() => navigate('library')}
+          />
           <LiveJobs />
         {:else if page === 'library'}
           <div class="page-heading">

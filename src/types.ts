@@ -103,6 +103,17 @@ export interface Bridge {
   importManifest(): Promise<Manifest[] | null>;
   inspectNativePackage(): Promise<NativePackageSummary | null>;
   nativeBuilds(): Promise<NativeBuild[]>;
+  nativeGuide(): Promise<NativeGuideState | null>;
+  importNativeSetup(resumeId?: string): Promise<NativeGuideState | null>;
+  selectNativeInput(
+    id: string,
+    kind: 'game' | 'prerequisite' | 'archive' | 'download' | 'parent',
+    key?: string,
+    token?: string,
+  ): Promise<NativeGuideState>;
+  reviewNativeSetup(id: string): Promise<NativeGuideState>;
+  installNativeSetup(id: string, planId: string): Promise<NativeBuild[]>;
+  admitNativeBuild(id: string): Promise<boolean>;
   prepareNativeBuild(): Promise<NativeBuildPlan | null>;
   resumeNativeBuild(id: string): Promise<NativeBuildPlan | null>;
   startNativeBuild(id: string): Promise<NativeBuild[]>;
@@ -323,6 +334,48 @@ export interface NativeBuildPlan {
   downloadHosts: string[];
   downloadCache: string | null;
   archiveTool: string | null;
+}
+export interface NativeGuideState {
+  id: string;
+  recipeSha256: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  game: { id: 'fnv' | 'skyrimse' | 'fallout4'; variant: 'base' | 'ttw' };
+  saveCompatibility: {
+    status: 'compatible' | 'unknown' | 'new-save-required';
+    notes: string;
+  };
+  outputs: number;
+  installBytes: number;
+  games: {
+    id: string;
+    store: string;
+    folder: string | null;
+    detected: { token: string; folder: string }[];
+  }[];
+  prerequisites: {
+    id: string;
+    name: string;
+    version: string;
+    files: number;
+    instructions: string;
+    folder: string | null;
+  }[];
+  archives: {
+    id: string;
+    type: 'nexus-archive' | 'https-archive';
+    bytes: number;
+    sha256: string;
+    source: string;
+    credit: string;
+    file: string | null;
+  }[];
+  parent: string | null;
+  resumeId: string | null;
+  ready: boolean;
+  plan: NativeBuildPlan | null;
 }
 export interface NativeBuild {
   id: string;

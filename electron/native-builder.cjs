@@ -87,6 +87,9 @@ function validateHistory(value) {
 function readInputs(file, recipe) {
   ordinaryFile(file, 5_000_000);
   const input = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return validateInputs(input, recipe);
+}
+function validateInputs(input, recipe) {
   if (
     !input ||
     Array.isArray(input) ||
@@ -178,6 +181,20 @@ class NativeBuilder {
   ensureIdle() {
     return (this.options.idle || assertGamesClosed)();
   }
+  async select(operation) {
+    if (this.persistenceFailed)
+      throw new Error('Restart Loadstone to recover native build history.');
+    if (this.busy)
+      throw new Error('Wait for the current native build or selection.');
+    this.options.assertAvailable?.();
+    this.preparing = true;
+    this.plan = null;
+    try {
+      return await operation();
+    } finally {
+      this.preparing = false;
+    }
+  }
   recoveryRoots(id) {
     return [
       this.root,
@@ -267,7 +284,16 @@ class NativeBuilder {
       this.controller?.signal.throwIfAborted();
       if (resumeJob && inspected.recipeSha256 !== resumeJob.recipeSha256)
         throw new Error('Resume requires the exact recipe from this build.');
-      const inputs = readInputs(selected.inputsFile, inspected.recipe);
+      if (
+        selected.recipeSha256 &&
+        selected.recipeSha256 !== inspected.recipeSha256
+      )
+        throw new Error(
+          'The native package changed after import. Import it again.',
+        );
+      const inputs = selected.inputs
+        ? validateInputs(structuredClone(selected.inputs), inspected.recipe)
+        : readInputs(selected.inputsFile, inspected.recipe);
       const needsTool = Object.values(inputs.archives).some(
         (file) =>
           file === null || ['7z', 'rar', 'rar5'].includes(archiveKind(file)),

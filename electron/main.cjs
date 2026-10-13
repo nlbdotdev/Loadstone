@@ -25,6 +25,7 @@ const { diagnostics } = require('./diagnostics.cjs');
 const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
 const { NativeBuilder } = require('./native-builder.cjs');
+const { NativeGuide } = require('./native-guide.cjs');
 const { NativeLibrary, nativeLaunchPlan } = require('./native-library.cjs');
 const { NativeMaintenance } = require('./native-maintenance.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
@@ -126,6 +127,15 @@ else {
             throw new Error(
               'Choose a separate native candidate outside application data and existing installations.',
             );
+        },
+      });
+      const nativeGuide = new NativeGuide(nativeBuilder, {
+        discover: async () => discoverGames(await steamRoots()),
+        defaultParent: () => {
+          const root = store.state.settings.installRoot;
+          return contains(canonical(app.getPath('userData')), canonical(root))
+            ? path.join(app.getPath('documents'), 'Loadstone', 'Setups')
+            : root;
         },
       });
       const idleNative = () => {
@@ -299,6 +309,77 @@ else {
         }),
       );
       handle('native:builds', () => nativeBuilder.list());
+      const chooseNativeTool = async () => {
+        const result = await dialog.showOpenDialog(window, {
+          title: 'Select your trusted 7z.exe (7-Zip x64 26.04 or newer)',
+          properties: ['openFile'],
+          filters: [{ name: '7-Zip executable', extensions: ['exe'] }],
+        });
+        return result.canceled ? null : result.filePaths[0];
+      };
+      handle('native-guide:get', () => nativeGuide.state());
+      handle('native-guide:import', (resumeId) =>
+        nativeGuide.import(async () => {
+          const result = await dialog.showOpenDialog(window, {
+            title: 'Choose a .loadstone setup',
+            properties: ['openFile'],
+            filters: [{ name: 'Loadstone package', extensions: ['loadstone'] }],
+          });
+          return result.canceled ? null : result.filePaths[0];
+        }, resumeId),
+      );
+      handle('native-guide:select', (id, kind, key, token) =>
+        nativeGuide.select(
+          id,
+          kind,
+          key,
+          async () => {
+            const archive = kind === 'archive';
+            const result = await dialog.showOpenDialog(window, {
+              title: archive
+                ? 'Choose the original archive'
+                : kind === 'game'
+                  ? 'Choose the required owned game folder'
+                  : kind === 'parent'
+                    ? 'Choose where to create this installation'
+                    : 'Choose the prepared prerequisite folder',
+              properties: archive
+                ? ['openFile']
+                : kind === 'parent'
+                  ? ['openDirectory', 'createDirectory']
+                  : ['openDirectory'],
+            });
+            return result.canceled ? null : result.filePaths[0];
+          },
+          token,
+        ),
+      );
+      handle('native-guide:review', (id) =>
+        nativeGuide.review(id, chooseNativeTool),
+      );
+      handle('native-guide:start', (id, planId) =>
+        nativeGuide.start(id, planId),
+      );
+      handle('native:admit', async (id) => {
+        const job = nativeBuilder.jobs.find(
+          (v) => v.id === id && v.status === 'verified',
+        );
+        if (!job) throw new Error('Choose a verified native installation.');
+        const plan = await nativeLibrary.prepare(async () => job.destination);
+        const result = await dialog.showMessageBox(window, {
+          title: 'Add this setup to My library?',
+          type: 'info',
+          message: `${plan.name} ${plan.version} — ${plan.fileCount} files checked`,
+          detail: `Profile: ${plan.profile}\nFolder: ${plan.root}\n\nSave guidance: ${plan.saveCompatibility.status}\n${plan.saveCompatibility.notes}\n\nAdding a library entry starts no game and imports no saves. Launch and optional Desktop/Steam shortcut controls will be available in My library.`,
+          buttons: ['Cancel', 'Add to My library'],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        if (result.response !== 1) return false;
+        nativeLibrary.register(plan.id);
+        return true;
+      });
       const prepareNativeBuild = (resumeId) =>
         nativeBuilder.prepare(
           async (destination) => {
@@ -331,14 +412,7 @@ else {
               ? null
               : { packageFile, inputsFile, parent: parent.filePaths[0] };
           },
-          async () => {
-            const result = await dialog.showOpenDialog(window, {
-              title: 'Select your trusted 7z.exe (7-Zip x64 26.04 or newer)',
-              properties: ['openFile'],
-              filters: [{ name: '7-Zip executable', extensions: ['exe'] }],
-            });
-            return result.canceled ? null : result.filePaths[0];
-          },
+          chooseNativeTool,
           resumeId,
         );
       handle('native:prepare', () => prepareNativeBuild());

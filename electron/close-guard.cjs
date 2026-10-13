@@ -41,7 +41,7 @@ function currentActivity(installer, runtime, nativeBuilder, nativeLibrary) {
     return {
       message: 'A native candidate is being prepared or built.',
       detail:
-        'Finish the selection or cancel the build in Settings and wait for it to stop before closing. Any partial candidate folder is retained.',
+        'Finish the selection or cancel the native installation in Downloads or Settings and wait for it to stop before closing. Any partial folder is retained.',
     };
   if (installer?.maintenance)
     return {
