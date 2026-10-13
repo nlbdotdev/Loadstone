@@ -34,6 +34,6 @@ Notice generation first builds the UI, then combines rendered dependency modules
 
 Do not treat a passing fixture suite as completion of install-to-play acceptance. Record the exact game, list, engine and application versions for real release validation.
 
-Builds embed the Git commit, dirty-worktree flag and lockfile SHA-256 in `dist/build-info.json`. Source archives without Git metadata report an unknown commit. Diagnostic exports include this build identity so builds with the same preview version can still be distinguished. Exports use an explicit field allowlist; do not add arbitrary log, manifest or credential objects to them.
+Builds embed the Git commit, dirty-worktree flag and lockfile SHA-256 in `dist/build-info.json`. The lockfile hash uses UTF-8 with CRLF normalized to LF so Windows checkouts and exact Git source archives agree; earlier previews recorded checkout bytes. Source archives without Git metadata report an unknown commit. Diagnostic exports include this build identity so builds with the same preview version can still be distinguished. Exports use an explicit field allowlist; do not add arbitrary log, manifest or credential objects to them.
 
 Run `pnpm audit:publication` before proposing public release. See [publication hygiene findings](docs/publication-audit.md) for the scan scope, classified fixtures, historical personal-path findings and outstanding manual review. The command never rewrites history and does not approve publication.

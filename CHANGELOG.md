@@ -1,10 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — native installation preview
+
+- Guided `.loadstone` installation in Discover: select owned games and local prerequisites, review destination and sources, then follow measured progress in Downloads.
+- Original HTTPS and Nexus archive acquisition, verified cache reuse, browser handoff for manual Nexus downloads and cancellable local-file verification. Real provider/account acceptance remains required.
+- ZIP/7z/RAR reconstruction, destination-bound MO2 configuration and expanded installed-baseline inventories and source mapping. 7z/RAR operations require an operator-supplied trusted 7-Zip tool; it is not bundled.
+- Resume interrupted builds, explicitly admit verified candidates to My library, and create Desktop/Steam shortcuts for isolated profiles.
+- Same-version repair with retained originals and configuration preservation; separate-folder version updates; reviewed removal retaining saves and user changes. Each workflow includes interruption/recovery checks.
 
 - Adopt GPL-3.0-or-later for Loadstone's original source, with the full license, explicit scope and contribution terms. New packages and the About screen include the license offline; third-party notices remain intact.
 - Recognize archive contents independently of cached filenames, preserving original names and bytes. ZIP reconstruction and ZIP/7z/RAR source comparison retain full hash and structural checks.
 - Allow large members in the verified single-pass 7z mapper within its existing 20 GB total stream limit.
+
+This is an unsigned private Windows preview. No playable featured pack is bundled. Fixture tests and the private full-size TTW file comparison do not certify gameplay, real Nexus downloads or Steam-client behavior. Public registration, clean Windows install-to-play, featured-pack source/rights completion, publication review and final release materials remain open. The older 0.3.0 executable and video retain their original provenance.
 
 ## 0.3.0 — native creator preview
 

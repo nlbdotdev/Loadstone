@@ -4,6 +4,8 @@ The maintainer selected **GPL-3.0-or-later** on October 13, 2026. [LICENSE](../L
 
 New Windows packages include `resources/licenses/Loadstone-GPL-3.0.txt` and `Loadstone-COPYRIGHT.txt`; the About screen displays both texts offline. Third-party notices remain separate. The recorded 0.3.0 preview predates this decision and is not silently replaced or relabeled.
 
+The 0.4.0 [private preview procedure](private-preview.md) pairs a clean packaged revision with an exact source ZIP and local integrity/review evidence. Preparing that archive does not close public corresponding-source delivery or the publication gates below.
+
 ## Provenance inventory
 
 | Component                            | Current treatment                                                                                                                                                                                                                                                                                                                           |
