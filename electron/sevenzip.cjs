@@ -6,6 +6,7 @@ const { spawn } = require('node:child_process');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
+const { recordArchiveMatch } = require('./archive-matches.cjs');
 
 // This optional creator dependency is chosen by the operator, never by a recipe.
 // Archive content is emitted only to stdout; 7-Zip never receives an output path.
@@ -432,13 +433,8 @@ async function createSevenZip(executable, { signal } = {}) {
           if (sizes.has(entry.bytes)) {
             hash ||= crypto.createHash('sha256');
             const identity = `${entry.bytes}:${hash.digest('hex')}`;
-            if (wanted.has(identity)) {
-              const names = matches.get(identity) || [];
-              names.push(entry.name);
-              if (names.length > 128)
-                throw new Error('Too many equivalent archive members.');
-              matches.set(identity, names);
-            }
+            if (wanted.has(identity))
+              recordArchiveMatch(matches, identity, entry.name);
           }
           hash = null;
         },
@@ -555,13 +551,7 @@ async function inspectSevenZipMembers(candidate, wanted, adapter, signal) {
       entry,
       signal,
     );
-    if (wanted.has(identity)) {
-      const names = matches.get(identity) || [];
-      names.push(entry.name);
-      if (names.length > 128)
-        throw new Error('Too many equivalent archive members.');
-      matches.set(identity, names);
-    }
+    if (wanted.has(identity)) recordArchiveMatch(matches, identity, entry.name);
   }
   return matches;
 }
