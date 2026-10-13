@@ -53,6 +53,7 @@ else {
       const maintenance = new Maintenance(installer);
       const nativePreview = createNativePreview();
       const nativeBuilder = new NativeBuilder(app.getPath('userData'), {
+        nexus,
         assertAvailable: () => {
           if (store.state.settings.dummyData)
             throw new Error(

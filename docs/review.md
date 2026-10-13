@@ -12,6 +12,8 @@ This build includes the live installer and maintenance features developed after 
 6. Export diagnostics and confirm build identity. Ordinary closes during installation, removal or engine preparation should keep the operation visible and offer minimization. Idle closes should exit cleanly.
 7. In Settings, inspect a native package, then reconstruct a synthetic local candidate with the matching private inputs JSON. Confirm the new destination and prerequisite summary before starting. Check cancellation, restart history and **Files verified · Launch untested**; candidates must stay out of the playable library. Use fixtures outside real game, Desktop and Steam folders.
 
+For current source with native downloads, also review the source hosts/cache/bytes for an archive input set to `null`. Exercise acquisition, hash failure, cancellation, verified-cache reuse and final reconstruction. Keep fixture network responses synthetic; separately record any real provider/account acceptance. Never put a key or signed URL in a recipe. The older recorded 0.3.0 binary does not contain these later changes.
+
 The existing VNV archive needs additional game preparation. Read [the real preflight findings](vnv-acceptance.md) before using it as an acceptance candidate. An isolated-layout declaration does not convert an archive into a Stock Game list.
 
 ## Reproduce package verification

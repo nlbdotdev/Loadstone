@@ -6,6 +6,8 @@ const { materializeNative } = require('./native-materializer.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
 const { createSevenZip } = require('./sevenzip.cjs');
+const { acquireArchives, archiveSource } = require('./native-downloads.cjs');
+const { DownloadError } = require('./native-network.cjs');
 
 const statuses = new Set([
   'queued',
@@ -111,7 +113,9 @@ function readInputs(file, recipe) {
       Object.keys(selected).length !== expected.length ||
       expected.some((id) => !Object.hasOwn(selected, id)) ||
       Object.values(selected).some(
-        (v) => !text(v, 32767) || !path.isAbsolute(v),
+        (v) =>
+          !(key === 'archives' && v === null) &&
+          (!text(v, 32767) || !path.isAbsolute(v)),
       )
     )
       throw new Error(
@@ -228,8 +232,9 @@ class NativeBuilder {
         throw new Error('Choose a native package and a local parent folder.');
       const inspected = await inspectNativePackage(selected.packageFile);
       const inputs = readInputs(selected.inputsFile, inspected.recipe);
-      const needsTool = Object.values(inputs.archives).some((file) =>
-        ['7z', 'rar', 'rar5'].includes(archiveKind(file)),
+      const needsTool = Object.values(inputs.archives).some(
+        (file) =>
+          file === null || ['7z', 'rar', 'rar5'].includes(archiveKind(file)),
       );
       let sevenZip;
       if (needsTool) {
@@ -242,6 +247,10 @@ class NativeBuilder {
         sevenZip = await createSevenZip(executable);
       }
       const id = crypto.randomUUID();
+      const downloads = inspected.recipe.sources.filter(
+        (source) =>
+          archiveSource(source) && inputs.archives[source.id] === null,
+      );
       const summary = {
         id,
         name: inspected.recipe.name,
@@ -256,7 +265,22 @@ class NativeBuilder {
         generatedConfigurations: inspected.summary.generatedConfigurations,
         requiredGames: inspected.summary.requiredGames,
         prerequisites: inspected.summary.prerequisites,
-        archiveCount: Object.keys(inputs.archives).length,
+        archiveCount: Object.values(inputs.archives).filter((v) => v !== null)
+          .length,
+        downloadCount: downloads.length,
+        downloadBytes: downloads.reduce((sum, source) => sum + source.bytes, 0),
+        downloadHosts: [
+          ...new Set(
+            downloads.map((source) =>
+              source.type === 'nexus-archive'
+                ? 'nexusmods.com'
+                : new URL(source.url).hostname,
+            ),
+          ),
+        ],
+        downloadCache: downloads.length
+          ? path.join(this.root, 'native-downloads')
+          : null,
         archiveTool: sevenZip ? `7-Zip ${sevenZip.version} x64` : null,
       };
       this.plan = {
@@ -319,8 +343,23 @@ class NativeBuilder {
     const { id, destination, recipeSha256 } = plan.summary;
     try {
       this.change(id, { status: 'building' });
+      const inspected = await inspectNativePackage(plan.packageFile);
+      if (inspected.recipeSha256 !== recipeSha256)
+        throw new Error('Native package changed after review.');
+      const archives = await acquireArchives(
+        inspected.recipe,
+        plan.inputs.archives,
+        path.join(this.root, 'native-downloads'),
+        {
+          signal: controller.signal,
+          activity: (value) => this.activities.set(id, value),
+          nexus: this.options.nexus,
+          request: this.options.downloadRequest,
+        },
+      );
       await materializeNative(plan.packageFile, destination, {
         ...plan.inputs,
+        archives,
         sevenZip: plan.sevenZip,
         expectedRecipeSha256: recipeSha256,
         signal: controller.signal,
@@ -337,13 +376,15 @@ class NativeBuilder {
         status: 'verified',
         completed: plan.summary.outputs,
       });
-    } catch {
+    } catch (error) {
       try {
         this.change(id, {
           status: controller.signal.aborted ? 'cancelled' : 'failed',
           error: controller.signal.aborted
             ? 'Build cancelled. Any partial folder is preserved. Prepare a new build to retry.'
-            : 'Build failed. Check the package, local input hashes, destination and free space. Any partial folder is preserved.',
+            : error instanceof DownloadError
+              ? error.message
+              : 'Build failed. Check the package, local input hashes, destination and free space. Any partial folder is preserved.',
         });
       } catch {
         this.persistenceFailed = true;

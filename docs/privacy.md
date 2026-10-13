@@ -10,11 +10,15 @@ Packaged app settings and workspace data live in `%APPDATA%\Loadstone`. They inc
 
 Experimental native creator builds store their recipe fingerprint, destination, progress and status in `native-builds.json`. Candidate folders contain their recipe snapshot and reconstruction receipt. The selected private local-inputs JSON remains where you created it; its game/archive paths are read into the main process for the build, not copied into history or sent to the renderer. Native build records are currently excluded from diagnostic exports. Cancelled or interrupted folders remain on disk for review.
 
+When a reviewed native build requests original-source downloads, completed archives remain in `native-downloads/` beneath app data for verified reuse. Original hostnames and the cache directory appear in the build review. Signed links, API keys and provider response bodies are not stored in build history or diagnostics. A hard process interruption may leave temporary `.part` files; they are never reused as verified archives. Resetting demo data does not clear this cache.
+
 Installation destinations contain the list snapshot, downloaded archives, MO2 output and engine logs. Steam shortcut backups remain beside Steam's `shortcuts.vdf`. Desktop links point to the installed manager. Resetting demo data does not remove those files or live installations. Library removal retains profiles, saves folders, overwrite files, MO2 settings, downloads and files outside the profile directory in a sibling recovery folder. Other profile files, including custom mods, are deleted only after the removal dialog is accepted. See [removal behavior](installation.md#removing-a-setup) before manually deleting retained data.
 
 ## Network activity
 
 Account connection and explicit revalidation contact Nexus Mods. Installation preflight also revalidates access when Nexus downloads are needed. Preparing the engine downloads the pinned official release from GitHub and its download infrastructure. Wabbajack performs list downloads and may contact Nexus, original file hosts and its own supporting services; those providers control their own logging and privacy practices. Local game discovery reads Steam metadata and the Windows Steam registry path. Steam shortcut editing operates on local files.
+
+Explicitly starting a native build with requested downloads contacts the original public HTTPS hosts and their permitted redirect destinations. Uncached Nexus sources trigger account verification and specific file download-link requests; keys go only to the Nexus API. Original providers receive the connection's IP address and Loadstone's application identification. Merely opening Settings or inspecting a native package does not start archive downloads. See [native download handling](native-downloads.md).
 
 ## Diagnostics
 

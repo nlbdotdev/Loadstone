@@ -14,4 +14,6 @@ The installation runner supplies the key through the child process's `NEXUS_API_
 
 Automatic Nexus downloads require freshly verified Premium access. Free accounts need a manual-download flow, which is not implemented yet. See [installation behavior](installation.md) for log handling and recovery limits.
 
+The experimental [native archive downloader](native-downloads.md) now uses that fresh Premium check and the specific file download-link endpoint for uncached Nexus sources. Keys remain in the main process and go only to the Nexus API; signed links remain transient. Free users can select an archive they downloaded manually, while an NXM/browser-guided flow remains unfinished. Public application registration and real-account download acceptance are still required.
+
 Child-process environments remove inherited Nexus API-key and OAuth variables case-insensitively, including mixed-case Windows names. Only the installer receives the explicitly selected Loadstone key; engine probes and profile launches receive neither inherited variable. A synthetic real-child regression test covers this boundary without accessing a real account. See [Node's Windows environment behavior](https://nodejs.org/api/child_process.html).
