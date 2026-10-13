@@ -28,10 +28,10 @@ This separately exercises the actual portable wrapper, including extraction, cur
 Read the **embedded build commit** from the verified depot manifest. From the source repository, use that exact commit, not a subsequently merged branch tip:
 
 ```powershell
-git archive --format=zip --prefix=Loadstone-source/ --output=release/private-0.4.0/Loadstone-0.4.0-source.zip <embedded-build-commit>
+git -c core.autocrlf=false -c core.eol=lf archive --format=zip --prefix=Loadstone-source/ --output=release/private-0.4.0/Loadstone-0.4.0-source.zip <embedded-build-commit>
 ```
 
-The archive must contain all tracked build inputs, including original source, lockfile, scripts, tests, license/scope, notices and documentation. Inspect the ZIP inventory against that Git tree. Exclude Git history, installed dependency trees, raw acceptance evidence, credentials, game files and mod downloads. Record its SHA-256 and byte size; independently compare the packaged source modules, license and notices with the archived revision. Rebuild from an extracted source archive with `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test` and `pnpm package`; without Git metadata the build identity deliberately reports an unknown commit.
+The explicit Git settings preserve LF source bytes independently of Windows checkout defaults. The archive must contain all tracked build inputs, including original source, lockfile, scripts, tests, license/scope, notices and documentation. Inspect the ZIP inventory and every archived file against that Git tree. Exclude Git history, installed dependency trees, raw acceptance evidence, credentials, game files and mod downloads. Record its SHA-256 and byte size; independently compare the packaged source modules (allowing checkout line endings), license and notices with the archived revision. Rebuild from an extracted source archive with `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test` and `pnpm package`; without Git metadata the build identity deliberately reports an unknown commit.
 
 Keep a local review manifest linking the executable and source ZIP hashes, exact build commit/tree and lockfile hash, depot inventory, test evidence and tool versions. Hashes establish integrity and provenance, not byte-reproducibility, publication clearance or a legal determination. Build/test dependencies are fetched from the locked upstream graph; they are not bundled in this source ZIP. Artwork and third-party material retain the scope stated in `COPYRIGHT` and the [provenance inventory](open-source.md).
 
