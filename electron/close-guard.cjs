@@ -35,13 +35,13 @@ function currentActivity(installer, runtime, nativeBuilder, nativeLibrary) {
     return {
       message: 'A native library operation is still running.',
       detail:
-        'Finish the selection or stop the operation in My library before closing. A stopped removal retains its remaining files for recovery.',
+        'Finish or cancel the selection in Discover, or stop the operation in My library before closing. A stopped removal retains its remaining files for recovery.',
     };
   if (nativeBuilder?.busy)
     return {
       message: 'A native candidate is being prepared or built.',
       detail:
-        'Finish the selection or cancel the native installation in Downloads or Settings and wait for it to stop before closing. Any partial folder is retained.',
+        'Finish or cancel the selection in Discover, or cancel the native installation in Downloads or Settings and wait for it to stop before closing. Any partial folder is retained.',
     };
   if (installer?.maintenance)
     return {

@@ -130,7 +130,7 @@ class NativeRepair {
     this.begin();
     this.plan = null;
     try {
-      return await operation();
+      return await operation(this.library.controller.signal);
     } finally {
       this.end();
     }

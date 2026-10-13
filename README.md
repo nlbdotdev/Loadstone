@@ -57,6 +57,8 @@ Creator tooling can [inventory an installed MO2 setup and compare original archi
 
 Players can now use **Discover → Open .loadstone** for [guided native installation](docs/native-guided-install.md): select owned games, prepared prerequisites and original archives without creating an inputs JSON. Downloads shows measured progress, cancellation and resume, then offers explicit review of the completed folder for My library. This uses the same builder and verification rules as the creator tools. Draft selections last until app restart; gameplay and provider/client acceptance remain open.
 
+[Manual Nexus downloads](docs/native-manual-downloads.md) open each declared file page in the default browser and verify the downloaded original before selection, with byte progress and cancellation. Browser mode tracks pending files and requires all Nexus selections before installation review; existing cache files can be explicitly checked too. Automatic Nexus downloads still require fresh Premium access. Real account/website acceptance and public API registration remain open.
+
 ## Persistence and desktop behavior
 
 **My library → Repair native setup** now offers [same-version native repair](docs/native-repair.md). It keeps matching files, restores missing/damaged recipe outputs, retains replaced originals and preserves existing profiles/configuration by default. A separate option restores recipe configuration too. Interrupted repairs require fresh review and keep library launch disabled. [Install another version](docs/native-updates.md) creates a separate setup with fresh recipe settings, preserving the original playthrough. Real gameplay acceptance remains open.

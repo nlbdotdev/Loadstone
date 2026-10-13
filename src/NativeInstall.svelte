@@ -17,6 +17,8 @@
   let setup = $state<NativeGuideState | null>(null);
   let recoveryActivity = $state<NativeBuild['activity']>(undefined);
   let repairProgress = $state<NativeLibraryState['progress']>(null);
+  let archiveProgress = $state<NativeGuideState['selectionActivity']>(null);
+  let pendingOnly = $state(false);
   let busy = $state(false),
     error = $state(''),
     query = $state(''),
@@ -33,11 +35,17 @@
     'new-save-required': 'Start a new game',
   };
   const archives = $derived(
-    (setup?.archives || []).filter((v) =>
-      v.id.toLowerCase().includes(query.toLowerCase()),
+    (setup?.archives || []).filter(
+      (v) =>
+        v.id.toLowerCase().includes(query.toLowerCase()) &&
+        (!pendingOnly || !v.verified),
     ),
   );
   const visible = $derived(archives.slice(page * 20, (page + 1) * 20));
+  const nexusArchives = $derived(
+    (setup?.archives || []).filter((v) => v.type === 'nexus-archive'),
+  );
+  const pendingNexus = $derived(nexusArchives.filter((v) => !v.verified));
   async function run(operation: () => Promise<void>) {
     if (busy) return;
     busy = true;
@@ -53,6 +61,13 @@
             )
           : 'Could not prepare this native installation.';
     } finally {
+      archiveProgress = null;
+      // A failed selection still invalidates the main-process review. Preserve
+      // that state in the UI while keeping the failure visible.
+      try {
+        setup = await window.loadstone.nativeGuide();
+      } catch {}
+      if (page * 20 >= archives.length) page = 0;
       busy = false;
     }
   }
@@ -78,7 +93,8 @@
       setup = await window.loadstone.nativeGuide();
     });
     const timer = setInterval(async () => {
-      if (!busy || (!setup?.resumeId && !setup?.repair)) {
+      if (!busy) {
+        archiveProgress = null;
         recoveryActivity = undefined;
         repairProgress = null;
         return;
@@ -86,6 +102,10 @@
       if (reading) return;
       reading = true;
       try {
+        const guide = await window.loadstone.nativeGuide();
+        if (!stopped) archiveProgress = guide?.selectionActivity || null;
+        if (archiveProgress || !setup || (!setup.resumeId && !setup.repair))
+          return;
         if (setup.repair) {
           const state = await window.loadstone.nativeLibrary();
           if (!stopped) repairProgress = state.progress;
@@ -141,7 +161,24 @@
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   {#if busy}<p role="status">Preparing your selection…</p>{/if}
-  {#if busy && setup?.repair}
+  {#if busy && archiveProgress}
+    <p role="status">
+      Checking {archiveProgress.sourceId}: {(
+        archiveProgress.bytes / 1e6
+      ).toFixed(1)} / {(archiveProgress.totalBytes / 1e6).toFixed(1)} MB
+    </p>
+    <progress
+      value={archiveProgress.bytes}
+      max={Math.max(1, archiveProgress.totalBytes)}
+      aria-label="Archive verification"
+    ></progress>
+    <button
+      class="secondary"
+      onclick={() => setup && window.loadstone.cancelNativeSelection(setup.id)}
+      >Cancel archive verification</button
+    >
+  {/if}
+  {#if busy && setup?.repair && !archiveProgress}
     {#if repairProgress}<p role="status">
         Checking repair files: {repairProgress.completed.toLocaleString()} / {repairProgress.total.toLocaleString()}
       </p>{/if}
@@ -151,7 +188,7 @@
       >Cancel repair review</button
     >
   {/if}
-  {#if busy && setup?.resumeId}
+  {#if busy && setup?.resumeId && !archiveProgress}
     {#if recoveryActivity}<p role="status">
         Checking retained files: {recoveryActivity.completed.toLocaleString()} / {recoveryActivity.total.toLocaleString()}
       </p>
@@ -302,16 +339,49 @@
     {#if setup.archives.length}
       <h4>Original archives</h4>
       <p>
-        {setup.archives.filter((v) => v.file === null).length.toLocaleString()} downloads
-        selected · {setup.archives
+        {setup.archives
+          .filter(
+            (v) =>
+              v.file === null &&
+              !(setup?.manualNexus && v.type === 'nexus-archive'),
+          )
+          .length.toLocaleString()} automatic downloads selected · {setup.archives
           .filter((v) => v.file !== null)
-          .length.toLocaleString()} local archives
+          .length.toLocaleString()} verified local archives
       </p>
       <p class="note">
         Automatic Nexus downloads require a connected Premium account in
-        Settings. Free accounts can select manually downloaded original
-        archives. Existing verified cache files are reused.
+        Settings. Free accounts can download each file in their browser and
+        select it here. Loadstone checks size and SHA-256 before accepting the
+        selection, then checks it again during installation.
       </p>
+      {#if nexusArchives.length}
+        <label
+          ><input
+            type="checkbox"
+            checked={setup.manualNexus}
+            disabled={busy}
+            onchange={(event) =>
+              select(
+                'nexus-mode',
+                event.currentTarget.checked ? 'manual' : 'automatic',
+              )}
+          />Download Nexus files in my browser</label
+        >
+        {#if setup.manualNexus}
+          <p role="status">
+            {nexusArchives.length - pendingNexus.length} / {nexusArchives.length}
+            Nexus archives verified. {pendingNexus.length} remaining.
+          </p>
+          <p class="note">
+            Open each Nexus file page, use its manual download, then choose the
+            downloaded archive below. You can also select an exact file already
+            in the download cache. Finish all Nexus selections before reviewing
+            installation. Missing or removed files require the creator’s help;
+            another version will fail verification.
+          </p>
+        {/if}
+      {/if}
       <label
         >Find an archive<input
           type="search"
@@ -319,6 +389,13 @@
           oninput={() => (page = 0)}
           placeholder="Search by source name"
         /></label
+      >
+      <label
+        ><input
+          type="checkbox"
+          bind:checked={pendingOnly}
+          onchange={() => (page = 0)}
+        />Show archives still to select</label
       >
       {#each visible as archive}
         <div class="archive">
@@ -329,22 +406,45 @@
           <code>{archive.source}</code>
           <p class="note">
             {archive.file
-              ? 'Local archive selected'
-              : 'Download from original source'}
+              ? 'Archive verified when selected · Checked again during installation'
+              : setup.manualNexus && archive.type === 'nexus-archive'
+                ? 'Waiting for your manual download'
+                : 'Download from original source'}
           </p>
           {#if archive.file}<code>{archive.file}</code>{/if}
           <div class="actions">
+            {#if archive.type === 'nexus-archive'}<button
+                class="secondary"
+                disabled={busy}
+                onclick={() =>
+                  run(async () => {
+                    if (setup)
+                      setup = await window.loadstone.openNativeSource(
+                        setup.id,
+                        archive.id,
+                      );
+                  })}>Open Nexus file page</button
+              >{/if}
             <button
               class="secondary"
               disabled={busy}
               onclick={() => select('archive', archive.id)}
-              ><Folder size={15} />Choose archive</button
+              ><Folder size={15} />Choose and verify archive</button
+            >
+            <button
+              class="secondary"
+              disabled={busy}
+              onclick={() => select('cached-archive', archive.id)}
+              >Use verified cache</button
             >
             {#if archive.file}<button
                 class="secondary"
                 disabled={busy}
                 onclick={() => select('download', archive.id)}
-                ><Download size={15} />Use original download</button
+                ><Download size={15} />{setup.manualNexus &&
+                archive.type === 'nexus-archive'
+                  ? 'Clear archive selection'
+                  : 'Use original download'}</button
               >{/if}
           </div>
         </div>

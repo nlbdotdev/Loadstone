@@ -104,6 +104,8 @@ export interface Bridge {
   inspectNativePackage(): Promise<NativePackageSummary | null>;
   nativeBuilds(): Promise<NativeBuild[]>;
   nativeGuide(): Promise<NativeGuideState | null>;
+  openNativeSource(id: string, key: string): Promise<NativeGuideState>;
+  cancelNativeSelection(id: string): Promise<void>;
   repairNativeSetup(id: string): Promise<NativeGuideState | null>;
   updateNativeSetup(id: string): Promise<NativeGuideState | null>;
   importNativeSetup(resumeId?: string): Promise<NativeGuideState | null>;
@@ -115,7 +117,9 @@ export interface Bridge {
       | 'archive'
       | 'download'
       | 'parent'
-      | 'configuration',
+      | 'configuration'
+      | 'nexus-mode'
+      | 'cached-archive',
     key?: string,
     token?: string,
   ): Promise<NativeGuideState>;
@@ -373,6 +377,12 @@ export interface NativeBuildPlan {
   archiveTool: string | null;
 }
 export interface NativeGuideState {
+  manualNexus: boolean;
+  selectionActivity: {
+    sourceId: string;
+    bytes: number;
+    totalBytes: number;
+  } | null;
   update: {
     entryId: string;
     name: string;
@@ -420,6 +430,7 @@ export interface NativeGuideState {
     source: string;
     credit: string;
     file: string | null;
+    verified: boolean;
   }[];
   parent: string | null;
   resumeId: string | null;
