@@ -90,6 +90,7 @@ export function createNativeFixture({
             title: 'New Vegas',
             binary: 'Game/FalloutNV.exe',
             workingDirectory: 'Game',
+            arguments: [{ type: 'path', path: 'Game' }],
           },
         ],
       },

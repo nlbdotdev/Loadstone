@@ -23,6 +23,7 @@ function shape(value, keys) {
 }
 const safePath = (v) =>
   relativeFile(v) &&
+  v.isWellFormed() &&
   !v.includes('\\') &&
   v === v.normalize('NFC') &&
   !v
@@ -44,9 +45,27 @@ function validateMo2Config(output, recipe) {
     'declare 1–64 executable entries.',
   );
   const files = new Set(recipe.outputs.map((v) => v.path.toLowerCase()));
+  const orderedFiles = [...files].sort();
+  function localReference(relative) {
+    if (relative === '.' || files.has(relative)) return true;
+    const prefix = relative + '/';
+    let low = 0,
+      high = orderedFiles.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (orderedFiles[middle] < prefix) low = middle + 1;
+      else high = middle;
+    }
+    return orderedFiles[low]?.startsWith(prefix) === true;
+  }
   const titles = new Set();
   for (const entry of entries) {
-    shape(entry, ['title', 'binary', 'workingDirectory']);
+    shape(entry, [
+      'title',
+      'binary',
+      'workingDirectory',
+      ...(Object.hasOwn(entry || {}, 'arguments') ? ['arguments'] : []),
+    ]);
     demand(
       typeof entry.title === 'string' &&
         entry.title.trim() === entry.title &&
@@ -70,6 +89,23 @@ function validateMo2Config(output, recipe) {
         entry.workingDirectory === path.posix.dirname(entry.binary),
       'working directory must be the executable’s local parent.',
     );
+    if (entry.arguments !== undefined) {
+      demand(
+        Array.isArray(entry.arguments) &&
+          entry.arguments.length > 0 &&
+          entry.arguments.length <= 16,
+        'declare 1–16 typed local-path arguments, or omit arguments.',
+      );
+      for (const argument of entry.arguments) {
+        shape(argument, ['type', 'path']);
+        demand(
+          argument.type === 'path' &&
+            (argument.path === '.' || safePath(argument.path)) &&
+            localReference(argument.path.toLowerCase()),
+          'arguments must reference a declared output or its local parent directory.',
+        );
+      }
+    }
   }
   const launch = entries.find((v) => v.title === recipe.launch.executable);
   demand(
@@ -127,7 +163,8 @@ function renderMo2Config(output, recipe, destination) {
       /^[A-Za-z]:[\\/]/.test(destination) &&
       destination.length <= 2048 &&
       !destination.includes('%BASE_DIR%') &&
-      !/[\x00-\x1f\x7f]/.test(destination) &&
+      !/[\x00-\x1f\x7f<>"|?*]/.test(destination) &&
+      !destination.slice(2).includes(':') &&
       destination.isWellFormed(),
     'choose a local Windows drive path of at most 2048 characters.',
   );
@@ -162,7 +199,13 @@ function renderMo2Config(output, recipe, destination) {
       prefix + 'title=' + qtString(entry.title),
       prefix + 'binary=' + qtString(local(entry.binary)),
       prefix + 'workingDirectory=' + qtString(local(entry.workingDirectory)),
-      prefix + 'arguments=',
+      prefix +
+        'arguments=' +
+        (entry.arguments
+          ? qtString(
+              entry.arguments.map((v) => '"' + local(v.path) + '"').join(' '),
+            )
+          : ''),
     );
   }
   const data = Buffer.from(lines.join('\n') + '\n', 'utf8');

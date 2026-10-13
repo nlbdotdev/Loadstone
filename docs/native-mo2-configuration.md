@@ -24,7 +24,7 @@ This is the only output kind without a static `bytes`/`sha256` pair or a source 
 
 There must be 1–64 entries. Titles are unique without regard to case, trimmed, well-formed text of 1–100 characters without controls. Each binary is a safe, relative, declared `.exe` output. Its working directory is its exact relative parent, or `.` for an executable at the candidate root. The entry whose title exactly matches `launch.executable` must be under `launch.gameRoot`. The recipe must also declare an empty `portable.txt` output with the SHA-256 of zero bytes. A file cannot shadow `downloads`, `mods`, `profiles`, `overwrite` or `webcache`.
 
-There are no arbitrary INI keys, scripts, executable arguments, environment variables or source-machine paths in this action. Tools needing arguments require additional typed support; do not silently remove their arguments and call the result equivalent. Supporting an executable entry does not run it during reconstruction.
+An entry may optionally declare 1–16 arguments as `[{"type":"path","path":"Game/Data"}]`. Each path must name a declared output or an ancestor directory (or `.` for the candidate root). They are bound to the destination and individually quoted for Windows command-line argument boundaries. This supports Explorer++ opening the local virtual game-data folder without retaining a creator path. Arbitrary literal arguments/flags, INI keys, scripts, environment variables and external paths are unsupported. Supporting an entry does not run it during reconstruction.
 
 ## Deterministic rendering and verification
 
@@ -34,7 +34,7 @@ The generator produces these sections in order, with a blank line between sectio
 
 - `General`: game name (`TTW`, `New Vegas`, `Skyrim Special Edition` or `Fallout 4`), local game path, selected profile and `first_start=false`.
 - `Settings`: local base, downloads, mods, profiles, overwrite and webcache paths; `profile_local_inis=true` and `profile_local_saves=true` defaults.
-- `customExecutables`: array size, then each entry's title, local binary, local working directory and empty arguments, preserving declared entry order.
+- `customExecutables`: array size, then each entry's title, local binary, local working directory and arguments (empty when omitted, otherwise a space-separated sequence of quoted local paths), preserving declared entry order.
 
 Paths use `/`. Qt string values are double-quoted, escape backslash and quote, and double a leading `@`. Game path and selected profile use `@ByteArray(...)` with every UTF-8 byte encoded as lowercase `\xNN`. The implementation in `electron/native-mo2-config.cjs` defines the exact serialization; byte changes require a new generator action identity, not a silent change to an existing recipe's meaning.
 
@@ -42,7 +42,7 @@ Generated files are limited to 1 MB. Package inspection reserves that allowance 
 
 ## Scope and acceptance
 
-This creates a fresh manager configuration. It does not preserve personal interface preferences, plugin-specific settings, external tools, account data or recent directories. Any behavior required by a featured baseline must be identified and modeled before claiming equivalence. Existing profile `settings.ini`, game INIs, plugin configuration and tool arguments still require review. In particular, the defaults above do **not** prove that an existing profile uses local saves: profile-specific flags can override defaults. Native candidates remain **Files verified · Launch untested**, outside the playable library.
+This creates a fresh manager configuration. It does not preserve personal interface preferences, plugin-specific settings, external tools, account data or recent directories. Any behavior required by a featured baseline must be identified and modeled before claiming equivalence. Existing profile `settings.ini`, game INIs, plugin configuration and tools needing literal arguments/flags still require review. In particular, the defaults above do **not** prove that an existing profile uses local saves: profile-specific flags can override defaults. Native candidates remain **Files verified · Launch untested**, outside the playable library.
 
 Absolute paths are deliberately bound at installation. Moving a finished candidate does not automatically update them; rebuild into a new destination until relocation/repair is implemented. This action does not patch arbitrary existing text, transform mods, convert TTW, download sources or create shortcuts.
 

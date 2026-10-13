@@ -189,11 +189,47 @@ test('configuration generation bounds Windows destination and encodes Qt bytes/q
   );
   assert.equal(values.get('gamePath'), 'C:/候補,;=Set/Game');
   assert.equal(values.get('1\\title'), '@run,;="测试"');
+  assert.equal(values.get('1\\arguments'), '"C:/候補,;=Set/Game"');
   assert.equal(
     decodeMo2Value('@ByteArray(C:\\\\Original\\\\Game)'),
     'C:\\Original\\Game',
   );
   assert.throws(() => decodeMo2Value('@ByteArray(\\xff)'), /UTF-8/);
+});
+
+test('typed MO2 arguments accept only bounded local references and preserve argument boundaries', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  const config = recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  const entry = config.action.executables[0];
+  for (const args of [
+    [],
+    'command',
+    Array(17).fill({ type: 'path', path: 'Game' }),
+    [{ type: 'literal', path: '/c command' }],
+    [{ type: 'path', path: '../outside' }],
+    [{ type: 'path', path: 'C:/old/Game' }],
+    [{ type: 'path', path: 'Game/missing' }],
+    [{ type: 'path', path: 'Game', value: 'extra' }],
+    [{ type: 'path', path: 'saves' }],
+  ]) {
+    entry.arguments = args;
+    assert.throws(() => validateRecipe(recipe), /Invalid/);
+  }
+  entry.arguments = [
+    { type: 'path', path: 'Game/FalloutNV.exe' },
+    { type: 'path', path: '.' },
+  ];
+  const root = 'C:/候補 with spaces,;=&';
+  const text = renderMo2Config(config, recipe, root).data.toString('utf8');
+  const argumentsLine = text
+    .split('\n')
+    .find((v) => v.startsWith('1\\arguments='));
+  assert.equal(
+    decodeMo2Value(argumentsLine.slice('1\\arguments='.length)),
+    '"C:/候補 with spaces,;=&/Game/FalloutNV.exe" "C:/候補 with spaces,;=&"',
+  );
+  delete entry.arguments;
+  assert.doesNotThrow(() => validateRecipe(recipe));
 });
 
 test('generated configuration tampering is caught by final verification and a rejected destination creates no files', async () => {
