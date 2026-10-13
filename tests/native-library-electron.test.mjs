@@ -100,8 +100,10 @@ test(
         shortcut,
       );
       assert.equal(
-        details.target.toLowerCase(),
-        path.join(f.destination, 'ModOrganizer.exe').toLowerCase(),
+        fs.realpathSync.native(details.target).toLowerCase(),
+        fs.realpathSync
+          .native(path.join(f.destination, 'ModOrganizer.exe'))
+          .toLowerCase(),
       );
       assert.equal(details.args, '"-p" "Test" "run" "-e" "New Vegas"');
       await page
