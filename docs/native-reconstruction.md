@@ -16,7 +16,7 @@ Progress and cancellation remain in this Settings card. Success says **Files ver
 node scripts/materialize-native.mjs candidate.loadstone private-inputs.json C:\LoadstoneReview\NewCandidate
 ```
 
-The destination's parent must already exist; the destination itself must not. The private JSON input file has two maps: `games` maps each required game ID to its installed source folder; `archives` maps each archive source ID from the recipe to a locally downloaded ZIP file. Paths must be absolute. Keep this file under ignored `test-results/` and do not publish it. It contains no Nexus credentials or runtime command arguments.
+The destination's parent must already exist; the destination itself must not. The private JSON input file has two maps: `games` maps each required game ID to its installed source folder; `archives` maps each archive source ID from the recipe to a locally downloaded ZIP file. When the recipe declares local prerequisites, add a `prerequisites` map from each prerequisite ID to its prepared source folder. All declared prerequisite files are hashed before reconstruction; the app never runs the instructions URL or a conversion program. Paths must be absolute. Keep this file under ignored `test-results/` and do not publish it. It contains no Nexus credentials or runtime command arguments.
 
 For example, a private input file can contain:
 

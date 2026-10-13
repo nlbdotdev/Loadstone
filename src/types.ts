@@ -128,6 +128,8 @@ export interface NativePackageSummary {
   game: { id: 'fnv' | 'skyrimse' | 'fallout4'; variant: 'base' | 'ttw' };
   profile: string;
   requiredGames: string[];
+  prerequisites: NativePrerequisiteSummary[];
+  prerequisiteSources: number;
   outputs: number;
   installBytes: number;
   downloadSources: number;
@@ -253,6 +255,7 @@ export interface NativeBuildPlan {
   outputs: number;
   installBytes: number;
   requiredGames: string[];
+  prerequisites: NativePrerequisiteSummary[];
   archiveCount: number;
 }
 export interface NativeBuild {
@@ -274,4 +277,10 @@ export interface NativeBuild {
   error: string | null;
   createdAt: string;
   updatedAt: string;
+}
+export interface NativePrerequisiteSummary {
+  id: string;
+  name: string;
+  version: string;
+  files: number;
 }

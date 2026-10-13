@@ -71,8 +71,8 @@
   </div>
   <p>
     Choose a .loadstone package, its private local-inputs JSON, and a parent
-    folder. Loadstone creates a new candidate from owned game files, downloaded
-    ZIP archives and bundled files.
+    folder. Loadstone creates a new candidate from owned game files, local
+    prerequisites, downloaded ZIP archives and bundled files.
   </p>
   <p class="note">
     Downloads, configuration rebasing and launch checks are still in
@@ -104,6 +104,11 @@
         ).toFixed(2)} GB · {plan.archiveCount} local archives
       </p>
       <p class="note">New candidate folder</p>
+      {#if plan.prerequisites.length}<p class="note">
+          Required local material: {plan.prerequisites
+            .map((v) => `${v.name} ${v.version}`)
+            .join(' · ')}. These files must already be prepared locally.
+        </p>{/if}
       <code>{plan.destination}</code>
       <p class="note">
         Inputs will be hashed before files are written. A failed or cancelled

@@ -82,13 +82,16 @@ function readInputs(file, recipe) {
   if (
     !input ||
     Array.isArray(input) ||
-    Object.keys(input).some((v) => !['games', 'archives'].includes(v))
+    Object.keys(input).some(
+      (v) => !['games', 'archives', 'prerequisites'].includes(v),
+    )
   )
     throw new Error(
       'Choose a private local-inputs JSON with games and archives maps.',
     );
   for (const [key, expected] of [
     ['games', recipe.requirements.map((v) => v.id)],
+    ['prerequisites', (recipe.prerequisites || []).map((v) => v.id)],
     [
       'archives',
       recipe.sources
@@ -96,7 +99,9 @@ function readInputs(file, recipe) {
         .map((v) => v.id),
     ],
   ]) {
-    const selected = input[key];
+    const selected =
+      input[key] ??
+      (key === 'prerequisites' && !expected.length ? {} : undefined);
     if (
       !selected ||
       typeof selected !== 'object' ||
@@ -226,6 +231,7 @@ class NativeBuilder {
         outputs: inspected.summary.outputs,
         installBytes: inspected.summary.installBytes,
         requiredGames: inspected.summary.requiredGames,
+        prerequisites: inspected.summary.prerequisites,
         archiveCount: Object.keys(inputs.archives).length,
       };
       this.plan = { summary, packageFile: selected.packageFile, inputs };

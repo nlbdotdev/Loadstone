@@ -77,6 +77,16 @@ async function inspectInputs(file, options) {
     for (const locked of required.files)
       await verifyFile(path.join(root, locked.path), locked, options.signal);
   }
+  const prerequisiteRoots = new Map();
+  for (const prerequisite of recipe.prerequisites || []) {
+    const root = options.prerequisites?.[prerequisite.id];
+    if (typeof root !== 'string' || !path.isAbsolute(root))
+      throw new Error('Select every required local prerequisite folder.');
+    ordinaryDirectory(root);
+    prerequisiteRoots.set(prerequisite.id, path.resolve(root));
+    for (const locked of prerequisite.files)
+      await verifyFile(path.join(root, locked.path), locked, options.signal);
+  }
   for (const source of recipe.sources) {
     if (source.type === 'payload')
       sources.set(source.id, {
@@ -88,6 +98,13 @@ async function inspectInputs(file, options) {
     else if (source.type === 'game-file')
       sources.set(source.id, {
         file: path.join(gameRoots.get(source.game), source.path),
+      });
+    else if (source.type === 'prerequisite-file')
+      sources.set(source.id, {
+        file: path.join(
+          prerequisiteRoots.get(source.prerequisite),
+          source.path,
+        ),
       });
     else {
       const archive = options.archives?.[source.id];
@@ -104,7 +121,7 @@ async function inspectInputs(file, options) {
       sources.set(source.id, { file: archive, archive: true, snapshot });
     }
   }
-  return { inspected, gameRoots, sources };
+  return { inspected, gameRoots, prerequisiteRoots, sources };
 }
 async function materializeNative(file, destination, options = {}) {
   options.signal?.throwIfAborted();
@@ -119,12 +136,14 @@ async function materializeNative(file, destination, options = {}) {
   )
     throw new Error('Native installation needs a new, ordinary destination.');
   ordinaryDirectory(path.dirname(target));
-  const { inspected, gameRoots, sources } = await inspectInputs(file, options),
+  const { inspected, gameRoots, prerequisiteRoots, sources } =
+      await inspectInputs(file, options),
     { recipe } = inspected;
   const protectedRoots = [
     path.resolve(__dirname, '..'),
     path.dirname(file),
     ...gameRoots.values(),
+    ...prerequisiteRoots.values(),
     ...[...sources.values()]
       .filter((v) => v.archive)
       .map((v) => path.dirname(v.file)),

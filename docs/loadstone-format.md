@@ -25,7 +25,7 @@ Limits: 64,000,000 recipe bytes; 100,000 sources; 500,000 outputs; 256,000,000 t
 
 ## Recipe fields
 
-All objects reject unknown fields. All listed fields are required unless a source/action variant omits them. `electron/native-format.cjs` is the executable validator; fixtures in `tests/native-package.test.mjs` show a complete synthetic example.
+All objects reject unknown fields. All listed fields are required unless marked optional or a source/action variant omits them. `electron/native-format.cjs` is the executable validator; fixtures in `tests/native-package.test.mjs` show a complete synthetic example. This experimental version is not yet a stable interchange contract; older previews reject newer optional fields safely.
 
 | Field | Meaning |
 | --- | --- |
@@ -35,6 +35,7 @@ All objects reject unknown fields. All listed fields are required unless a sourc
 | `website` | HTTPS reference without userinfo, query or fragment |
 | `game` | `{id, variant}`; targets `fnv`, `skyrimse`, `fallout4`; variant `base`, or `ttw` for FNV |
 | `requirements` | Exact owned-game inputs, below |
+| `prerequisites` | Optional local material the user prepares separately, below; omitted when none |
 | `launch` | `{profile, executable, gameRoot}`; MO2 profile directory name, MO2 executable title, isolated relative game directory |
 | `sources` | Inputs keyed by unique `id`, below |
 | `outputs` | Expected final files and typed reconstruction actions, below |
@@ -46,7 +47,13 @@ FNV is the full support target. Skyrim SE/FO4 remain in development. Fallout 3 c
 
 Each requirement is `{id, store, files}`. `store` is `steam` or `gog`. `files` contains 1–10,000 `{path, bytes, sha256}` records and must include that game's executable. The requirement set is exactly the target game for a base recipe, or FNV plus Fallout 3 for TTW. A recipe represents one exact accepted storefront/file set; a different version requires a different recipe. The specification does not claim ownership can be established from a file hash alone.
 
-These references instruct a future installer to read a user's local input. They grant no permission to bundle or mirror game content. TTW conversion, patching and version alternatives need additional typed operations and acceptance before native TTW installation can be claimed.
+These references instruct the materializer to read a user's local input. They grant no permission to bundle or mirror game content. TTW conversion, patching and version alternatives need additional typed operations and acceptance before native TTW installation can be claimed.
+
+### Local prerequisites
+
+An optional `prerequisites` array declares 1–20 `{id, name, version, instructions, credit, files}` records. IDs follow the source-ID syntax and are unique within the array. Names/versions are nonempty text up to 500 characters. `instructions` is a public HTTPS reference without credentials/query/fragment, never fetched or executed automatically. `credit` uses the source attribution shape. Each `files` array locks exact `{path, bytes, sha256}` records, with the same safe-path rules as owned inputs. Across prerequisites the limits are 100,000 files and 10 TB.
+
+The user selects an existing folder for each prerequisite. Every locked file is checked before output creation, and source folders cannot overlap the destination. A `prerequisite-file` source copies a declared local file with an identical hash and byte length. Every prerequisite must supply at least one used source. This can represent a separately prepared dependency without bundling or mirroring its bytes. It is not proof of ownership, distribution permission or automated TTW conversion; the TTW variant still requires both owned games independently. Actual TTW integration remains unaccepted.
 
 ### Sources
 
@@ -55,6 +62,7 @@ Every source has `id`, `type`, `bytes` and lowercase 64-character `sha256`.
 | Type | Additional fields |
 | --- | --- |
 | `game-file` | `game`, `path`; must match the path/hash/size of a locked requirement file |
+| `prerequisite-file` | `prerequisite`, `path`; must match a file in that declared local prerequisite |
 | `nexus-archive` | `game`, positive integer `modId`, positive integer `fileId`, `credit` |
 | `https-archive` | `url`, `credit` |
 | `payload` | `credit`, `permission`; exactly one corresponding container entry |
@@ -67,7 +75,7 @@ Every source must be used. Bundled hashes cannot be declared twice. Sources do n
 
 Each output is `{path, bytes, sha256, action}`. File paths use `/`, are relative NFC strings up to 240 characters, and reject Windows device names, drive/UNC paths, alternate data streams, traversal, empty segments, trailing dots/spaces and reserved characters. Windows case-insensitive duplicates and file/directory overlap are rejected. Paths containing a `saves` component or a component starting `.loadstone` are reserved.
 
-- `{type: "copy", source: "source-id"}` copies a `game-file` or `payload`. Expected output bytes/hash must equal the input.
+- `{type: "copy", source: "source-id"}` copies a `game-file`, `prerequisite-file` or `payload`. Expected output bytes/hash must equal the input.
 - `{type: "extract", source: "archive-id", member: "Data/Example.esp"}` selects one safe member of a locked Nexus/HTTPS archive. The output hash is the hash of the extracted member. Nested archives, FOMOD execution, transforms, binary patches and text substitution are not implemented by this version.
 
 Outputs must include `ModOrganizer.exe`, `ModOrganizer.ini`, the declared profile's `modlist.txt` and `plugins.txt`, and the target game executable beneath `launch.gameRoot`. Mod priorities, disabled entries and plugin order are carried by the exact profile files. They are not inferred from source order. Final-file verification must check output hashes after reconstruction. Save paths may never be claimed as owned recipe outputs.
