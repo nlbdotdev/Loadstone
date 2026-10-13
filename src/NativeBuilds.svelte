@@ -72,7 +72,9 @@
   <p>
     Choose a .loadstone package, its private local-inputs JSON, and a parent
     folder. Loadstone creates a new candidate from owned game files, local
-    prerequisites, downloaded ZIP archives and bundled files.
+    prerequisites, downloaded ZIP, 7z or RAR archives and bundled files. For
+    7z/RAR, you’ll also select your trusted 7-Zip x64 26.04 or newer
+    installation.
   </p>
   <p class="note">
     Downloads, configuration rebasing and launch checks are still in
@@ -104,6 +106,9 @@
         ).toFixed(2)} GB · {plan.archiveCount} local archives
       </p>
       <p class="note">New candidate folder</p>
+      {#if plan.archiveTool}<p class="note">
+          Archive tool: {plan.archiveTool}
+        </p>{/if}
       {#if plan.prerequisites.length}<p class="note">
           Required local material: {plan.prerequisites
             .map((v) => `${v.name} ${v.version}`)

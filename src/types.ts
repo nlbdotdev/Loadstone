@@ -257,6 +257,7 @@ export interface NativeBuildPlan {
   requiredGames: string[];
   prerequisites: NativePrerequisiteSummary[];
   archiveCount: number;
+  archiveTool: string | null;
 }
 export interface NativeBuild {
   id: string;

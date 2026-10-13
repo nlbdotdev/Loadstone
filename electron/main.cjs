@@ -207,35 +207,45 @@ else {
       );
       handle('native:builds', () => nativeBuilder.list());
       handle('native:prepare', () =>
-        nativeBuilder.prepare(async () => {
-          const chooseFile = async (title, name, extensions) => {
+        nativeBuilder.prepare(
+          async () => {
+            const chooseFile = async (title, name, extensions) => {
+              const result = await dialog.showOpenDialog(window, {
+                title,
+                properties: ['openFile'],
+                filters: [{ name, extensions }],
+              });
+              return result.canceled ? null : result.filePaths[0];
+            };
+            const packageFile = await chooseFile(
+              'Choose a native package to reconstruct',
+              'Loadstone package',
+              ['loadstone'],
+            );
+            if (!packageFile) return null;
+            const inputsFile = await chooseFile(
+              'Choose the private local-inputs JSON',
+              'Local inputs',
+              ['json'],
+            );
+            if (!inputsFile) return null;
+            const parent = await dialog.showOpenDialog(window, {
+              title: 'Choose a parent folder for the new candidate',
+              properties: ['openDirectory'],
+            });
+            return parent.canceled
+              ? null
+              : { packageFile, inputsFile, parent: parent.filePaths[0] };
+          },
+          async () => {
             const result = await dialog.showOpenDialog(window, {
-              title,
+              title: 'Select your trusted 7z.exe (7-Zip x64 26.04 or newer)',
               properties: ['openFile'],
-              filters: [{ name, extensions }],
+              filters: [{ name: '7-Zip executable', extensions: ['exe'] }],
             });
             return result.canceled ? null : result.filePaths[0];
-          };
-          const packageFile = await chooseFile(
-            'Choose a native package to reconstruct',
-            'Loadstone package',
-            ['loadstone'],
-          );
-          if (!packageFile) return null;
-          const inputsFile = await chooseFile(
-            'Choose the private local-inputs JSON',
-            'Local inputs',
-            ['json'],
-          );
-          if (!inputsFile) return null;
-          const parent = await dialog.showOpenDialog(window, {
-            title: 'Choose a parent folder for the new candidate',
-            properties: ['openDirectory'],
-          });
-          return parent.canceled
-            ? null
-            : { packageFile, inputsFile, parent: parent.filePaths[0] };
-        }),
+          },
+        ),
       );
       handle('native:start', (id) => nativeBuilder.start(id));
       handle('native:cancel', (id) => nativeBuilder.cancel(id));

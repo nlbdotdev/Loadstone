@@ -9,62 +9,65 @@ const { archiveKind } = require('./archive-kind.cjs');
 
 // This optional creator dependency is chosen by the operator, never by a recipe.
 // Archive content is emitted only to stdout; 7-Zip never receives an output path.
-function runTool(
+async function runTool(
   executable,
   args,
   { signal, maxBytes, consume, timeoutMs = 120000 } = {},
 ) {
   signal?.throwIfAborted();
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      shell: false,
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: path.dirname(executable),
-    });
-    let failure,
-      bytes = 0,
-      errorBytes = 0;
-    const stop = (error) => {
-      failure ||= error;
-      child.kill();
-    };
-    const abort = () =>
-      stop(signal.reason || new Error('Archive operation cancelled.'));
-    const timer = setTimeout(
-      () => stop(new Error('Archive tool exceeded its time limit.')),
-      timeoutMs,
-    );
-    signal?.addEventListener('abort', abort, { once: true });
-    child.on('error', () =>
-      stop(new Error('Could not start the selected archive tool.')),
-    );
-    child.stderr.on('data', (chunk) => {
-      errorBytes += chunk.length;
-      if (errorBytes > 65536)
-        stop(new Error('Archive tool exceeded its diagnostic limit.'));
-    });
-    child.stdout.on('data', (chunk) => {
-      if (failure) return;
-      bytes += chunk.length;
-      if (bytes > maxBytes)
-        return stop(new Error('Archive output exceeds its declared limit.'));
-      try {
-        consume(chunk);
-      } catch (error) {
-        stop(error);
-      }
-    });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', abort);
-      if (failure) reject(failure);
-      else if (code !== 0)
-        reject(new Error('Archive tool did not complete successfully.'));
-      else resolve(bytes);
-    });
-    if (signal?.aborted) abort();
+  const child = spawn(executable, args, {
+    shell: false,
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: path.dirname(executable),
   });
+  let failure,
+    bytes = 0,
+    errorBytes = 0;
+  const stop = (error) => {
+    failure ||= error;
+    child.kill();
+  };
+  const abort = () =>
+    stop(signal.reason || new Error('Archive operation cancelled.'));
+  const timer = setTimeout(
+    () => stop(new Error('Archive tool exceeded its time limit.')),
+    timeoutMs,
+  );
+  signal?.addEventListener('abort', abort, { once: true });
+  child.on('error', () =>
+    stop(new Error('Could not start the selected archive tool.')),
+  );
+  child.stderr.on('data', (chunk) => {
+    errorBytes += chunk.length;
+    if (errorBytes > 65536)
+      stop(new Error('Archive tool exceeded its diagnostic limit.'));
+  });
+  const closed = new Promise((resolve) => child.once('close', resolve));
+  if (signal?.aborted) abort();
+  try {
+    // Await consumers so a slow disk applies backpressure to the child. Never
+    // report completion while writes or a cancelled child are still running.
+    try {
+      for await (const chunk of child.stdout) {
+        if (failure) throw failure;
+        bytes += chunk.length;
+        if (bytes > maxBytes)
+          throw new Error('Archive output exceeds its declared limit.');
+        await consume(chunk);
+      }
+    } catch (error) {
+      stop(error);
+    }
+    const code = await closed;
+    if (failure) throw failure;
+    if (code !== 0)
+      throw new Error('Archive tool did not complete successfully.');
+    return bytes;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 function parseListing(text) {
@@ -196,6 +199,7 @@ async function createSevenZip(executable, { signal } = {}) {
     )
       throw new Error('Selected archive tool changed.');
   }
+  guard();
   async function inspect(candidate, operationSignal) {
     guard();
     if (
@@ -244,11 +248,18 @@ async function createSevenZip(executable, { signal } = {}) {
       Buffer.concat(listing).toString('utf8'),
       `.${kind}`,
     );
+    guard();
     if (!sameFile(before, ordinaryFile(candidate.archive, 50_000_000_000)))
       throw new Error('Archive changed during inspection.');
     return { entries, snapshot: before, kind };
   }
-  async function hashMember(candidate, inspected, entry, operationSignal) {
+  async function readMember(
+    candidate,
+    inspected,
+    entry,
+    consume,
+    operationSignal,
+  ) {
     guard();
     if (
       !sameFile(
@@ -260,10 +271,9 @@ async function createSevenZip(executable, { signal } = {}) {
     if (
       entry.directory ||
       !inspected.entries.includes(entry) ||
-      entry.bytes > 1_000_000_000
+      entry.bytes > 20_000_000_000
     )
-      throw new Error('Archive member exceeds hashing limits.');
-    const hash = crypto.createHash('sha256');
+      throw new Error('Archive member exceeds reading limits.');
     const count = await runTool(
       executable,
       [
@@ -283,10 +293,11 @@ async function createSevenZip(executable, { signal } = {}) {
       {
         signal: operationSignal,
         maxBytes: entry.bytes,
-        consume: (v) => hash.update(v),
+        consume,
         timeoutMs: 600000,
       },
     );
+    guard();
     if (
       count !== entry.bytes ||
       !sameFile(
@@ -297,9 +308,27 @@ async function createSevenZip(executable, { signal } = {}) {
       throw new Error(
         'Archive member differs from its declared size or the archive changed.',
       );
+    return count;
+  }
+  async function hashMember(candidate, inspected, entry, operationSignal) {
+    if (entry.bytes > 1_000_000_000)
+      throw new Error('Archive member exceeds hashing limits.');
+    const hash = crypto.createHash('sha256');
+    const count = await readMember(
+      candidate,
+      inspected,
+      entry,
+      (v) => hash.update(v),
+      operationSignal,
+    );
     return `${count}:${hash.digest('hex')}`;
   }
-  async function hashArchive(candidate, inspected, wanted, operationSignal) {
+  async function streamArchive(
+    candidate,
+    inspected,
+    consumer,
+    operationSignal,
+  ) {
     guard();
     // Listing and extraction use ascending archive item indices in 26.04.
     // CRC checks at every boundary additionally reject wrong byte framing.
@@ -325,43 +354,27 @@ async function createSevenZip(executable, { signal } = {}) {
       )
     )
       throw new Error('Archive changed before reading.');
-    const sizes = new Set([...wanted].map((v) => Number(v.split(':')[0]))),
-      matches = new Map();
     let index = 0,
       remaining = files[0]?.bytes || 0,
       checksum = 0;
-    let hash =
-      files[0] && sizes.has(files[0].bytes)
-        ? crypto.createHash('sha256')
-        : null;
-    function finish() {
+    async function finish() {
       const entry = files[index];
       if (entry.crc32 && checksum.toString(16).padStart(8, '0') !== entry.crc32)
         throw new Error(
           'Archive stream boundary checksum differs from its listing.',
         );
-      if (hash) {
-        const identity = `${entry.bytes}:${hash.digest('hex')}`;
-        if (wanted.has(identity)) {
-          const names = matches.get(identity) || [];
-          names.push(entry.name);
-          if (names.length > 128)
-            throw new Error('Too many equivalent archive members.');
-          matches.set(identity, names);
-        }
-      }
+      await consumer.finish(entry);
       index++;
       remaining = files[index]?.bytes || 0;
       checksum = 0;
-      hash =
-        files[index] && sizes.has(files[index].bytes)
-          ? crypto.createHash('sha256')
-          : null;
     }
-    function emptyFiles() {
-      while (index < files.length && remaining === 0) finish();
+    async function emptyFiles() {
+      while (index < files.length && remaining === 0) {
+        operationSignal?.throwIfAborted();
+        await finish();
+      }
     }
-    emptyFiles();
+    await emptyFiles();
     const count = await runTool(
       executable,
       ['x', '-t7z', '-so', '-bd', '-y', '-p-', '--', candidate.archive],
@@ -369,7 +382,7 @@ async function createSevenZip(executable, { signal } = {}) {
         signal: operationSignal,
         maxBytes: total,
         timeoutMs: 300000,
-        consume: (chunk) => {
+        consume: async (chunk) => {
           let offset = 0;
           while (offset < chunk.length) {
             if (index >= files.length)
@@ -379,17 +392,18 @@ async function createSevenZip(executable, { signal } = {}) {
             const size = Math.min(remaining, chunk.length - offset),
               part = chunk.subarray(offset, offset + size);
             checksum = crc32(part, checksum);
-            hash?.update(part);
+            await consumer.consume(files[index], part);
             remaining -= size;
             offset += size;
             if (remaining === 0) {
-              finish();
-              emptyFiles();
+              await finish();
+              await emptyFiles();
             }
           }
         },
       },
     );
+    guard();
     if (
       count !== total ||
       index !== files.length ||
@@ -399,15 +413,104 @@ async function createSevenZip(executable, { signal } = {}) {
       )
     )
       throw new Error('Archive stream is incomplete or its input changed.');
+  }
+  async function hashArchive(candidate, inspected, wanted, operationSignal) {
+    const sizes = new Set([...wanted].map((v) => Number(v.split(':')[0]))),
+      matches = new Map();
+    let hash;
+    await streamArchive(
+      candidate,
+      inspected,
+      {
+        consume(entry, chunk) {
+          if (sizes.has(entry.bytes)) {
+            hash ||= crypto.createHash('sha256');
+            hash.update(chunk);
+          }
+        },
+        finish(entry) {
+          if (sizes.has(entry.bytes)) {
+            hash ||= crypto.createHash('sha256');
+            const identity = `${entry.bytes}:${hash.digest('hex')}`;
+            if (wanted.has(identity)) {
+              const names = matches.get(identity) || [];
+              names.push(entry.name);
+              if (names.length > 128)
+                throw new Error('Too many equivalent archive members.');
+              matches.set(identity, names);
+            }
+          }
+          hash = null;
+        },
+      },
+      operationSignal,
+    );
     return matches;
+  }
+  const batch7z =
+    version[1] === '26' && version[2] === '04' && typeof crc32 === 'function';
+  function planExtraction(inspected, names) {
+    const selected = inspected.entries.filter(
+      (v) => !v.directory && names.has(v.name),
+    );
+    if (selected.length !== names.size)
+      throw new Error('A required archive member is missing.');
+    const batch =
+      batch7z &&
+      inspected.kind === '7z' &&
+      inspected.entries.every((v) => v.directory || v.bytes === 0 || v.crc32) &&
+      inspected.entries.reduce((sum, v) => sum + v.bytes, 0) <= 20_000_000_000;
+    if (
+      selected.length > (batch ? 100000 : 10000) ||
+      selected.reduce((sum, v) => sum + v.bytes, 0) > 20_000_000_000
+    )
+      throw new Error('Selected archive members exceed reconstruction limits.');
+    return { selected, batch };
+  }
+  async function extractMembers(
+    candidate,
+    inspected,
+    names,
+    consumer,
+    operationSignal,
+  ) {
+    const { selected, batch } = planExtraction(inspected, names);
+    if (batch) {
+      await streamArchive(
+        candidate,
+        inspected,
+        {
+          consume: (entry, chunk) =>
+            names.has(entry.name) ? consumer.consume(entry, chunk) : undefined,
+          finish: (entry) =>
+            names.has(entry.name) ? consumer.finish(entry) : undefined,
+        },
+        operationSignal,
+      );
+    } else {
+      for (const entry of selected) {
+        operationSignal?.throwIfAborted();
+        await readMember(
+          candidate,
+          inspected,
+          entry,
+          (chunk) => consumer.consume(entry, chunk),
+          operationSignal,
+        );
+        await consumer.finish(entry);
+      }
+    }
   }
   return {
     version: `${version[1]}.${version[2]}`,
+    directory: path.dirname(executable),
+    guard,
     inspect,
     hashMember,
     hashArchive,
-    batch7z:
-      version[1] === '26' && version[2] === '04' && typeof crc32 === 'function',
+    batch7z,
+    planExtraction,
+    extractMembers,
   };
 }
 
