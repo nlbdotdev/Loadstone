@@ -24,6 +24,7 @@ The report is **not installable and not publication-approved**. Even with comple
 
 ```powershell
 node scripts/source-ledger.mjs hashed-inventory.json new-private-ledger.json downloads-folder [another-downloads-folder]
+node scripts/source-ledger.mjs hashed-inventory.json new-private-ledger.json downloads-folder --hints private-hints.json
 ```
 
 This command preserves the hashed installed-file records and finds candidate ZIP/7z/RAR archives using the recorded installation filename or a matching game/mod ID. It fingerprints candidate archives and reads only `gameName`, `modID` and `fileID` from their adjacent `[General]` metadata. It does not read credential header files, copy arbitrary metadata fields, extract archives or contact Nexus. Conflicting metadata and multiple versions remain explicit candidates; none is selected automatically.
@@ -31,6 +32,25 @@ This command preserves the hashed installed-file records and finds candidate ZIP
 Expanded inventories retain their instance/game/profile hashes and explicit exclusions in the private ledger, with an allowlist of record fields. Inventoried disabled mods can receive archive candidates and exact member matches without being enabled. These added root/profile records remain unresolved until separately mapped or transformed; retaining hashes does not infer their sources or permission to distribute them.
 
 The resulting ledger references the input inventory's SHA-256 and records unresolved reconstruction and unreviewed permissions. Matching a filename or Nexus mod ID does not prove an archive member equals an installed file. Exact member comparison, local edits, root/profile reconstruction and generated output remain separate work. Keep these ledgers private alongside inventories; the CLI refuses to replace them or write inside source/download directories.
+
+When installed metadata cannot identify an archive already in the selected download folders, a creator can nominate it with a private UTF-8 JSON hints file:
+
+```json
+{
+  "schemaVersion": 1,
+  "kind": "loadstone-source-hints",
+  "mods": [
+    {
+      "name": "Example installed mod",
+      "archives": ["C:/CreatorCache/original.zip"]
+    }
+  ]
+}
+```
+
+Each name must exactly match one inventoried mod with files, including disabled mods. Archive paths must be absolute and identify top-level ZIP/7z/RAR files in a download folder explicitly selected on the command line. Unknown fields, duplicate mod names or per-mod archive paths, redirected files and paths outside those folders are rejected. Limits are 5 MB per hints file, 10,000 mods, 100 archives per mod and 100,000 total references. Hints cannot add remote URLs, credentials or claimed provider IDs.
+
+Hinted archives are fingerprinted and marked `creatorHint: true`; existing automatic match evidence is retained without duplicating a candidate. Conflicting known game/mod metadata remains a conflict and is skipped during member mapping. A hint never proves installed bytes, rights or reconstruction. The ledger retains the hints file's path and exact SHA-256; ledger creation rejects a changed hints file, and mapping refuses a hints file that has changed since the ledger was written. Keep that file private and stable alongside the reports. Ctrl+C cancels ledger creation without writing a final report.
 
 ```powershell
 node scripts/map-zip-sources.mjs private-ledger.json new-private-mapping.json
@@ -99,3 +119,5 @@ The ZIP-only comparison then inspected 30, 29 and 58 archives and matched 650, 9
 The later ZIP/7z/RAR pass with the verified 26.04 stream reader inspected 78, 74 and 144 archive candidates and matched 4,585 combined TTW, 4,826 FO3 Remastered and 15,795 New Vegas installed mod files. It left 7,729, 4,156 and 77,311 mod files unmatched, plus the separately inventoried overwrite files. All TTW/FO3 archive candidates were safely inspected; two New Vegas candidates remained unresolved. Source-cache gaps and generated/local content still dominate the missing mappings. TTW's full pass took 10.48 seconds on this machine and the New Vegas pass 48.68 seconds; these are local observations, not general performance guarantees. No installation file was changed or uploaded.
 
 The subsequent content-detection pass resolved both remaining New Vegas archive issues: a ZIP stored with a `.7z` filename and a 1,219,819,547-byte terrain BSA above the previous member cap. All 146 candidate archives were inspected with zero archive issues, matching 15,992 installed files and leaving 77,114 unresolved. The ZIP kept its original filename and bytes. The large BSA was hashed as a whole member through the bounded single-pass reader; its contents were not extracted or independently mapped. This improvement is source work after the recorded 0.3.0 portable build, and does not certify any featured pack.
+
+The later expanded inventories also include disabled mods and explicit state exclusions. Creator hints against those baselines linked cached archives without modifying installed metadata. Exact matches rose from 4,586 to **9,500** for TTW Complete, 4,827 to **6,855** for FO3 Remastered and 16,706 to **30,060** for FNV Revamped. This leaves 2,864, 2,130 and 81,300 mod files unresolved respectively; game, instance, profile and overwrite records remain separate. The passes safely inspected 83, 82 and 156 archives. Three additional FNV quest archives exceeded the existing 128-equivalent-member limit, so none of their matches were accepted. These are comparison-limit failures, not evidence that the archives are corrupt. Further duplicate-content handling, source/transform work and rights review remain necessary. Hints and reports remain private; all installed sources are unchanged.

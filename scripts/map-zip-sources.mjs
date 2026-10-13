@@ -7,6 +7,7 @@ const { mapArchiveSources } = require('../electron/archive-mapping.cjs');
 const { createSevenZip } = require('../electron/sevenzip.cjs');
 const { ordinaryFile } = require('../electron/native-package.cjs');
 const { canonical, contains } = require('../electron/live-catalog.cjs');
+const { readSourceHints } = require('../electron/source-hints.cjs');
 const [input, output, sevenZipPath, ...extra] = process.argv.slice(2);
 if (!input || !output || extra.length)
   throw new Error(
@@ -14,6 +15,12 @@ if (!input || !output || extra.length)
   );
 ordinaryFile(input, 128_000_000);
 const ledger = JSON.parse(fs.readFileSync(input, 'utf8'));
+if (
+  ledger.sourceHints &&
+  readSourceHints(ledger.sourceHints.file).reference.sha256 !==
+    ledger.sourceHints.sha256
+)
+  throw new Error('Referenced source hints have changed.');
 ordinaryFile(ledger.inventory.file, 128_000_000);
 const inventoryBytes = fs.readFileSync(ledger.inventory.file);
 if (

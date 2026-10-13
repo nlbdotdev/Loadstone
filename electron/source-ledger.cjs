@@ -3,6 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
+const { resolveSourceHints } = require('./source-hints.cjs');
 
 function directory(root) {
   const stat = fs.lstatSync(root);
@@ -43,10 +44,14 @@ function nexusHint(file) {
     ? { game, modId, fileId }
     : null;
 }
-async function hashArchive(file) {
+async function hashArchive(file, signal) {
+  signal?.throwIfAborted();
   const before = ordinaryFile(file, 10_000_000_000_000),
     hash = crypto.createHash('sha256');
-  for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
+  for await (const chunk of fs.createReadStream(file)) {
+    signal?.throwIfAborted();
+    hash.update(chunk);
+  }
   if (!sameFile(before, ordinaryFile(file, 10_000_000_000_000)))
     throw new Error('A source archive changed while being fingerprinted.');
   return { bytes: before.size, sha256: hash.digest('hex') };
@@ -79,6 +84,7 @@ function nexusGame(value) {
   );
 }
 async function buildSourceLedger(inventory, downloadRoots, options = {}) {
+  options.signal?.throwIfAborted();
   if (
     inventory?.kind !== 'loadstone-installed-inventory' ||
     inventory.schemaVersion !== 1 ||
@@ -94,6 +100,7 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
   const archives = [],
     roots = new Set();
   for (const rootValue of downloadRoots) {
+    options.signal?.throwIfAborted();
     const root = path.resolve(rootValue);
     if (roots.has(root.toLowerCase())) continue;
     roots.add(root.toLowerCase());
@@ -108,11 +115,13 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
         throw new Error('Too many cached archives.');
     }
   }
+  const sourceHints = resolveSourceHints(options.hints, inventory, archives);
   const fingerprints = new Map(),
     mods = [];
   let count = 0,
     files = 0;
   for (const mod of inventory.mods) {
+    options.signal?.throwIfAborted();
     if (
       !mod ||
       typeof mod.name !== 'string' ||
@@ -146,16 +155,26 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
           modId > 0 &&
           archive.nexus?.modId === modId &&
           archive.nexus.game === game;
-        if (!sameName && !sameMod) continue;
+        const creatorHint =
+          sourceHints.get(mod.name)?.has(archive.file.toLowerCase()) === true;
+        if (!sameName && !sameMod && !creatorHint) continue;
         if (!fingerprints.has(archive.file))
-          fingerprints.set(archive.file, await hashArchive(archive.file));
+          fingerprints.set(
+            archive.file,
+            await hashArchive(archive.file, options.signal),
+          );
         candidates.push({
           archive: archive.file,
           ...fingerprints.get(archive.file),
           nexus: archive.nexus,
-          matchedBy: sameName ? 'installation-filename' : 'mod-id-only',
+          matchedBy: sameName
+            ? 'installation-filename'
+            : sameMod
+              ? 'mod-id-only'
+              : 'creator-hint',
+          ...(creatorHint ? { creatorHint: true } : {}),
           metadataConflict: Boolean(
-            sameName &&
+            (sameName || creatorHint) &&
             archive.nexus &&
             ((modId > 0 && archive.nexus.modId !== modId) ||
               (game && archive.nexus.game !== game)),
@@ -247,6 +266,14 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
     ...(installation ? { installation } : {}),
     ...(exclusions ? { exclusions } : {}),
     summary: {
+      hintedMods: sourceHints.size,
+      creatorHintedArchives: new Set(
+        mods.flatMap((mod) =>
+          mod.archiveCandidates
+            .filter((v) => v.creatorHint)
+            .map((v) => v.archive.toLowerCase()),
+        ),
+      ).size,
       enabledMods: mods.filter((v) => v.enabled && !v.separator).length,
       enabledModsWithArchiveCandidates: mods.filter(
         (v) => v.enabled && !v.separator && v.archiveCandidates.length,
