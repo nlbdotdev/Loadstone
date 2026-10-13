@@ -89,6 +89,10 @@ export interface Bridge {
   liveCatalog(): Promise<Manifest[]>;
   importManifest(): Promise<Manifest[] | null>;
   inspectNativePackage(): Promise<NativePackageSummary | null>;
+  nativeBuilds(): Promise<NativeBuild[]>;
+  prepareNativeBuild(): Promise<NativeBuildPlan | null>;
+  startNativeBuild(id: string): Promise<NativeBuild[]>;
+  cancelNativeBuild(id: string): Promise<NativeBuild[]>;
   discoverGames(): Promise<{ games: DiscoveredGame[]; warnings: string[] }>;
   preflight(options: {
     id: string;
@@ -238,4 +242,36 @@ declare global {
   interface Window {
     loadstone: Bridge;
   }
+}
+
+export interface NativeBuildPlan {
+  id: string;
+  name: string;
+  version: string;
+  recipeSha256: string;
+  destination: string;
+  outputs: number;
+  installBytes: number;
+  requiredGames: string[];
+  archiveCount: number;
+}
+export interface NativeBuild {
+  id: string;
+  name: string;
+  version: string;
+  recipeSha256: string;
+  destination: string;
+  status:
+    | 'queued'
+    | 'building'
+    | 'stopping'
+    | 'verified'
+    | 'failed'
+    | 'cancelled'
+    | 'interrupted';
+  completed: number;
+  total: number;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

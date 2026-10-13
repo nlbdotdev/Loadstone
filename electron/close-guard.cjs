@@ -30,7 +30,13 @@ function protectActiveWork(app, window, dialog, activity) {
   window.once('closed', () => app.removeListener('before-quit', guard));
 }
 
-function currentActivity(installer, runtime) {
+function currentActivity(installer, runtime, nativeBuilder) {
+  if (nativeBuilder?.busy)
+    return {
+      message: 'A native candidate is being prepared or built.',
+      detail:
+        'Finish the selection or cancel the build in Settings and wait for it to stop before closing. Any partial candidate folder is retained.',
+    };
   if (installer?.maintenance)
     return {
       message: 'Setup removal is still running.',

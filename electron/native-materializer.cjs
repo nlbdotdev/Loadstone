@@ -59,6 +59,11 @@ async function inspectInputs(file, options) {
   const packageSnapshot = ordinaryFile(file, 512_000_000);
   const inspected = await inspectNativePackage(file),
     recipe = inspected.recipe;
+  if (
+    options.expectedRecipeSha256 !== undefined &&
+    options.expectedRecipeSha256 !== inspected.recipeSha256
+  )
+    throw new Error('Native package changed after recipe review.');
   if (!sameFile(packageSnapshot, ordinaryFile(file, 512_000_000)))
     throw new Error('Native package changed during input inspection.');
   const gameRoots = new Map(),
