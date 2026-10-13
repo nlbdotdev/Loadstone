@@ -13,6 +13,7 @@ const { canonicalJson } = require('./native-format.cjs');
 const { canonical, contains } = require('./live-catalog.cjs');
 const { relativeFile } = require('./manifest.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
+const { archiveKind } = require('./archive-kind.cjs');
 
 function ordinaryDirectory(folder) {
   const stat = fs.lstatSync(folder);
@@ -111,7 +112,7 @@ async function inspectInputs(file, options) {
       if (
         typeof archive !== 'string' ||
         !path.isAbsolute(archive) ||
-        path.extname(archive).toLowerCase() !== '.zip'
+        archiveKind(archive) !== 'zip'
       )
         throw new Error(
           'This native materializer requires verified local ZIP archives; 7z/RAR and downloads are not implemented.',

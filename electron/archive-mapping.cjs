@@ -5,6 +5,7 @@ const yauzl = require('yauzl');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
 const { inspectSevenZipMembers } = require('./sevenzip.cjs');
+const { archiveKind } = require('./archive-kind.cjs');
 
 async function inspectZipMembers(candidate, wanted, signal) {
   signal?.throwIfAborted();
@@ -158,18 +159,6 @@ async function mapArchiveSources(ledger, options = {}) {
   let matchReferences = 0;
   for (const { candidate, mods } of archiveGroups.values()) {
     options.signal?.throwIfAborted();
-    const extension = path.extname(candidate.archive).toLowerCase();
-    if (
-      extension !== '.zip' &&
-      (!options.sevenZip || !['.7z', '.rar'].includes(extension))
-    ) {
-      issues.push({
-        archive: candidate.archive,
-        reason:
-          'Only ZIP member comparison is implemented; this archive remains unresolved.',
-      });
-      continue;
-    }
     const wanted = new Set(
       [...mods].flatMap((mod) =>
         mod.installedFiles
@@ -178,8 +167,11 @@ async function mapArchiveSources(ledger, options = {}) {
       ),
     );
     try {
+      const kind = archiveKind(candidate.archive);
+      if (kind !== 'zip' && !options.sevenZip)
+        throw new Error('Select a trusted archive tool for 7z/RAR comparison.');
       const matched =
-        extension === '.zip'
+        kind === 'zip'
           ? await inspectZipMembers(candidate, wanted, options.signal)
           : await inspectSevenZipMembers(
               candidate,
