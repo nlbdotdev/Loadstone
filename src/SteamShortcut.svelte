@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { jobId }: { jobId: string } = $props();
+  let { jobId, native = false }: { jobId: string; native?: boolean } = $props();
   let expanded = $state(false),
     busy = $state(false),
     error = $state(''),
@@ -12,8 +12,11 @@
     message = '';
     try {
       if (save)
-        message = (await window.loadstone.steamShortcut(jobId, selected))
-          .message;
+        message = (
+          await (native
+            ? window.loadstone.nativeSteamShortcut(jobId, selected)
+            : window.loadstone.steamShortcut(jobId, selected))
+        ).message;
       else {
         accounts = await window.loadstone.steamAccounts();
         selected = accounts.length === 1 ? accounts[0].id : '';

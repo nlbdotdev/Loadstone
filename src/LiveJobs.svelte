@@ -59,7 +59,7 @@
   <div class="page-heading">
     <div>
       <p class="eyebrow">YOUR LIVE WORKSPACE</p>
-      <h1>{library ? 'Installed setups.' : 'Your installations.'}</h1>
+      <h1>{library ? 'Wabbajack setups.' : 'Your installations.'}</h1>
       <p>Real installation activity and saved recovery state.</p>
     </div>
   </div>
@@ -67,7 +67,7 @@
   {#if !shown.length}<div class="empty-state">
       <h2>
         {library
-          ? 'No live setups installed yet'
+          ? 'No Wabbajack setups installed yet'
           : 'No live installations started'}
       </h2>
       <p>

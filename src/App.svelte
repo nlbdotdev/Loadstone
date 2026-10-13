@@ -44,6 +44,7 @@
   import NativePackagePreview from './NativePackagePreview.svelte';
   import NativeBuilds from './NativeBuilds.svelte';
   import LiveJobs from './LiveJobs.svelte';
+  import NativeLibrary from './NativeLibrary.svelte';
   import { catalog } from './data';
   import type { AppState, Page, Setup, Job } from './types';
 
@@ -629,6 +630,7 @@
               </div>{/if}
           {/if}
         {:else if page === 'library' && !appState.settings.dummyData}
+          <NativeLibrary />
           <LiveJobs library />
         {:else if page === 'downloads' && !appState.settings.dummyData}
           <LiveJobs />

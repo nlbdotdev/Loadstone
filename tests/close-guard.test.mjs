@@ -18,7 +18,9 @@ test('close guard covers preparation, installation, verification, removal and en
   window.isDestroyed = () => false;
   window.minimize = () => {};
   const installer = {},
-    runtime = {};
+    runtime = {},
+    nativeBuilder = {},
+    nativeLibrary = {};
   let prompts = 0;
   protectActiveWork(
     app,
@@ -29,13 +31,15 @@ test('close guard covers preparation, installation, verification, removal and en
         return { response: 0 };
       },
     },
-    () => currentActivity(installer, runtime),
+    () => currentActivity(installer, runtime, nativeBuilder, nativeLibrary),
   );
   for (const [object, key] of [
     [installer, 'starting'],
     [installer, 'running'],
     [installer, 'maintenance'],
     [runtime, 'controller'],
+    [nativeBuilder, 'busy'],
+    [nativeLibrary, 'busy'],
   ]) {
     object[key] = true;
     for (const [target, event] of [
@@ -53,7 +57,7 @@ test('close guard covers preparation, installation, verification, removal and en
     }
     object[key] = false;
   }
-  assert.equal(prompts, 8);
+  assert.equal(prompts, 12);
   window.emit('close', {
     preventDefault() {
       assert.fail('Idle close must be allowed');

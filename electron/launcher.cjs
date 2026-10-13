@@ -10,6 +10,9 @@ function launchPlan(job) {
   if (!job || job.status !== 'installed')
     throw new Error('Only completed installations can be launched.');
   const verified = verifyProfile(job);
+  return portableLaunchPlan(verified);
+}
+function portableLaunchPlan(verified) {
   const cwd = path.dirname(verified.manager);
   // This adapter supports the local profile layout verified by the installer.
   const ini = fs.readFileSync(path.join(cwd, 'ModOrganizer.ini'), 'utf8');
@@ -61,6 +64,7 @@ class Launcher {
   constructor(installer, options = {}) {
     this.installer = installer;
     this.spawn = options.spawn || spawn;
+    this.plan = options.plan || launchPlan;
     this.sessions = new Map();
   }
   list() {
@@ -70,7 +74,7 @@ class Launcher {
     }));
   }
   verify(id) {
-    const plan = launchPlan(this.installer.jobs.find((job) => job.id === id));
+    const plan = this.plan(this.installer.jobs.find((job) => job.id === id));
     return plan;
   }
   async launch(id) {
@@ -141,4 +145,4 @@ class Launcher {
     }
   }
 }
-module.exports = { Launcher, launchPlan };
+module.exports = { Launcher, launchPlan, portableLaunchPlan };

@@ -62,6 +62,17 @@ export interface AppState {
   logs: string[];
 }
 export interface Bridge {
+  nativeLibrary(): Promise<NativeLibraryState>;
+  prepareNativeLibrary(): Promise<NativeLibraryPlan | null>;
+  registerNativeLibrary(id: string): Promise<NativeLibraryState>;
+  verifyNativeLibrary(id: string): Promise<NativeLibraryState>;
+  cancelNativeVerification(): Promise<void>;
+  launchNative(id: string): Promise<NativeLibraryEntry[]>;
+  nativeDesktopShortcut(id: string): Promise<string>;
+  nativeSteamShortcut(
+    id: string,
+    accountId: string,
+  ): Promise<{ message: string }>;
   liveJobs(): Promise<LiveJob[]>;
   cleanupShortcuts(id: string): Promise<LiveJob[]>;
   removeLive(id: string): Promise<LiveJob[]>;
@@ -120,6 +131,33 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface NativeLibraryEntry {
+  id: string;
+  name: string;
+  version: string;
+  root: string;
+  profile: string;
+  fileCount: number;
+  verifiedAt: string;
+  saveStatus: string;
+  saveNotes: string;
+  launch: { phase: string; message: string } | null;
+}
+export interface NativeLibraryState {
+  entries: NativeLibraryEntry[];
+  busy: boolean;
+  progress: { completed: number; total: number } | null;
+  error: string | null;
+}
+export interface NativeLibraryPlan {
+  id: string;
+  name: string;
+  version: string;
+  root: string;
+  profile: string;
+  fileCount: number;
+  saveCompatibility: { status: string; notes: string };
 }
 export interface NativePackageSummary {
   generatedConfigurations: number;
