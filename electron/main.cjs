@@ -24,6 +24,7 @@ const { SteamShortcuts } = require('./steam-shortcuts.cjs');
 const { diagnostics } = require('./diagnostics.cjs');
 const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
+const { NativeBuilder } = require('./native-builder.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -51,6 +52,35 @@ else {
       launcher = new Launcher(installer);
       const maintenance = new Maintenance(installer);
       const nativePreview = createNativePreview();
+      const nativeBuilder = new NativeBuilder(app.getPath('userData'), {
+        assertAvailable: () => {
+          if (store.state.settings.dummyData)
+            throw new Error(
+              'Switch to the live workspace before reconstructing real files.',
+            );
+          if (
+            installer.starting ||
+            installer.running ||
+            installer.maintenance ||
+            runtime.controller
+          )
+            throw new Error(
+              'Wait for the current installation, removal or engine preparation.',
+            );
+        },
+        protectedRoots: () => [
+          app.isPackaged
+            ? path.dirname(process.execPath)
+            : path.resolve(__dirname, '..'),
+          ...installer.jobs.map((v) => v.destination).filter(Boolean),
+        ],
+      });
+      const idleNative = () => {
+        if (nativeBuilder.busy)
+          throw new Error(
+            'Wait for the native build or cancel it in Settings.',
+          );
+      };
       const steamShortcuts = new SteamShortcuts();
       const cleanupShortcuts = async (id) => {
         if (store.state.settings.dummyData)
@@ -136,7 +166,7 @@ else {
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       window.webContents.on('will-navigate', (event) => event.preventDefault());
       protectActiveWork(app, window, dialog, () =>
-        currentActivity(installer, runtime),
+        currentActivity(installer, runtime, nativeBuilder),
       );
       window.once('ready-to-show', () => window.show());
       window.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -175,6 +205,40 @@ else {
           return result.canceled ? null : result.filePaths[0];
         }),
       );
+      handle('native:builds', () => nativeBuilder.list());
+      handle('native:prepare', () =>
+        nativeBuilder.prepare(async () => {
+          const chooseFile = async (title, name, extensions) => {
+            const result = await dialog.showOpenDialog(window, {
+              title,
+              properties: ['openFile'],
+              filters: [{ name, extensions }],
+            });
+            return result.canceled ? null : result.filePaths[0];
+          };
+          const packageFile = await chooseFile(
+            'Choose a native package to reconstruct',
+            'Loadstone package',
+            ['loadstone'],
+          );
+          if (!packageFile) return null;
+          const inputsFile = await chooseFile(
+            'Choose the private local-inputs JSON',
+            'Local inputs',
+            ['json'],
+          );
+          if (!inputsFile) return null;
+          const parent = await dialog.showOpenDialog(window, {
+            title: 'Choose a parent folder for the new candidate',
+            properties: ['openDirectory'],
+          });
+          return parent.canceled
+            ? null
+            : { packageFile, inputsFile, parent: parent.filePaths[0] };
+        }),
+      );
+      handle('native:start', (id) => nativeBuilder.start(id));
+      handle('native:cancel', (id) => nativeBuilder.cancel(id));
       handle('live:install-root', () => {
         const root = store.state.settings.installRoot;
         const relative = path.relative(app.getPath('userData'), root);
@@ -192,12 +256,16 @@ else {
       handle('nexus:verify', () => nexus.verify());
       handle('nexus:disconnect', () => nexus.disconnect());
       handle('runtime:verify', () => runtime.verify());
-      handle('runtime:install', () => runtime.install());
+      handle('runtime:install', () => {
+        idleNative();
+        return runtime.install();
+      });
       handle('runtime:cancel', () => runtime.cancel());
       handle('live:preflight', (options) => installer.preflight(options));
       handle('live:jobs', () => launcher.list());
       handle('live:cleanup-shortcuts', cleanupShortcuts);
       handle('live:remove', async (id) => {
+        idleNative();
         if (store.state.settings.dummyData)
           throw new Error(
             'Switch to the live workspace before removing a setup.',
@@ -214,6 +282,7 @@ else {
           noLink: true,
         });
         if (result.response !== 1) return launcher.list();
+        idleNative();
         if (store.state.settings.dummyData)
           throw new Error('Return to the live workspace to continue.');
         await maintenance.remove(id);
@@ -236,6 +305,7 @@ else {
         return launcher.list();
       });
       handle('live:launch', (id) => {
+        idleNative();
         if (store.state.settings.dummyData)
           throw new Error(
             'Switch to the live workspace before launching a setup.',
@@ -247,6 +317,7 @@ else {
         return 'The portable mod manager, declared profile and launch entry passed structural checks.';
       });
       handle('live:install', (options) => {
+        idleNative();
         if (store.state.settings.dummyData)
           throw new Error(
             'Switch to the live workspace before installing a real setup.',
@@ -254,6 +325,7 @@ else {
         return installer.start(options);
       });
       handle('live:retry', (id) => {
+        idleNative();
         if (store.state.settings.dummyData)
           throw new Error(
             'Switch to the live workspace before retrying a real setup.',
