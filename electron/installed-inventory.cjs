@@ -2,13 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { ordinary, fingerprint, tree } = require('./inventory-files.cjs');
 const { contains } = require('./live-catalog.cjs');
+const { decodeMo2Value } = require('./mo2-ini-value.cjs');
 
-function decode(value) {
-  let result = value.replace(/^"(.*)"$/, '$1');
-  if (result.startsWith('@ByteArray(') && result.endsWith(')'))
-    result = result.slice(11, -1);
-  return result.replaceAll('\\\\', '\\');
-}
 function ini(text) {
   const result = new Map();
   let section = '';
@@ -26,9 +21,16 @@ function ini(text) {
       throw new Error(
         'Duplicate INI field; resolve ambiguity before inventory.',
       );
-    result.set(key, decode(line.slice(split + 1).trim()));
+    result.set(key, line.slice(split + 1).trim());
   }
-  return result;
+  // Decode only fields the inventory actually uses. Unrelated QByteArray
+  // geometry/account state may be binary rather than UTF-8 text.
+  return {
+    get(key) {
+      const value = result.get(key);
+      return value === undefined ? undefined : decodeMo2Value(value);
+    },
+  };
 }
 function safeName(value) {
   if (
@@ -91,7 +93,7 @@ async function inspectMo2(root, options = {}) {
       ),
     );
   const profiles = location('profiles_directory', path.join(base, 'profiles'));
-  const mods = location('mods_directory', path.join(base, 'mods'));
+  const mods = location('mod_directory', path.join(base, 'mods'));
   const downloads = location(
     'download_directory',
     path.join(base, 'downloads'),

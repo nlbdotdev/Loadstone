@@ -73,12 +73,13 @@ Every source must be used. Bundled hashes cannot be declared twice. Sources do n
 
 ### Outputs and actions
 
-Each output is `{path, bytes, sha256, action}`. File paths use `/`, are relative NFC strings up to 240 characters, and reject Windows device names, drive/UNC paths, alternate data streams, traversal, empty segments, trailing dots/spaces and reserved characters. Windows case-insensitive duplicates and file/directory overlap are rejected. Paths containing a `saves` component or a component starting `.loadstone` are reserved.
+Copy/extract outputs are `{path, bytes, sha256, action}`. A generated MO2 configuration instead uses `{path, action}` with destination-specific fingerprinting as described below. File paths use `/`, are relative NFC strings up to 240 characters, and reject Windows device names, drive/UNC paths, alternate data streams, traversal, empty segments, trailing dots/spaces and reserved characters. Windows case-insensitive duplicates and file/directory overlap are rejected. Paths containing a `saves` component or a component starting `.loadstone` are reserved.
 
 - `{type: "copy", source: "source-id"}` copies a `game-file`, `prerequisite-file` or `payload`. Expected output bytes/hash must equal the input.
-- `{type: "extract", source: "archive-id", member: "Data/Example.esp"}` selects one safe member of a locked Nexus/HTTPS archive. The output hash is the hash of the extracted member. Nested archives, FOMOD execution, transforms, binary patches and text substitution are not implemented by this version.
+- `{type: "extract", source: "archive-id", member: "Data/Example.esp"}` selects one safe member of a locked Nexus/HTTPS archive. The output hash is the hash of the extracted member. Nested archives, FOMOD execution, binary patches and arbitrary text substitution are not implemented by this version.
+- `{type: "mo2-config", executables: [...]}` generates only `ModOrganizer.ini` from bounded, relative executable declarations and recipe game/launch fields. It has no source or static output fingerprint. The materializer computes the exact destination-specific bytes/hash before writing and records them in the receipt after verification. An empty, fingerprinted `portable.txt` output is required. See the [complete generator contract](native-mo2-configuration.md), including serialization, size bounds and unsupported settings.
 
-Outputs must include `ModOrganizer.exe`, `ModOrganizer.ini`, the declared profile's `modlist.txt` and `plugins.txt`, and the target game executable beneath `launch.gameRoot`. Mod priorities, disabled entries and plugin order are carried by the exact profile files. They are not inferred from source order. Final-file verification must check output hashes after reconstruction. Save paths may never be claimed as owned recipe outputs.
+Outputs must include `ModOrganizer.exe`, `ModOrganizer.ini`, the declared profile's `modlist.txt` and `plugins.txt`, and the target game executable beneath `launch.gameRoot`. Mod priorities, disabled entries and plugin order are carried by the exact profile files. They are not inferred from source order. Final-file verification checks each static or derived output fingerprint after reconstruction. Save paths may never be claimed as owned recipe outputs.
 
 ## Creator commands
 

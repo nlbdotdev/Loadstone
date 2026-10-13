@@ -106,6 +106,12 @@
         ).toFixed(2)} GB · {plan.archiveCount} local archives
       </p>
       <p class="note">New candidate folder</p>
+      {#if plan.generatedConfigurations}<p class="note">
+          MO2 configuration will be generated for this folder. The size includes
+          a 1 MB configuration allowance. Account and personal interface
+          settings are not imported; launch and profile save settings still need
+          verification.
+        </p>{/if}
       {#if plan.archiveTool}<p class="note">
           Archive tool: {plan.archiveTool}
         </p>{/if}

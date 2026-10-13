@@ -6,7 +6,10 @@ const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
-export function createNativeFixture({ prerequisite = false } = {}) {
+export function createNativeFixture({
+  prerequisite = false,
+  mo2Config = false,
+} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-native-'));
   const payloads = path.join(root, 'payloads');
   fs.mkdirSync(payloads);
@@ -55,7 +58,9 @@ export function createNativeFixture({ prerequisite = false } = {}) {
     ['ModOrganizer.ini', '[General]\ngamePath=Game\n'],
     ['profiles/Test/modlist.txt', '# Empty synthetic fixture\n'],
     ['profiles/Test/plugins.txt', 'FalloutNV.esm\n'],
+    ...(mo2Config ? [['portable.txt', '']] : []),
   ].entries()) {
+    if (mo2Config && name === 'ModOrganizer.ini') continue;
     const locked = fingerprint(content),
       id = `payload-${index}`;
     fs.writeFileSync(path.join(payloads, locked.sha256), content);
@@ -75,6 +80,20 @@ export function createNativeFixture({ prerequisite = false } = {}) {
       action: { type: 'copy', source: id },
     });
   }
+  if (mo2Config)
+    recipe.outputs.push({
+      path: 'ModOrganizer.ini',
+      action: {
+        type: 'mo2-config',
+        executables: [
+          {
+            title: 'New Vegas',
+            binary: 'Game/FalloutNV.exe',
+            workingDirectory: 'Game',
+          },
+        ],
+      },
+    });
   if (prerequisite) {
     const locked = fingerprint('user-provided prerequisite bytes');
     recipe.prerequisites = [

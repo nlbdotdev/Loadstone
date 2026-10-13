@@ -1,0 +1,226 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
+import { createNativeFixture } from './native-fixture.mjs';
+import { packNativeRecipe } from '../scripts/native-package.mjs';
+const require = createRequire(import.meta.url);
+const { validateRecipe } = require('../electron/native-format.cjs');
+const { materializeNative } = require('../electron/native-materializer.cjs');
+const { renderMo2Config } = require('../electron/native-mo2-config.cjs');
+const { inspectMo2 } = require('../electron/installed-inventory.cjs');
+const { verifyGameLayout } = require('../electron/game-layout.cjs');
+const { decodeMo2Value } = require('../electron/mo2-ini-value.cjs');
+const fingerprint = (data) => ({
+  bytes: data.length,
+  sha256: crypto.createHash('sha256').update(data).digest('hex'),
+});
+
+async function fixture() {
+  const f = createNativeFixture({ mo2Config: true });
+  f.config = f.recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  f.game = path.join(f.root, 'owned');
+  f.packages = path.join(f.root, 'packages');
+  fs.mkdirSync(f.game);
+  fs.mkdirSync(f.packages);
+  fs.writeFileSync(path.join(f.game, 'FalloutNV.exe'), 'fixture owned game');
+  f.package = path.join(f.packages, 'fixture.loadstone');
+  f.inspected = await packNativeRecipe(f.recipe, f.payloads, f.package);
+  f.options = { games: { fnv: f.game }, archives: {} };
+  return f;
+}
+
+test('one recipe generates isolated MO2 paths at two destinations with exact derived fingerprints', async () => {
+  const f = await fixture();
+  assert.equal(f.inspected.summary.generatedConfigurations, 1);
+  assert.equal(
+    f.inspected.summary.installBytes,
+    f.recipe.outputs.reduce((n, v) => n + (v.bytes ?? 1_000_000), 0),
+  );
+  const source = fs.readFileSync(f.package);
+  const hashes = [];
+  for (const name of ['First candidate', 'Deuxième 候補,;=@']) {
+    const destination = path.join(f.root, name);
+    const receipt = await materializeNative(f.package, destination, f.options);
+    const data = fs.readFileSync(path.join(destination, 'ModOrganizer.ini'));
+    const text = data.toString('utf8'),
+      root = destination.replaceAll('\\', '/');
+    assert.equal(receipt.status, 'verified');
+    assert.equal(receipt.launchVerified, false);
+    assert.deepEqual(receipt.generatedConfigurations, [
+      {
+        path: 'ModOrganizer.ini',
+        generator: 'mo2-config',
+        ...fingerprint(data),
+      },
+    ]);
+    assert.ok(text.includes(`mod_directory="${root}/mods"`));
+    assert.ok(text.includes(`1\\binary="${root}/Game/FalloutNV.exe"`));
+    assert.ok(!text.includes(f.game));
+    assert.ok(!text.includes('nexus_api_key'));
+    for (const folder of [
+      'downloads',
+      'mods',
+      'profiles',
+      'overwrite',
+      'webcache',
+    ])
+      assert.ok(fs.statSync(path.join(destination, folder)).isDirectory());
+    hashes.push(receipt.generatedConfigurations[0].sha256);
+    assert.equal(JSON.stringify(receipt).includes(destination), false);
+    const inventory = await inspectMo2(destination);
+    assert.equal(inventory.source.gameFolder, path.join(destination, 'Game'));
+    assert.equal(inventory.source.profile, 'Test');
+    assert.doesNotThrow(() =>
+      verifyGameLayout(
+        { manifest: f.recipe },
+        destination,
+        text,
+        path.join(destination, 'Game/FalloutNV.exe'),
+      ),
+    );
+  }
+  assert.notEqual(hashes[0], hashes[1]);
+  assert.deepEqual(fs.readFileSync(f.package), source);
+  assert.equal(
+    fs.readFileSync(path.join(f.game, 'FalloutNV.exe'), 'utf8'),
+    'fixture owned game',
+  );
+});
+
+test('typed configuration rejects arbitrary fields, external binaries, scripts, ambiguous launch entries and missing portable marker', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  for (const mutate of [
+    (v, c) => {
+      c.bytes = 0;
+      c.sha256 = '0'.repeat(64);
+    },
+    (v, c) => {
+      c.action.source = 'owned-game';
+    },
+    (v, c) => {
+      c.action.nexus_api_key = 'secret';
+    },
+    (v, c) => {
+      c.path = 'other.ini';
+    },
+    (v, c) => {
+      c.action.executables[0].binary = 'C:/old/Game.exe';
+    },
+    (v, c) => {
+      c.action.executables[0].binary = '../Game.exe';
+    },
+    (v, c) => {
+      c.action.executables[0].binary = 'Game/missing.exe';
+    },
+    (v, c) => {
+      c.action.executables[0].binary = 'Game/launch.cmd';
+    },
+    (v, c) => {
+      c.action.executables[0].workingDirectory = '..';
+    },
+    (v, c) => {
+      c.action.executables[0].arguments = '--anything';
+    },
+    (v, c) => {
+      c.action.executables[0].title = 'New Vegas\n[Settings]';
+    },
+    (v, c) => {
+      c.action.executables.push({
+        ...c.action.executables[0],
+        title: 'new vegas',
+      });
+    },
+    (v, c) => {
+      c.action.executables[0].title = 'Different launch';
+    },
+    (v) => {
+      v.outputs = v.outputs.filter((o) => o.path !== 'portable.txt');
+    },
+    (v) => {
+      v.outputs.find((o) => o.path === 'portable.txt').bytes = 1;
+    },
+    (v) => {
+      v.outputs.push({ ...v.outputs[0], path: 'overwrite' });
+    },
+  ]) {
+    const value = structuredClone(recipe);
+    mutate(
+      value,
+      value.outputs.find((v) => v.action.type === 'mo2-config'),
+    );
+    assert.throws(() => validateRecipe(value), /Invalid/);
+  }
+});
+
+test('configuration generation bounds Windows destination and encodes Qt bytes/quoted strings without INI injection', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  const config = recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  for (const root of [
+    'relative',
+    '\\\\server\\share',
+    'C:/x\n[Settings]',
+    'C:/%BASE_DIR%/candidate',
+    'C:/' + 'x'.repeat(2048),
+  ])
+    assert.throws(
+      () => renderMo2Config(config, recipe, root),
+      /Windows drive path/,
+    );
+  config.action.executables[0].title = '@run,;="测试"';
+  recipe.launch.executable = config.action.executables[0].title;
+  // Verify lexical serialization separately from materializer fingerprints.
+  const text = renderMo2Config(config, recipe, 'C:/候補,;=Set').data.toString(
+    'utf8',
+  );
+  assert.ok(text.includes('1\\title="@@run,;=\\"测试\\""'));
+  assert.match(text, /gamePath=@ByteArray\((?:\\x[0-9a-f]{2})+\)/);
+  assert.ok(text.includes('1\\workingDirectory="C:/候補,;=Set/Game"'));
+  const values = new Map(
+    text
+      .split('\n')
+      .filter((v) => v.includes('='))
+      .map((v) => [
+        v.slice(0, v.indexOf('=')),
+        decodeMo2Value(v.slice(v.indexOf('=') + 1)),
+      ]),
+  );
+  assert.equal(values.get('gamePath'), 'C:/候補,;=Set/Game');
+  assert.equal(values.get('1\\title'), '@run,;="测试"');
+  assert.equal(
+    decodeMo2Value('@ByteArray(C:\\\\Original\\\\Game)'),
+    'C:\\Original\\Game',
+  );
+  assert.throws(() => decodeMo2Value('@ByteArray(\\xff)'), /UTF-8/);
+});
+
+test('generated configuration tampering is caught by final verification and a rejected destination creates no files', async () => {
+  const f = await fixture(),
+    bad = path.join(f.root, '%BASE_DIR%');
+  await assert.rejects(
+    materializeNative(f.package, bad, f.options),
+    /Windows drive path/,
+  );
+  assert.equal(fs.existsSync(bad), false);
+  const destination = path.join(f.root, 'tampered');
+  await assert.rejects(
+    materializeNative(f.package, destination, {
+      ...f.options,
+      progress: ({ completed, total }) => {
+        if (completed === total) {
+          const file = path.join(destination, 'ModOrganizer.ini');
+          const bytes = fs.statSync(file).size;
+          fs.writeFileSync(file, Buffer.alloc(bytes, 'x'));
+        }
+      },
+    }),
+    /recipe hash/,
+  );
+  const receipt = JSON.parse(
+    fs.readFileSync(path.join(destination, '.loadstone-native.json')),
+  );
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.generatedConfigurations.length, 1);
+});

@@ -1,6 +1,7 @@
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { childEnvironment } = require('./child-environment.cjs');
 const fs = require('node:fs');
+const { decodeMo2Value } = require('./mo2-ini-value.cjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
@@ -111,7 +112,7 @@ function verifyProfile(job) {
     const entry = line.match(/^(\d+)\\(title|binary)=(.*)$/);
     if (entry) {
       const item = records.get(entry[1]) || {};
-      item[entry[2]] = entry[3].replace(/^"(.*)"$/, '$1');
+      item[entry[2]] = decodeMo2Value(entry[3]);
       records.set(entry[1], item);
     }
   }

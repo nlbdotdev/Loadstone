@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { canonical, contains } = require('./live-catalog.cjs');
 const { games } = require('./manifest.cjs');
+const { decodeMo2Value } = require('./mo2-ini-value.cjs');
 function verifyGameLayout(job, output, ini, binary) {
   const relative = job.manifest.launch.gameRoot;
   if (!relative) return;
@@ -40,10 +41,7 @@ function verifyGameLayout(job, output, ini, binary) {
     throw new Error(
       'MO2 must declare exactly one gamePath for this isolated setup.',
     );
-  let configured = paths[0].replace(/^"(.*)"$/, '$1');
-  const bytes = configured.match(/^@ByteArray\((.*)\)$/);
-  if (bytes) configured = bytes[1];
-  configured = configured.replaceAll('\\\\', '\\');
+  const configured = decodeMo2Value(paths[0]);
   if (
     canonical(path.resolve(output, configured)).toLowerCase() !==
     root.toLowerCase()

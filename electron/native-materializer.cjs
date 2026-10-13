@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { Transform } = require('node:stream');
+const { Transform, Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const yauzl = require('yauzl');
 const {
@@ -14,6 +14,7 @@ const { canonical, contains } = require('./live-catalog.cjs');
 const { relativeFile } = require('./manifest.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
+const { renderMo2Config } = require('./native-mo2-config.cjs');
 
 function ordinaryDirectory(folder) {
   const stat = fs.lstatSync(folder);
@@ -162,6 +163,16 @@ async function materializeNative(file, destination, options = {}) {
   const { inspected, gameRoots, prerequisiteRoots, sources } =
       await inspectInputs(file, options),
     { recipe } = inspected;
+  // Bind typed configuration to this destination before any writes. The
+  // reviewed recipe locks the generator inputs; these derived fingerprints
+  // are independent expectations for writing and final on-disk verification.
+  const generated = new Map();
+  const outputs = recipe.outputs.map((output) => {
+    if (output.action.type !== 'mo2-config') return output;
+    const content = renderMo2Config(output, recipe, target);
+    generated.set(output.path, content);
+    return { ...output, bytes: content.bytes, sha256: content.sha256 };
+  });
   const protectedRoots = [
     path.resolve(__dirname, '..'),
     path.dirname(file),
@@ -186,7 +197,8 @@ async function materializeNative(file, destination, options = {}) {
   // Reject unsupported archive structure before creating the destination. Hash
   // verification already locked each selected archive's exact bytes.
   const groups = new Map();
-  for (const output of recipe.outputs) {
+  for (const output of outputs) {
+    if (generated.has(output.path)) continue;
     const input = sources.get(output.action.source);
     if (output.action.type === 'extract' || input.package) {
       const group = groups.get(input.file) || {
@@ -294,6 +306,16 @@ async function materializeNative(file, destination, options = {}) {
       completedFiles: completed,
       expectedFiles: recipe.outputs.length,
       launchVerified: false,
+      ...(generated.size
+        ? {
+            generatedConfigurations: [...generated].map(([file, content]) => ({
+              path: file,
+              generator: 'mo2-config',
+              bytes: content.bytes,
+              sha256: content.sha256,
+            })),
+          }
+        : {}),
     };
     const temporary = receiptFile + '.tmp';
     fs.writeFileSync(temporary, JSON.stringify(state) + '\n', {
@@ -420,7 +442,14 @@ async function materializeNative(file, destination, options = {}) {
       canonicalJson(recipe),
       { flag: 'wx', flush: true },
     );
-    for (const output of recipe.outputs) {
+    for (const output of outputs) {
+      if (generated.has(output.path)) {
+        await writeOutput(
+          () => Readable.from([generated.get(output.path).data]),
+          output,
+        );
+        continue;
+      }
       const input = sources.get(output.action.source);
       if (output.action.type !== 'copy' || input.package) continue;
       ordinaryFile(input.file, output.bytes);
@@ -459,9 +488,23 @@ async function materializeNative(file, destination, options = {}) {
       if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
         throw new Error('Archive changed during extraction.');
     }
-    for (const output of recipe.outputs) {
+    for (const output of outputs) {
       guard();
       await verifyFile(path.join(target, output.path), output, options.signal);
+    }
+    if (generated.size) {
+      for (const folder of [
+        'downloads',
+        'mods',
+        'profiles',
+        'overwrite',
+        'webcache',
+      ]) {
+        const directory = path.dirname(
+          outputPath(`${folder}/.directory-check`),
+        );
+        ordinaryDirectory(directory);
+      }
     }
     return receipt('verified');
   } catch (error) {

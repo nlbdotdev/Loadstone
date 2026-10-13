@@ -34,6 +34,7 @@ function createNativePreview() {
         prerequisites: summary.prerequisites,
         outputs: summary.outputs,
         installBytes: summary.installBytes,
+        generatedConfigurations: summary.generatedConfigurations,
         downloadSources: recipe.sources.filter((v) =>
           ['nexus-archive', 'https-archive'].includes(v.type),
         ).length,

@@ -106,6 +106,11 @@
         </div>
       </dl>
       <p>{result.saveCompatibility.notes}</p>
+      {#if result.generatedConfigurations}<p class="native-note">
+          This recipe generates MO2 configuration for the chosen installation
+          folder. The size includes a 1 MB configuration allowance; generated
+          bytes are verified during the build.
+        </p>{/if}
       <p class="native-note">
         This checks the package structure and bundled bytes. Downloaded mods,
         owned game files, permissions and gameplay still need verification

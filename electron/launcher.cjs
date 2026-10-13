@@ -4,6 +4,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { verifyProfile } = require('./installer.cjs');
 const { canonical } = require('./live-catalog.cjs');
+const { decodeMo2Value } = require('./mo2-ini-value.cjs');
 
 function launchPlan(job) {
   if (!job || job.status !== 'installed')
@@ -23,9 +24,7 @@ function launchPlan(job) {
     }
     const entry = line.match(/^(base_directory|profiles_directory)=(.*)$/);
     if (section === 'Settings' && entry)
-      settings[entry[1]] = entry[2]
-        .replace(/^"(.*)"$/, '$1')
-        .replaceAll('\\\\', '\\');
+      settings[entry[1]] = decodeMo2Value(entry[2]);
   }
   if (settings.base_directory)
     base = path.resolve(cwd, settings.base_directory);
