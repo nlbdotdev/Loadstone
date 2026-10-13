@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('loadstone', {
   inspectNativePackage: () => ipcRenderer.invoke('native:inspect'),
   nativeBuilds: () => ipcRenderer.invoke('native:builds'),
   prepareNativeBuild: () => ipcRenderer.invoke('native:prepare'),
+  resumeNativeBuild: (id) => ipcRenderer.invoke('native:resume', id),
   startNativeBuild: (id) => ipcRenderer.invoke('native:start', id),
   cancelNativeBuild: (id) => ipcRenderer.invoke('native:cancel', id),
   nativeLibrary: () => ipcRenderer.invoke('native-library:list'),

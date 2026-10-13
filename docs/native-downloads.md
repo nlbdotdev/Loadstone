@@ -25,7 +25,7 @@ The cache is `native-downloads/` beneath Loadstone's app-data directory. Complet
 
 The builder checks for the expected archive bytes plus a 64 MB free-space reserve before each download. Archives remain bounded to 50 GB. Connections have a 30-second header/idle timeout and an acquisition attempt has a two-hour deadline. There is no automatic network retry or concurrent transfer. These are current creator-tool limits, not throughput promises.
 
-Cancellation or a handled error removes only the current owned temporary download when its directory/file identity still matches. Verified archives remain for retry. A process kill can leave an orphan `.part` file; it is never treated as verified. Retrying reconstructs into a new candidate folder and reuses verified cached archives, but restarts incomplete downloads from byte zero. Byte-range resume, cache management, interrupted-candidate repair and global cache quotas remain unfinished.
+Cancellation or a handled error removes only the current owned temporary download when its directory/file identity still matches. Verified archives remain for retry. A process kill can leave an orphan `.part` file; it is never treated as verified. Retrying reuses verified cached archives but restarts incomplete downloads from byte zero. The desktop can [review and resume a partial candidate](native-build-recovery.md), reusing matching output files and retaining conflicting files before reconstruction. Byte-range download resume, cache management and global cache quotas remain unfinished.
 
 ## Network and account handling
 

@@ -3,6 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Transform, Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
+const { setImmediate: yieldToEvents } = require('node:timers/promises');
 const yauzl = require('yauzl');
 const {
   inspectNativePackage,
@@ -14,7 +15,11 @@ const { canonical, contains } = require('./live-catalog.cjs');
 const { relativeFile } = require('./manifest.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
-const { renderMo2Config } = require('./native-mo2-config.cjs');
+const {
+  expectedOutputs,
+  assertBuildRecovery,
+  assertRecoveryFile,
+} = require('./native-build-recovery.cjs');
 const { nativeActivity } = require('./native-activity.cjs');
 
 function ordinaryDirectory(folder) {
@@ -186,11 +191,16 @@ async function materializeNative(file, destination, options = {}) {
     throw new Error('Choose an absolute new installation folder.');
   const target = path.resolve(destination);
   if (
-    fs.existsSync(target) ||
+    (fs.existsSync(target) && !options.resume?.identity) ||
     target === path.parse(target).root ||
     canonical(target).toLowerCase() !== target.toLowerCase()
   )
     throw new Error('Native installation needs a new, ordinary destination.');
+  if (options.resume) {
+    if (options.resume.root !== target)
+      throw new Error('Recovery destination differs from review.');
+    assertBuildRecovery(options.resume);
+  }
   ordinaryDirectory(path.dirname(target));
   const { inspected, gameRoots, prerequisiteRoots, sources } =
       await inspectInputs(file, options),
@@ -198,13 +208,7 @@ async function materializeNative(file, destination, options = {}) {
   // Bind typed configuration to this destination before any writes. The
   // reviewed recipe locks the generator inputs; these derived fingerprints
   // are independent expectations for writing and final on-disk verification.
-  const generated = new Map();
-  const outputs = recipe.outputs.map((output) => {
-    if (output.action.type !== 'mo2-config') return output;
-    const content = renderMo2Config(output, recipe, target);
-    generated.set(output.path, content);
-    return { ...output, bytes: content.bytes, sha256: content.sha256 };
-  });
+  const { generated, outputs } = expectedOutputs(recipe, target);
   const protectedRoots = [
     path.resolve(__dirname, '..'),
     path.dirname(file),
@@ -318,15 +322,22 @@ async function materializeNative(file, destination, options = {}) {
   options.sevenZip?.guard();
   const space = fs.statfsSync(path.dirname(target), { bigint: true });
   const needed =
-    BigInt(inspected.summary.installBytes) +
+    BigInt(options.resume?.writeBytes ?? inspected.summary.installBytes) +
     BigInt(Buffer.byteLength(canonicalJson(recipe))) +
     64_000_000n;
   if (space.bavail * space.bsize < needed)
     throw new Error(
       'Insufficient free space for native reconstruction and its receipt.',
     );
-  fs.mkdirSync(target); // Exclusive directory creation prevents existing-folder reuse.
+  if (options.resume) assertBuildRecovery(options.resume);
+  if (!options.resume?.identity) fs.mkdirSync(target);
   const rootIdentity = ordinaryDirectory(target);
+  const recoveryFiles = new Map(
+    options.resume?.files.map((v) => [v.path, v]) || [],
+  );
+  const recoveryFolder = options.resume?.identity
+    ? `.loadstone-build-recovery/${crypto.randomUUID()}`
+    : null;
   let completed = 0;
   const outputActivity = nativeActivity(
     options.activity,
@@ -335,7 +346,8 @@ async function materializeNative(file, destination, options = {}) {
   );
   const receiptFile = path.join(target, '.loadstone-native.json');
   function guard() {
-    if (ordinaryDirectory(target).ino !== rootIdentity.ino)
+    const current = ordinaryDirectory(target);
+    if (current.ino !== rootIdentity.ino || current.dev !== rootIdentity.dev)
       throw new Error('Installation directory changed during reconstruction.');
   }
   function receipt(status) {
@@ -350,6 +362,7 @@ async function materializeNative(file, destination, options = {}) {
       completedFiles: completed,
       expectedFiles: recipe.outputs.length,
       launchVerified: false,
+      ...(recoveryFolder ? { recoveryDirectory: recoveryFolder } : {}),
       ...(generated.size
         ? {
             generatedConfigurations: [...generated].map(([file, content]) => ({
@@ -361,7 +374,7 @@ async function materializeNative(file, destination, options = {}) {
           }
         : {}),
     };
-    const temporary = receiptFile + '.tmp';
+    const temporary = receiptFile + '.' + crypto.randomUUID() + '.tmp';
     fs.writeFileSync(temporary, JSON.stringify(state) + '\n', {
       flag: 'wx',
       flush: true,
@@ -386,10 +399,30 @@ async function materializeNative(file, destination, options = {}) {
     if (completed % 100 === 0) receipt('materializing');
     options.progress?.({ completed, total: recipe.outputs.length });
   }
+  function prepareOutput(output) {
+    const destinationFile = outputPath(output.path),
+      reviewed = recoveryFiles.get(output.path);
+    if (reviewed) {
+      assertRecoveryFile(target, reviewed);
+      if (reviewed.identity !== null) {
+        if (reviewed.reuse || !recoveryFolder)
+          throw new Error('A verified recovery file cannot be replaced.');
+        const retained = outputPath(`${recoveryFolder}/${output.path}`);
+        // Both resolved paths are inside the ordinary candidate. The reviewed
+        // file identity is checked again; an exclusive recovery path is required.
+        if (!contains(target, retained) || fs.existsSync(retained))
+          throw new Error('Recovery destination already exists.');
+        guard();
+        assertRecoveryFile(target, reviewed);
+        fs.renameSync(destinationFile, retained);
+      }
+    }
+    return destinationFile;
+  }
   async function writeOutput(openStream, output) {
     options.signal?.throwIfAborted();
     outputActivity.start(output.bytes);
-    const destinationFile = outputPath(output.path),
+    const destinationFile = prepareOutput(output),
       digest = crypto.createHash('sha256');
     let bytes = 0;
     const verify = new Transform({
@@ -422,7 +455,7 @@ async function materializeNative(file, destination, options = {}) {
       if (!current) {
         const output = group.outputs.get(entry.name)[0];
         outputActivity.start(output.bytes);
-        const file = outputPath(output.path);
+        const file = prepareOutput(output);
         current = {
           entry,
           output,
@@ -484,14 +517,44 @@ async function materializeNative(file, destination, options = {}) {
       await current?.handle?.close();
     }
   }
+  let writesStarted = false;
   try {
+    if (options.resume?.identity) {
+      assertBuildRecovery(options.resume);
+      writesStarted = true;
+      const retainedReceipt = outputPath(
+        `${recoveryFolder}/.loadstone-native.json`,
+      );
+      fs.copyFileSync(receiptFile, retainedReceipt, fs.constants.COPYFILE_EXCL);
+    }
+    writesStarted = true;
     receipt('materializing');
-    fs.writeFileSync(
-      path.join(target, '.loadstone-recipe.json'),
-      canonicalJson(recipe),
-      { flag: 'wx', flush: true },
-    );
+    if (!options.resume?.identity)
+      fs.writeFileSync(
+        path.join(target, '.loadstone-recipe.json'),
+        canonicalJson(recipe),
+        { flag: 'wx', flush: true },
+      );
     for (const output of outputs) {
+      if (recoveryFiles.get(output.path)?.reuse) {
+        options.signal?.throwIfAborted();
+        assertRecoveryFile(target, recoveryFiles.get(output.path));
+        completedOutput();
+        if (completed % 100 === 0) await yieldToEvents();
+      }
+    }
+    for (const [key, group] of groups) {
+      for (const [member, items] of group.outputs) {
+        const remaining = items.filter(
+          (v) => !recoveryFiles.get(v.path)?.reuse,
+        );
+        if (remaining.length) group.outputs.set(member, remaining);
+        else group.outputs.delete(member);
+      }
+      if (!group.outputs.size) groups.delete(key);
+    }
+    for (const output of outputs) {
+      if (recoveryFiles.get(output.path)?.reuse) continue;
       if (generated.has(output.path)) {
         await writeOutput(
           () => Readable.from([generated.get(output.path).data]),
@@ -543,6 +606,7 @@ async function materializeNative(file, destination, options = {}) {
       outputs.length,
     );
     for (const output of outputs) {
+      options.signal?.throwIfAborted();
       guard();
       await verifyFile(
         path.join(target, output.path),
@@ -565,12 +629,14 @@ async function materializeNative(file, destination, options = {}) {
         ordinaryDirectory(directory);
       }
     }
+    options.signal?.throwIfAborted();
     return receipt('verified');
   } catch (error) {
-    // Retain the new owned folder for diagnosis/recovery. Never recursively
-    // delete a failed installation or silently reuse it on a later attempt.
+    // Retain the candidate and any recovery copies. A later resume requires
+    // a new review; never recursively delete a failed installation.
     try {
-      receipt(options.signal?.aborted ? 'cancelled' : 'failed');
+      if (writesStarted)
+        receipt(options.signal?.aborted ? 'cancelled' : 'failed');
     } catch {
       /* Preserve the original failure and existing evidence. */
     }

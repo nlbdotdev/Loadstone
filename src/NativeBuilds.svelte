@@ -7,6 +7,7 @@
   let plan = $state<NativeBuildPlan | null>(null);
   let busy = $state(false);
   let error = $state('');
+  let reviewing = $state<string | null>(null);
   const active = (job: NativeBuild) =>
     ['queued', 'building', 'stopping'].includes(job.status);
   const running = $derived(jobs.some(active));
@@ -20,6 +21,7 @@
     interrupted: 'Build interrupted',
   };
   const phases = {
+    recovery: 'Checking retained candidate files',
     downloads: 'Acquiring archive files',
     inputs: 'Checking source files',
     archives: 'Checking archive contents',
@@ -92,8 +94,8 @@
   </p>
   <p class="note">
     Automatic Nexus downloads require Premium; free accounts can select manually
-    downloaded archives. Launch checks are still in development. These builds
-    stay separate from your playable library.
+    downloaded archives. Completed candidates need a separate review in My
+    library before launch and shortcut controls become available.
   </p>
   {#if !live}<p class="note">
       Switch to the live workspace to build real files.
@@ -148,13 +150,26 @@
             .map((v) => `${v.name} ${v.version}`)
             .join(' · ')}. These files must already be prepared locally.
         </p>{/if}
-      <p class="note">New candidate folder</p>
+      <p class="note">
+        {plan.resume ? 'Candidate to resume' : 'New candidate folder'}
+      </p>
       <code>{plan.destination}</code>
+      {#if plan.resume}
+        <p class="note">
+          {plan.resume.reused.toLocaleString()} matching files can be reused ·
+          {plan.resume.missing.toLocaleString()} missing files to build ·
+          {plan.resume.conflicts.toLocaleString()} changed or incomplete files to
+          preserve before rebuilding. Other files stay in place. Keep MO2 and games
+          closed.
+        </p>
+        <p class="note">Preserved copies will be kept in a new folder under</p>
+        <code>{plan.resume.recoveryRoot}</code>
+      {/if}
       <p class="note">
         Inputs will be hashed before files are written. A failed or cancelled
-        build keeps its partial candidate folder. Retrying creates a new folder
-        and reuses verified archive downloads. Interrupted partial downloads
-        restart from the beginning.
+        build keeps its partial candidate folder. Resume requires a fresh review
+        and reuses matching output files and verified archive downloads.
+        Interrupted partial downloads restart from the beginning.
       </p>
       <div class="buttons">
         <button
@@ -166,7 +181,10 @@
                 jobs = await window.loadstone.startNativeBuild(plan.id);
                 plan = null;
               }
-            })}><Hammer size={16} />Build candidate</button
+            })}
+          ><Hammer size={16} />{plan.resume
+            ? 'Resume candidate'
+            : 'Build candidate'}</button
         ><button class="secondary" disabled={busy} onclick={() => (plan = null)}
           >Dismiss</button
         >
@@ -178,7 +196,7 @@
         <article>
           <h3>{job.name} <span>v{job.version}</span></h3>
           <p class:verified={job.status === 'verified'} role="status">
-            {job.status === 'building' && job.activity
+            {(job.status === 'building' || reviewing === job.id) && job.activity
               ? phases[job.activity.phase]
               : labels[job.status]}
           </p>
@@ -186,7 +204,7 @@
             {job.completed.toLocaleString()} / {job.total.toLocaleString()} files
             reconstructed
           </p>
-          {#if active(job) && job.activity}
+          {#if (active(job) || reviewing === job.id) && job.activity}
             <p class="note">
               {job.activity.completed.toLocaleString()} / {job.activity.total.toLocaleString()}
               {job.activity.phase === 'archives'
@@ -214,6 +232,34 @@
             ></progress>{/if}
           <code>{job.destination}</code>
           {#if job.error}<p class="error">{job.error}</p>{/if}
+          {#if reviewing === job.id}
+            <button
+              class="secondary"
+              onclick={async () => {
+                try {
+                  await window.loadstone.cancelNativeBuild(job.id);
+                } catch (e) {
+                  error =
+                    e instanceof Error ? e.message : 'Could not cancel review.';
+                }
+              }}><Square size={14} />Cancel recovery review</button
+            >
+          {:else if ['failed', 'cancelled', 'interrupted'].includes(job.status)}
+            <button
+              class="secondary"
+              disabled={!live || busy || running}
+              onclick={() =>
+                action(async () => {
+                  plan = null;
+                  reviewing = job.id;
+                  try {
+                    plan = await window.loadstone.resumeNativeBuild(job.id);
+                  } finally {
+                    reviewing = null;
+                  }
+                })}>Review resume</button
+            >
+          {/if}
           {#if active(job)}<button
               class="secondary"
               disabled={busy || job.status === 'stopping'}

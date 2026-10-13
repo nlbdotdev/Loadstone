@@ -9,6 +9,7 @@ import { packNativeRecipe } from '../scripts/native-package.mjs';
 const require = createRequire(import.meta.url);
 const { NativeBuilder } = require('../electron/native-builder.cjs');
 const { currentActivity } = require('../electron/close-guard.cjs');
+const { identity } = require('../electron/native-build-recovery.cjs');
 
 async function fixture(prerequisite = false, mo2Config = false) {
   const f = createNativeFixture({ prerequisite, mo2Config });
@@ -42,6 +43,141 @@ async function fixture(prerequisite = false, mo2Config = false) {
   };
   return f;
 }
+
+test(
+  'real Electron reviews and resumes a retained candidate without duplicating history or losing user files',
+  { timeout: 60000 },
+  async () => {
+    const f = await fixture(true, true),
+      builder = new NativeBuilder(f.state);
+    const original = await builder.prepare(async () => f.selected);
+    const change = builder.change.bind(builder);
+    builder.change = (id, patch, persist) => {
+      change(id, patch, persist);
+      if (patch.completed === 2 && !patch.status) builder.cancel(id);
+    };
+    builder.start(original.id);
+    await builder.done;
+    assert.equal(builder.list()[0].status, 'cancelled');
+    const game = path.join(original.destination, 'Game/FalloutNV.exe'),
+      gameIdentity = identity(game);
+    fs.writeFileSync(
+      path.join(original.destination, 'ModOrganizer.ini'),
+      'preserve custom configuration',
+    );
+    fs.mkdirSync(path.join(original.destination, 'profiles/Test/saves'), {
+      recursive: true,
+    });
+    const save = path.join(
+      original.destination,
+      'profiles/Test/saves/session.fos',
+    );
+    fs.writeFileSync(save, 'synthetic saved progress');
+    const env = { ...process.env, LOADSTONE_DATA_DIR: f.state };
+    delete env.ELECTRON_RUN_AS_NODE;
+    const launchOptions = {
+      executablePath: process.env.LOADSTONE_TEST_EXE || require('electron'),
+      args: process.env.LOADSTONE_TEST_EXE ? [] : [path.resolve('.')],
+      env,
+    };
+    let instance = await electron.launch(launchOptions);
+    try {
+      let page = await instance.firstWindow();
+      await page
+        .getByRole('button', { name: 'Explore the demo', exact: true })
+        .click();
+      await page.getByRole('button', { name: 'Settings', exact: true }).click();
+      await page.evaluate(() =>
+        window.loadstone.settings({ dummyData: false }),
+      );
+      await instance.evaluate(
+        ({ app, dialog }, files) => {
+          let next = 0;
+          dialog.showOpenDialog = async () => ({
+            canceled: false,
+            filePaths: [files[next++ % files.length]],
+          });
+          const { NativeBuilder } = process.mainModule.require(
+            app.getAppPath() + '/electron/native-builder.cjs',
+          );
+          NativeBuilder.prototype.ensureIdle = async () => {};
+        },
+        [f.packageFile, f.inputsFile],
+      );
+      const resume = page.getByRole('button', {
+        name: 'Review resume',
+        exact: true,
+      });
+      await resume.click();
+      const review = page.getByRole('region', { name: 'Review native build' });
+      await review.waitFor();
+      assert.match(
+        await review.textContent(),
+        /1 matching files can be reused/,
+      );
+      assert.match(await review.textContent(), /1 changed or incomplete files/);
+      assert.match(await review.textContent(), /\.loadstone-build-recovery/);
+      await review
+        .getByRole('button', { name: 'Dismiss', exact: true })
+        .click();
+      assert.equal(
+        fs.readFileSync(
+          path.join(original.destination, 'ModOrganizer.ini'),
+          'utf8',
+        ),
+        'preserve custom configuration',
+      );
+      await resume.click();
+      await review.waitFor();
+      fs.mkdirSync('test-results', { recursive: true });
+      await review.screenshot({
+        path: 'test-results/native-resume-review.png',
+      });
+      await review
+        .getByRole('button', { name: 'Resume candidate', exact: true })
+        .click();
+      await page
+        .getByText('Files verified · Launch untested', { exact: true })
+        .waitFor();
+      const jobs = await page.evaluate(() => window.loadstone.nativeBuilds());
+      assert.equal(jobs.length, 1);
+      assert.equal(jobs[0].id, original.id);
+      assert.equal(jobs[0].destination, original.destination);
+      assert.equal(identity(game), gameIdentity);
+      const receipt = JSON.parse(
+        fs.readFileSync(
+          path.join(original.destination, '.loadstone-native.json'),
+        ),
+      );
+      assert.equal(
+        fs.readFileSync(
+          path.join(
+            original.destination,
+            receipt.recoveryDirectory,
+            'ModOrganizer.ini',
+          ),
+          'utf8',
+        ),
+        'preserve custom configuration',
+      );
+      assert.equal(fs.readFileSync(save, 'utf8'), 'synthetic saved progress');
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.nativeLibrary())).entries
+          .length,
+        0,
+      );
+      await instance.close();
+      instance = await electron.launch(launchOptions);
+      page = await instance.firstWindow();
+      assert.deepEqual(
+        await page.evaluate(() => window.loadstone.nativeBuilds()),
+        jobs,
+      );
+    } finally {
+      await instance.close();
+    }
+  },
+);
 test('native build review is serialized and binds one start to a recipe; completed history survives restart', async () => {
   const f = await fixture(),
     builder = new NativeBuilder(f.state);

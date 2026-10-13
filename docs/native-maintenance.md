@@ -27,4 +27,4 @@ After file removal, Loadstone removes only its identified Desktop and Steam shor
 
 Native library state is now schema 2. Schema-1 registrations migrate in memory without an eager disk write and are saved as schema 2 on the next successful mutation. Older builds reject the newer state; preserve app data before downgrading. Removed entries remain as recovery records; there is no automatic recovery-folder deletion or history pruning.
 
-Native repair, update, build resume and save migration remain separate work. Synthetic and actual-Electron tests prove the controlled removal/recovery behavior, not real gameplay, save compatibility or Steam-client acceptance.
+Native library repair, update and save migration remain separate work. [Interrupted candidate builds have their own resume review](native-build-recovery.md). Synthetic and actual-Electron tests prove the controlled removal/recovery behavior, not real gameplay, save compatibility or Steam-client acceptance.
