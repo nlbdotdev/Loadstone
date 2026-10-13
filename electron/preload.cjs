@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('loadstone', {
   inspectNativePackage: () => ipcRenderer.invoke('native:inspect'),
   nativeBuilds: () => ipcRenderer.invoke('native:builds'),
   nativeGuide: () => ipcRenderer.invoke('native-guide:get'),
+  openNativeSource: (id, key) =>
+    ipcRenderer.invoke('native-guide:source', id, key),
+  cancelNativeSelection: (id) =>
+    ipcRenderer.invoke('native-guide:cancel-selection', id),
   repairNativeSetup: (id) => ipcRenderer.invoke('native-library:repair', id),
   updateNativeSetup: (id) => ipcRenderer.invoke('native-library:update', id),
   importNativeSetup: (resumeId) =>

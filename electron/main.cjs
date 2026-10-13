@@ -132,6 +132,9 @@ else {
         },
       });
       const nativeGuide = new NativeGuide(nativeBuilder, {
+        premium: () => nexus.status().premium,
+        downloadCache: () =>
+          path.join(app.getPath('userData'), 'native-downloads'),
         discover: async () => discoverGames(await steamRoots()),
         defaultParent: () => {
           const root = store.state.settings.installRoot;
@@ -353,6 +356,9 @@ else {
           ],
         });
         const guide = new NativeGuide(repair, {
+          premium: () => nexus.status().premium,
+          downloadCache: () =>
+            path.join(app.getPath('userData'), 'native-downloads'),
           discover: async () => discoverGames(await steamRoots()),
           repair: () => repair.context(),
         });
@@ -363,6 +369,9 @@ else {
       handle('native-library:update', async (entryId) => {
         const update = new NativeUpdate(nativeLibrary, entryId);
         const guide = new NativeGuide(nativeBuilder, {
+          premium: () => nexus.status().premium,
+          downloadCache: () =>
+            path.join(app.getPath('userData'), 'native-downloads'),
           discover: async () => discoverGames(await steamRoots()),
           update: (...args) => update.review(...args),
         });
@@ -395,6 +404,12 @@ else {
           },
           token,
         ),
+      );
+      handle('native-guide:source', (id, key) =>
+        activeNativeGuide.openSource(id, key, (url) => shell.openExternal(url)),
+      );
+      handle('native-guide:cancel-selection', (id) =>
+        activeNativeGuide.cancelSelection(id),
       );
       handle('native-guide:review', (id) =>
         activeNativeGuide.review(id, chooseNativeTool),

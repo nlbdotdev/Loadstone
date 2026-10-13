@@ -1,6 +1,10 @@
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { inspectNativePackage, ordinaryFile } = require('./native-package.cjs');
+const { inspectNativePackage } = require('./native-package.cjs');
+const {
+  nexusFilePage,
+  verifyLocalArchive,
+} = require('./native-manual-sources.cjs');
 const { archiveSource } = require('./native-downloads.cjs');
 const { identity } = require('./native-build-recovery.cjs');
 
@@ -10,6 +14,8 @@ class NativeGuide {
     this.options = options;
     this.draft = null;
     this.plan = null;
+    this.selectionController = null;
+    this.selectionActivity = null;
   }
   record(id) {
     if (!this.draft || this.draft.id !== id)
@@ -52,14 +58,14 @@ class NativeGuide {
         type: v.type,
         bytes: v.bytes,
         sha256: v.sha256,
-        source:
-          v.type === 'nexus-archive'
-            ? `https://www.nexusmods.com/${v.game}/mods/${v.modId}?tab=files&file_id=${v.fileId}`
-            : v.url,
+        source: v.type === 'nexus-archive' ? nexusFilePage(v) : v.url,
         credit: v.credit.name,
         file: d.inputs.archives[v.id],
+        verified: d.verifiedArchives.has(v.id),
       })),
       parent: d.parent,
+      manualNexus: d.manualNexus,
+      selectionActivity: this.selectionActivity,
       resumeId: d.resumeId || null,
       update: d.update || null,
       repair: d.repair
@@ -73,7 +79,13 @@ class NativeGuide {
         (recipe.prerequisites || []).every((v) =>
           Boolean(d.inputs.prerequisites[v.id]),
         ) &&
-        Boolean(d.parent),
+        Boolean(d.parent) &&
+        (!d.manualNexus ||
+          recipe.sources
+            .filter((v) => v.type === 'nexus-archive')
+            .every(
+              (v) => d.inputs.archives[v.id] && d.verifiedArchives.has(v.id),
+            )),
       plan: this.plan?.id === this.builder.plan?.summary.id ? this.plan : null,
     };
   }
@@ -155,6 +167,8 @@ class NativeGuide {
         resumeId,
         repair,
         update,
+        manualNexus: this.options.premium?.() !== true,
+        verifiedArchives: new Set(),
       };
       return this.state();
     });
@@ -165,7 +179,7 @@ class NativeGuide {
       : Promise.resolve({ games: [] });
   }
   async select(id, kind, key, choose, token) {
-    return this.builder.select(async () => {
+    return this.builder.select(async (operationSignal) => {
       this.plan = null;
       const d = this.record(id),
         recipe = d.inspected.recipe;
@@ -177,10 +191,16 @@ class NativeGuide {
           'download',
           'parent',
           'configuration',
+          'nexus-mode',
+          'cached-archive',
         ].includes(kind)
       )
         throw new Error('Unsupported native selection.');
-      if (kind === 'configuration') {
+      if (kind === 'nexus-mode') {
+        if (!['manual', 'automatic'].includes(key))
+          throw new Error('Choose a Nexus download method.');
+        d.manualNexus = key === 'manual';
+      } else if (kind === 'configuration') {
         if (!d.repair || !['preserve', 'restore'].includes(key))
           throw new Error('Choose a configuration policy for repair.');
         this.builder.restoreConfiguration = key === 'restore';
@@ -203,8 +223,10 @@ class NativeGuide {
               : recipe.sources.find((v) => v.id === key && archiveSource(v));
         if (!requirement)
           throw new Error('That input is not declared by this recipe.');
-        if (kind === 'download') d.inputs.archives[key] = null;
-        else {
+        if (kind === 'download') {
+          d.inputs.archives[key] = null;
+          d.verifiedArchives.delete(key);
+        } else {
           let selected;
           if (token !== undefined) {
             const found = d.detected.find(
@@ -219,10 +241,33 @@ class NativeGuide {
                 'Choose a detected installation for this required game.',
               );
             selected = found.folder;
+          } else if (kind === 'cached-archive') {
+            const cache = this.options.downloadCache?.();
+            if (!cache)
+              throw new Error('The local archive cache is unavailable.');
+            selected = path.join(cache, `${requirement.sha256}.archive`);
           } else selected = await choose();
           if (selected) {
-            if (kind === 'archive') ordinaryFile(selected, 50_000_000_000);
-            else identity(selected, true);
+            if (kind === 'archive' || kind === 'cached-archive') {
+              this.selectionController = new AbortController();
+              try {
+                await verifyLocalArchive(selected, requirement, {
+                  signal: operationSignal
+                    ? AbortSignal.any([
+                        this.selectionController.signal,
+                        operationSignal,
+                      ])
+                    : this.selectionController.signal,
+                  progress: (value) => {
+                    this.selectionActivity = { sourceId: key, ...value };
+                  },
+                });
+              } finally {
+                this.selectionController = null;
+                this.selectionActivity = null;
+              }
+              d.verifiedArchives.add(key);
+            } else identity(selected, true);
             const group =
               kind === 'game'
                 ? 'games'
@@ -236,11 +281,31 @@ class NativeGuide {
       return this.state();
     });
   }
+  cancelSelection(id) {
+    this.record(id);
+    this.selectionController?.abort();
+  }
+  async openSource(id, key, open) {
+    return this.builder.select(async () => {
+      this.plan = null;
+      const d = this.record(id);
+      const source = d.inspected.recipe.sources.find((v) => v.id === key);
+      const url = nexusFilePage(source);
+      try {
+        await open(url);
+      } catch {
+        throw new Error(
+          'Could not open the Nexus file page. Try again or select an archive you already downloaded.',
+        );
+      }
+      return this.state();
+    });
+  }
   async review(id, chooseTool) {
     const d = this.record(id);
     if (!this.state().ready)
       throw new Error(
-        'Select each required game, prerequisite and installation parent.',
+        'Select each required game, prerequisite and installation parent. In browser-download mode, choose and verify every Nexus archive first.',
       );
     this.plan = null;
     this.plan = await this.builder.prepare(
