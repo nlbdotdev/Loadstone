@@ -39,9 +39,18 @@ function excludedState(relative, directory) {
   )
     return 'saved-game-state';
   if (
-    /^(?:\.env(?:\.|$)|_?nexus[_-]?headers)|api[_-]?key|credential|authorization|auth[_-]?token|access[_-]?token|refresh[_-]?token|(?:^|[._-])(?:tokens?|secrets?)(?:[._-]|$)|^cookies(?:$|[.-])|^login data|^loginusers\.vdf$|^local state$|^ssfn\d+/.test(
-      name,
-    )
+    /^\.env(?:\.|$)/.test(name) ||
+    (!directory &&
+      (/(?:^|[._-])(?:api[_-]?keys?|credentials?|authorization|auth[_-]?tokens?|access[_-]?tokens?|refresh[_-]?tokens?|tokens?|secrets?)\.(?:json|ini|txt|db|sqlite3?|dat|bin)$/.test(
+        name,
+      ) ||
+        /^(?:api[_-]?keys?|credentials?|authorization|auth[_-]?tokens?|access[_-]?tokens?|refresh[_-]?tokens?|tokens?|secrets?)$/.test(
+          name,
+        ) ||
+        /^_?nexus[_-]?headers(?:\.(?:txt|json|ini))?$/.test(name) ||
+        /^cookies(?:$|[-.](?:sqlite(?:-wal|-shm)?|journal|db(?:-wal|-shm)?|txt|json)$)|^login data(?:-journal|-wal|-shm)?$|^loginusers\.vdf$|^local state$|^ssfn\d+$/.test(
+          name,
+        )))
   )
     return 'credential-or-browser-state';
   if (
@@ -75,6 +84,7 @@ async function tree(root, hashFiles, progress, options = {}) {
       snapshot.push([relative, 'directory', folderStat.ino]);
       if (++directories > 100000)
         throw new Error('Inventory directory limit exceeded.');
+      if (directories % 1000 === 0) await setImmediate();
       for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
         const item = path.join(relative, entry.name),
           full = path.join(root, item);

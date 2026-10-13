@@ -177,6 +177,11 @@ test('expanded inventory hashes disabled mods, game/tool files and full selected
     ['Game/FalloutNV.exe', 'patched game executable'],
     ['profiles/Actual profile/FalloutCustom.ini', 'custom profile settings'],
     ['profiles/Actual profile/lockedorder.txt', 'locked load order'],
+    ['dlls/Token.py', 'parser source, not a credential store'],
+    ['dlls/wizard.tokens', 'parser token definitions'],
+    ['dlls/Token.cpython-312.opt-2.pyc', 'compiled parser source'],
+    ['dlls/cookies.py', 'cookie parser implementation'],
+    ['dlls/credentials.py', 'credential parser implementation'],
   ]);
   for (const [file, data] of expected) f.write(file, data);
   const forbidden = [
