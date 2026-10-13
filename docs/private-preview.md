@@ -13,7 +13,7 @@ pnpm package --config.directories.output=release/private-0.4.0
 node scripts/steam-depot.mjs release/private-0.4.0/win-unpacked
 ```
 
-The depot script creates a fresh `release/steam/preview-<id>` containing the entire application, notices, integrity manifest and SteamPipe templates. Verify it with `node scripts/steam-depot.mjs --verify <kit-directory>`. Check its embedded commit, `dirty: false`, version, license, lockfile hash and notice gaps. No command uploads a depot.
+The depot script creates a fresh `release/steam/preview-<id>` containing the entire application, notices, integrity manifest and SteamPipe templates. Verify it with `node scripts/steam-depot.mjs --verify <kit-directory>`. Check its embedded commit, `dirty: false`, version, license, lockfile hash and notice gaps. The lockfile hash uses UTF-8 with CRLF normalized to LF, matching Git archive bytes. No command uploads a depot.
 
 Set `LOADSTONE_TEST_EXE` to the absolute path of that kit's `content/Loadstone.exe`, then run the staged-executable test selection from `.github/workflows/windows.yml`. These tests redirect native side effects to synthetic fixtures; `LOADSTONE_DATA_DIR` alone does not redirect Desktop or Steam operations. Clear `LOADSTONE_TEST_EXE` afterwards.
 

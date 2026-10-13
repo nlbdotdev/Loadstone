@@ -27,7 +27,7 @@ fs.writeFileSync(
       dirty,
       lockfileSha256: crypto
         .createHash('sha256')
-        .update(fs.readFileSync('pnpm-lock.yaml'))
+        .update(fs.readFileSync('pnpm-lock.yaml', 'utf8').replace(/\r\n/g, '\n'))
         .digest('hex'),
     },
     null,
