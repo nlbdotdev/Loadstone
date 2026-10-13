@@ -20,6 +20,7 @@
     interrupted: 'Build interrupted',
   };
   const phases = {
+    downloads: 'Acquiring archive files',
     inputs: 'Checking source files',
     archives: 'Checking archive contents',
     outputs: 'Writing candidate files',
@@ -84,13 +85,15 @@
   <p>
     Choose a .loadstone package, its private local-inputs JSON, and a parent
     folder. Loadstone creates a new candidate from owned game files, local
-    prerequisites, downloaded ZIP, 7z or RAR archives and bundled files. For
-    7z/RAR, you’ll also select your trusted 7-Zip x64 26.04 or newer
-    installation.
+    prerequisites, ZIP, 7z or RAR archives and bundled files. Your input file
+    can select local archives or request original-source downloads. For
+    downloads or 7z/RAR, you’ll also select your trusted 7-Zip x64 26.04 or
+    newer installation.
   </p>
   <p class="note">
-    Downloads, configuration rebasing and launch checks are still in
-    development. These builds stay separate from your playable library.
+    Automatic Nexus downloads require Premium; free accounts can select manually
+    downloaded archives. Launch checks are still in development. These builds
+    stay separate from your playable library.
   </p>
   {#if !live}<p class="note">
       Switch to the live workspace to build real files.
@@ -117,7 +120,20 @@
           plan.installBytes / 1e9
         ).toFixed(2)} GB · {plan.archiveCount} local archives
       </p>
-      <p class="note">New candidate folder</p>
+      {#if plan.downloadCount}
+        <p class="note">
+          {plan.downloadCount}
+          {plan.downloadCount === 1 ? 'archive' : 'archives'} to acquire · up to {(
+            plan.downloadBytes / 1e9
+          ).toFixed(2)} GB. Verified cached files are reused. Sources: {plan.downloadHosts
+            .slice(0, 20)
+            .join(' · ')}{plan.downloadHosts.length > 20
+            ? ` · ${plan.downloadHosts.length - 20} more`
+            : ''}.
+        </p>
+        <p class="note">Archive cache</p>
+        <code>{plan.downloadCache}</code>
+      {/if}
       {#if plan.generatedConfigurations}<p class="note">
           MO2 configuration will be generated for this folder. The size includes
           a 1 MB configuration allowance. Account and personal interface
@@ -132,10 +148,13 @@
             .map((v) => `${v.name} ${v.version}`)
             .join(' · ')}. These files must already be prepared locally.
         </p>{/if}
+      <p class="note">New candidate folder</p>
       <code>{plan.destination}</code>
       <p class="note">
         Inputs will be hashed before files are written. A failed or cancelled
-        build keeps its partial folder. Retrying creates a new folder.
+        build keeps its partial candidate folder. Retrying creates a new folder
+        and reuses verified archive downloads. Interrupted partial downloads
+        restart from the beginning.
       </p>
       <div class="buttons">
         <button

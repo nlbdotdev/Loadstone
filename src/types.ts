@@ -259,6 +259,10 @@ export interface NativeBuildPlan {
   requiredGames: string[];
   prerequisites: NativePrerequisiteSummary[];
   archiveCount: number;
+  downloadCount: number;
+  downloadBytes: number;
+  downloadHosts: string[];
+  downloadCache: string | null;
   archiveTool: string | null;
 }
 export interface NativeBuild {
@@ -281,7 +285,7 @@ export interface NativeBuild {
   createdAt: string;
   updatedAt: string;
   activity?: {
-    phase: 'inputs' | 'archives' | 'outputs' | 'verification';
+    phase: 'downloads' | 'inputs' | 'archives' | 'outputs' | 'verification';
     completed: number;
     total: number;
     bytes: number;

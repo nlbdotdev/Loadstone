@@ -69,7 +69,7 @@ Every source has `id`, `type`, `bytes` and lowercase 64-character `sha256`.
 
 Nexus `game` is `falloutnv`, `fallout3`, `skyrimspecialedition` or `fallout4`. Credentials and download tokens are resolved at runtime, never stored in a recipe. A `credit` is `{name, url}`. A payload's `permission` is `{license, evidence}`, with a nonempty license description up to 200 characters and an HTTPS evidence reference. URL fields reject credentials, query parameters and fragments to exclude typical signed links and tokens; human privacy review remains necessary.
 
-Every source must be used. Bundled hashes cannot be declared twice. Sources do not contain private local paths. The future source resolver must enforce network destination and redirect policy separately; accepting an HTTPS string is not permission to fetch arbitrary endpoints.
+Every source must be used. Bundled hashes cannot be declared twice. Sources do not contain private local paths. The desktop's [archive acquisition layer](native-downloads.md) enforces network destination, redirect and account policy separately; accepting an HTTPS string is not permission to fetch arbitrary endpoints.
 
 ### Outputs and actions
 
@@ -96,4 +96,4 @@ The compiler validates and hashes all bundled bytes, creates the output exclusiv
 
 An [experimental local materializer](native-reconstruction.md) reconstructs copy and ZIP/7z/RAR-extract recipes in a new isolated directory and verifies every output hash. It is separate from the desktop queue and does not establish playability.
 
-Complete installed-file/source mapping; add bounded reconstruction for edited/generated files; implement authenticated original-source downloads and additional archive formats; extend durable creator jobs with partial-build recovery and playable-library integration. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
+Complete installed-file/source mapping; add bounded reconstruction for edited/generated files; verify real provider downloads and extend supported source flows; extend durable creator jobs with partial-build recovery and playable-library integration. Preserve the existing launch/shortcut/removal ownership checks. Prove actual clean installation and gameplay before publishing the three featured recipes or assigning 1.0.
