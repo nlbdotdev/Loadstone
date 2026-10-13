@@ -1,3 +1,4 @@
+const { replaceStateFile } = require('./replace-state-file.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -99,7 +100,7 @@ class LiveCatalog {
       JSON.stringify({ schemaVersion: 1, entries }, null, 2),
       { flush: true },
     );
-    fs.renameSync(this.file + '.tmp', this.file);
+    replaceStateFile(this.file + '.tmp', this.file);
     this.entries = entries;
     return this.list();
   }

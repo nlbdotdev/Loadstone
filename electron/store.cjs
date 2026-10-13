@@ -1,3 +1,4 @@
+const { replaceStateFile } = require('./replace-state-file.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
@@ -72,7 +73,7 @@ class Store {
     const tmp = `${this.file}.tmp`;
     const serialized = JSON.stringify(this.state, null, 2);
     fs.writeFileSync(tmp, serialized, { flush: true });
-    fs.renameSync(tmp, this.file);
+    replaceStateFile(tmp, this.file);
     return this.state;
   }
   log(message) {
