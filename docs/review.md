@@ -1,6 +1,6 @@
 # Reviewing the 0.3.0 native creator preview
 
-This build includes the live installer and maintenance features developed after the original demo. It is unsigned and remains a private developer preview. A real supported install-to-play run, clean Windows/Steam acceptance, Nexus registration and project licensing are still required before public release.
+This build includes the live installer and maintenance features developed after the original demo. It is unsigned and remains a private developer preview. A real supported install-to-play run, clean Windows/Steam acceptance, Nexus registration and distribution/asset license review are still required before public release. Original source is licensed under GPL-3.0-or-later; new builds include its license offline.
 
 ## Walkthrough
 

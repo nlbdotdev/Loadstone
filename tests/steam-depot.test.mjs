@@ -15,6 +15,15 @@ async function fixture() {
   const source = path.join(root, 'unpacked'),
     app = path.join(root, 'app');
   fs.mkdirSync(path.join(source, 'resources/notices'), { recursive: true });
+  fs.mkdirSync(path.join(source, 'resources/licenses'), { recursive: true });
+  for (const [original, target] of [
+    ['LICENSE', 'Loadstone-GPL-3.0.txt'],
+    ['COPYRIGHT', 'Loadstone-COPYRIGHT.txt'],
+  ])
+    fs.copyFileSync(
+      path.join(import.meta.dirname, '..', original),
+      path.join(source, 'resources/licenses', target),
+    );
   fs.mkdirSync(path.join(app, 'electron'), { recursive: true });
   fs.mkdirSync(path.join(app, 'dist'));
   fs.writeFileSync(
@@ -23,7 +32,7 @@ async function fixture() {
       name: 'loadstone',
       main: 'electron/main.cjs',
       version: '0.1.0',
-      license: 'UNLICENSED',
+      license: 'GPL-3.0-or-later',
     }),
   );
   fs.writeFileSync(
@@ -86,6 +95,7 @@ test('depot staging preserves runtime and notices, records hashes and produces p
   const h = await fixture();
   const manifest = await stagePackage(h.source, h.destination);
   assert.equal(manifest.releaseApproved, false);
+  assert.equal(manifest.license, 'GPL-3.0-or-later');
   assert.deepEqual(manifest.noticeGaps, ['fixture-gap']);
   assert.equal(JSON.stringify(manifest).includes(h.root), false);
   assert.deepEqual(await verifyKit(h.destination), manifest);
@@ -134,4 +144,19 @@ test('depot rejects a renderer dependency omitted from shipped attribution', asy
     /absent from shipped notices/,
   );
   assert.equal(fs.existsSync(h.destination), false);
+});
+
+test('depot rejects omitted or altered Loadstone license and scope notice before staging', async () => {
+  for (const [file, replacement] of [
+    ['Loadstone-GPL-3.0.txt', null],
+    ['Loadstone-GPL-3.0.txt', 'truncated license'],
+    ['Loadstone-COPYRIGHT.txt', 'SPDX-License-Identifier: GPL-3.0-only'],
+  ]) {
+    const h = await fixture();
+    const target = path.join(h.source, 'resources/licenses', file);
+    if (replacement === null) fs.unlinkSync(target);
+    else fs.writeFileSync(target, replacement);
+    await assert.rejects(stagePackage(h.source, h.destination));
+    assert.equal(fs.existsSync(h.destination), false);
+  }
 });

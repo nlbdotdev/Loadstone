@@ -25,4 +25,4 @@ Resolve how to handle the historical report and screenshot before making existin
 
 Review commit identities/messages, generated provenance metadata, release packages, untracked material proposed for publication, and any refs not present locally. Re-run the audit after changes and investigate new findings individually. If an actual credential is found, revoke it at its provider before considering history cleanup. The current matches were classified as fixtures or personal-path material; this is not a general credential-free certification.
 
-This audit does not settle project licensing, attribution gaps, security-reporting contacts, Nexus registration, real installation acceptance, or approval to change repository visibility. See [open-source preparation](open-source.md).
+The source-code license has since been selected as GPL-3.0-or-later. This audit does not settle distribution compliance, attribution gaps, security-reporting contacts, Nexus registration, real installation acceptance, or approval to change repository visibility. See [open-source preparation](open-source.md).

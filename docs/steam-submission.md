@@ -45,7 +45,7 @@ Loadstone does not include Bethesda games or a playable mod collection. The bund
 | One-click setup | Optional isolated game-root validation implemented | A permitted list that actually produces a self-contained playable setup. Current cached VNV requires manual game preparation; do not advertise one-click VNV |
 | Shortcuts and maintenance | Native desktop and Steam-file fixtures, recovery/update tests | Actual Steam-client launch/restart/update/uninstall and real save-preservation acceptance |
 | Nexus access | Local protected credential storage and membership checks | Public application registration and real authorized authentication; never supply reviewer credentials in Git or public docs |
-| Open source | Contributor/privacy/security docs, dependency notices and history audit prepared | Maintainer license choice, distribution review and publication audit decisions; currently private and UNLICENSED |
+| Open source | Contributor/privacy/security docs, dependency notices and history audit prepared | GPL-3.0-or-later selected for original source; corresponding-source delivery, distribution/asset review and publication audit decisions remain open; repository remains private |
 
 The current portable build is a local preview, not a Steam depot acceptance result. Record the exact candidate source commit, artifact hashes, depot build ID, test machine and outcomes in a release-specific acceptance report. Valve reviews the store presence and build; local tests do not replace that review. See [Valve review process](https://partner.steamgames.com/doc/store/review_process).
 

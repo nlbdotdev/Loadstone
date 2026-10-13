@@ -1,6 +1,6 @@
 # Native .loadstone format, version 1
 
-Status: experimental creator tooling. This is a documented format with an open implementation planned for the project's open-source release. The project license remains pending. **Settings → Native package preview** inspects a user-selected package through the Electron bridge and shows a bounded summary. **Reconstruct a local candidate** can build local copy/ZIP-extract recipes with durable history. The playable desktop catalog still uses Wabbajack; a native candidate needs configuration and launch acceptance before playable-library integration.
+Status: experimental creator tooling. This is a documented format with an original implementation licensed under GPL-3.0-or-later. The repository remains private pending publication review. **Settings → Native package preview** inspects a user-selected package through the Electron bridge and shows a bounded summary. **Reconstruct a local candidate** can build local copy/ZIP-extract recipes with durable history. The playable desktop catalog still uses Wabbajack; a native candidate needs configuration and launch acceptance before playable-library integration.
 
 ## Purpose and trust boundary
 

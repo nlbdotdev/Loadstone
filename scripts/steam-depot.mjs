@@ -41,6 +41,8 @@ export function inspectPackage(content) {
     'LICENSES.chromium.html',
     'resources/notices/THIRD-PARTY.txt',
     'resources/notices/dependencies.json',
+    'resources/licenses/Loadstone-GPL-3.0.txt',
+    'resources/licenses/Loadstone-COPYRIGHT.txt',
   ]) {
     if (!fs.statSync(path.join(content, file)).isFile())
       throw new Error(`Missing packaged file: ${file}`);
@@ -76,9 +78,31 @@ export function inspectPackage(content) {
   if (
     metadata.name !== 'loadstone' ||
     metadata.main !== 'electron/main.cjs' ||
+    metadata.license !== 'GPL-3.0-or-later' ||
     !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(metadata.version)
   )
     throw new Error('Unexpected packaged application identity.');
+  const licenseText = fs.readFileSync(
+    path.join(content, 'resources/licenses/Loadstone-GPL-3.0.txt'),
+  );
+  if (
+    crypto.createHash('sha256').update(licenseText).digest('hex') !==
+    '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
+  )
+    throw new Error(
+      'Packaged GPL text differs from the unmodified GNU license.',
+    );
+  const copyright = fs.readFileSync(
+    path.join(content, 'resources/licenses/Loadstone-COPYRIGHT.txt'),
+    'utf8',
+  );
+  if (
+    !copyright.includes('SPDX-License-Identifier: GPL-3.0-or-later') ||
+    !copyright.includes('(at your option) any later version.')
+  )
+    throw new Error(
+      'Packaged copyright notice must include the later-version grant.',
+    );
   if (
     !/^[a-f0-9]{40}$/.test(build.commit) ||
     typeof build.dirty !== 'boolean' ||

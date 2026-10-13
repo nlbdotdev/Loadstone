@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { version as appVersion } from '../package.json';
+  import LicenseNotice from './LicenseNotice.svelte';
   import {
     Compass,
     Library,
@@ -1336,6 +1337,7 @@
                 access. Full install-to-play and Steam acceptance remain open.
               </p>
             </div>
+            <LicenseNotice />
             <button class="primary full" onclick={() => (modal = null)}
               >Let’s explore<Compass size={17} /></button
             >

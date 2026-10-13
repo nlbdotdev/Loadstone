@@ -1,4 +1,6 @@
 * text=auto
+LICENSE text eol=lf
+COPYRIGHT text eol=lf
 notices/*.txt text eol=lf
 notices/*.json text eol=lf
 *.png binary

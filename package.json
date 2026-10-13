@@ -4,7 +4,7 @@
   "private": true,
   "description": "Your next playthrough, ready. A curated modlist desktop experience.",
   "author": "nlbdotdev",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -58,6 +58,14 @@
       "artifactName": "Loadstone-${version}-Windows.exe"
     },
     "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "licenses/Loadstone-GPL-3.0.txt"
+      },
+      {
+        "from": "COPYRIGHT",
+        "to": "licenses/Loadstone-COPYRIGHT.txt"
+      },
       {
         "from": "notices",
         "to": "notices",

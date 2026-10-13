@@ -1,0 +1,32 @@
+Loadstone — Your next playthrough, ready.
+Copyright (C) 2026 Nathan Bennett and contributors
+SPDX-License-Identifier: GPL-3.0-or-later
+
+Unless a file states otherwise, Loadstone's original source code, build scripts,
+tests, configuration files and technical documentation are licensed as follows:
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+The full GNU GPL version 3 text is in LICENSE. This notice establishes the
+"or any later version" option; it does not change the GNU license text.
+
+Third-party code and dependencies retain their own licenses and notices.
+Game files, downloaded mods and external tools are not relicensed by this
+notice. See notices/THIRD-PARTY.txt and docs/open-source.md.
+
+Bitmap artwork, packaged icons, screenshots, generated store media and videos
+are outside this source-code license grant; see docs/artwork.md. The original
+source code that generates or renders artwork is covered as described above.
+This source-code license does not grant trademark rights in the Loadstone name
+or marks, or in third-party names and marks.

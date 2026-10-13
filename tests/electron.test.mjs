@@ -100,6 +100,27 @@ test(
         'undefined',
       );
       await page.screenshot({ path: path.join(artifacts, 'discover.png') });
+      await page
+        .getByRole('button', { name: 'About Loadstone', exact: true })
+        .click();
+      const license = page.getByRole('region', { name: 'Loadstone license' });
+      await license
+        .getByText('Read license and scope', { exact: true })
+        .click();
+      assert.match(
+        await license.getByLabel('License text', { exact: true }).inputValue(),
+        /SPDX-License-Identifier: GPL-3\.0-or-later/,
+      );
+      assert.match(
+        await license.getByLabel('License text', { exact: true }).inputValue(),
+        /END OF TERMS AND CONDITIONS/,
+      );
+      await page
+        .getByRole('dialog', { name: 'About Loadstone' })
+        .screenshot({ path: path.join(artifacts, 'about-license.png') });
+      await page
+        .getByRole('button', { name: 'Close dialog', exact: true })
+        .click();
       await page.getByRole('button', { name: 'Maximize window' }).click();
       await sleep(200);
       assert.equal(
