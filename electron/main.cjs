@@ -26,6 +26,7 @@ const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
 const { NativeBuilder } = require('./native-builder.cjs');
 const { NativeGuide } = require('./native-guide.cjs');
+const { NativeRepair } = require('./native-repair.cjs');
 const { NativeLibrary, nativeLaunchPlan } = require('./native-library.cjs');
 const { NativeMaintenance } = require('./native-maintenance.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
@@ -138,6 +139,7 @@ else {
             : root;
         },
       });
+      let activeNativeGuide = nativeGuide;
       const idleNative = () => {
         if (nativeBuilder.busy || nativeLibrary.busy)
           throw new Error(
@@ -317,19 +319,48 @@ else {
         });
         return result.canceled ? null : result.filePaths[0];
       };
-      handle('native-guide:get', () => nativeGuide.state());
-      handle('native-guide:import', (resumeId) =>
-        nativeGuide.import(async () => {
-          const result = await dialog.showOpenDialog(window, {
-            title: 'Choose a .loadstone setup',
-            properties: ['openFile'],
-            filters: [{ name: 'Loadstone package', extensions: ['loadstone'] }],
-          });
-          return result.canceled ? null : result.filePaths[0];
-        }, resumeId),
-      );
+      const chooseNativePackage = async () => {
+        const result = await dialog.showOpenDialog(window, {
+          title: 'Choose a .loadstone setup',
+          properties: ['openFile'],
+          filters: [{ name: 'Loadstone package', extensions: ['loadstone'] }],
+        });
+        return result.canceled ? null : result.filePaths[0];
+      };
+      handle('native-guide:get', () => activeNativeGuide.state());
+      handle('native-guide:import', async (resumeId) => {
+        const view = await nativeGuide.import(chooseNativePackage, resumeId);
+        if (view) activeNativeGuide = nativeGuide;
+        return view;
+      });
+      handle('native-library:repair', async (entryId) => {
+        const repair = new NativeRepair(nativeLibrary, entryId, {
+          nexus,
+          protectedRoots: (id) => [
+            app.isPackaged
+              ? path.dirname(process.execPath)
+              : path.resolve(__dirname, '..'),
+            ...installer.jobs.map((v) => v.destination).filter(Boolean),
+            ...nativeRoots(id),
+            ...nativeBuilder.jobs
+              .map((v) => v.destination)
+              .filter(
+                (v) =>
+                  v.toLowerCase() !==
+                  nativeLibrary.record(id).root.toLowerCase(),
+              ),
+          ],
+        });
+        const guide = new NativeGuide(repair, {
+          discover: async () => discoverGames(await steamRoots()),
+          repair: () => repair.context(),
+        });
+        const view = await guide.import(chooseNativePackage);
+        if (view) activeNativeGuide = guide;
+        return view;
+      });
       handle('native-guide:select', (id, kind, key, token) =>
-        nativeGuide.select(
+        activeNativeGuide.select(
           id,
           kind,
           key,
@@ -355,10 +386,10 @@ else {
         ),
       );
       handle('native-guide:review', (id) =>
-        nativeGuide.review(id, chooseNativeTool),
+        activeNativeGuide.review(id, chooseNativeTool),
       );
       handle('native-guide:start', (id, planId) =>
-        nativeGuide.start(id, planId),
+        activeNativeGuide.start(id, planId),
       );
       handle('native:admit', async (id) => {
         const job = nativeBuilder.jobs.find(

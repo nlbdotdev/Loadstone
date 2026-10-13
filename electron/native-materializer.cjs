@@ -209,6 +209,31 @@ async function materializeNative(file, destination, options = {}) {
   // reviewed recipe locks the generator inputs; these derived fingerprints
   // are independent expectations for writing and final on-disk verification.
   const { generated, outputs } = expectedOutputs(recipe, target);
+  if (
+    options.repair &&
+    (!options.resume?.identity ||
+      !/^\.loadstone-repair-recovery\/[a-f0-9-]{36}$/.test(
+        options.repair.directory,
+      ))
+  )
+    throw new Error(
+      'Repair requires a reviewed existing candidate and recovery folder.',
+    );
+  const preserved = new Map();
+  for (const item of options.resume?.files || []) {
+    if (!item.preserved) continue;
+    if (
+      !options.repair ||
+      !item.reuse ||
+      !item.identity ||
+      !Number.isSafeInteger(item.preserved.bytes) ||
+      item.preserved.bytes < 0 ||
+      item.preserved.bytes > 50_000_000_000 ||
+      !/^[a-f0-9]{64}$/.test(item.preserved.sha256)
+    )
+      throw new Error('Only reviewed repair files can preserve local content.');
+    preserved.set(item.path, item.preserved);
+  }
   const protectedRoots = [
     path.resolve(__dirname, '..'),
     path.dirname(file),
@@ -336,7 +361,8 @@ async function materializeNative(file, destination, options = {}) {
     options.resume?.files.map((v) => [v.path, v]) || [],
   );
   const recoveryFolder = options.resume?.identity
-    ? `.loadstone-build-recovery/${crypto.randomUUID()}`
+    ? options.repair?.directory ||
+      `.loadstone-build-recovery/${crypto.randomUUID()}`
     : null;
   let completed = 0;
   const outputActivity = nativeActivity(
@@ -352,6 +378,14 @@ async function materializeNative(file, destination, options = {}) {
   }
   function receipt(status) {
     guard();
+    // Installed repair retains the original reconstruction receipt. Durable
+    // library state tracks repair separately and blocks launch until it passes.
+    if (options.repair)
+      return {
+        status: status === 'verified' ? 'repaired' : status,
+        preservedFiles: preserved.size,
+        recoveryDirectory: recoveryFolder,
+      };
     const state = {
       schemaVersion: 1,
       kind: 'loadstone-native-materialization',
@@ -610,7 +644,7 @@ async function materializeNative(file, destination, options = {}) {
       guard();
       await verifyFile(
         path.join(target, output.path),
-        output,
+        preserved.get(output.path) || output,
         options.signal,
         verificationActivity,
       );

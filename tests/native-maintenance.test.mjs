@@ -208,6 +208,7 @@ test('native removal journals before moving, cancels without losing retained dat
       'maintenanceError',
       'shortcutsCleaned',
       'shortcutError',
+      'repair',
     ])
       delete entry[key];
   const original = JSON.stringify(state);
@@ -217,7 +218,7 @@ test('native removal journals before moving, cancels without losing retained dat
   assert.equal(fs.readFileSync(migrated.file, 'utf8'), original);
   await assert.rejects(migrated.verify(fresh.id), /Recipe file/);
   migrated.change(fresh.id, { maintenanceError: null });
-  assert.equal(JSON.parse(fs.readFileSync(migrated.file)).schemaVersion, 2);
+  assert.equal(JSON.parse(fs.readFileSync(migrated.file)).schemaVersion, 3);
 });
 
 test('a directory redirected after removal review never permits deletion of an outside file', async () => {

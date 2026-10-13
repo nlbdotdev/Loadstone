@@ -66,8 +66,12 @@ test(
             }
           };
           globalThis.admitChoice = 0;
+          globalThis.admissionShown = new Promise((resolve) => {
+            globalThis.resolveAdmission = resolve;
+          });
           dialog.showMessageBox = async (_window, options) => {
             globalThis.admitDialog = options;
+            globalThis.resolveAdmission(options);
             return { response: globalThis.admitChoice };
           };
         },
@@ -148,18 +152,24 @@ test(
         .getByRole('button', { name: 'Review for My library', exact: true })
         .click();
       // The default cancellation does not create a library record.
+      const failure = page
+        .getByRole('region', { name: 'Native candidate builds' })
+        .getByRole('alert');
+      const dialog = await Promise.race([
+        instance.evaluate(() => globalThis.admissionShown),
+        failure.waitFor().then(async () => {
+          throw new Error(await failure.textContent());
+        }),
+      ]);
       await page
         .getByRole('button', { name: 'Review for My library', exact: true })
+        .and(page.locator(':enabled'))
         .waitFor({ state: 'visible' });
-      await page.waitForFunction(() =>
-        window.loadstone.nativeLibrary().then((v) => !v.busy),
-      );
       assert.equal(
         (await page.evaluate(() => window.loadstone.nativeLibrary())).entries
           .length,
         0,
       );
-      const dialog = await instance.evaluate(() => globalThis.admitDialog);
       assert.equal(dialog.defaultId, 0);
       assert.match(dialog.detail, /No actual|Synthetic|synthetic/);
       await instance.evaluate(() => (globalThis.admitChoice = 1));

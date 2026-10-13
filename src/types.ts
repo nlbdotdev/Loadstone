@@ -104,10 +104,17 @@ export interface Bridge {
   inspectNativePackage(): Promise<NativePackageSummary | null>;
   nativeBuilds(): Promise<NativeBuild[]>;
   nativeGuide(): Promise<NativeGuideState | null>;
+  repairNativeSetup(id: string): Promise<NativeGuideState | null>;
   importNativeSetup(resumeId?: string): Promise<NativeGuideState | null>;
   selectNativeInput(
     id: string,
-    kind: 'game' | 'prerequisite' | 'archive' | 'download' | 'parent',
+    kind:
+      | 'game'
+      | 'prerequisite'
+      | 'archive'
+      | 'download'
+      | 'parent'
+      | 'configuration',
     key?: string,
     token?: string,
   ): Promise<NativeGuideState>;
@@ -147,7 +154,19 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface NativeLibraryEntry {
-  status: 'installed' | 'removing' | 'removal-failed' | 'removed';
+  status:
+    | 'installed'
+    | 'removing'
+    | 'removal-failed'
+    | 'removed'
+    | 'repairing'
+    | 'repair-failed';
+  repair: {
+    directory: string;
+    startedAt: string;
+    completedAt: string | null;
+    preserved: number;
+  } | null;
   recoveryRoot: string | null;
   maintenanceError: string | null;
   shortcutsCleaned: boolean;
@@ -169,7 +188,14 @@ export interface NativeLibraryState {
   progress: {
     completed: number;
     total: number;
-    phase?: 'verification' | 'inventory' | 'removal-review' | 'removal';
+    phase?:
+      | 'verification'
+      | 'inventory'
+      | 'removal-review'
+      | 'removal'
+      | 'repair-review'
+      | 'repair-downloads'
+      | 'repair';
   } | null;
   error: string | null;
 }
@@ -309,6 +335,16 @@ declare global {
 }
 
 export interface NativeBuildPlan {
+  repair?: {
+    reused: number;
+    missing: number;
+    conflicts: number;
+    preserved: number;
+    preservedPaths: string[];
+    retained: number;
+    recoveryRoot: string;
+    restoreConfiguration: boolean;
+  };
   resume?: {
     jobId: string;
     reused: number;
@@ -336,6 +372,12 @@ export interface NativeBuildPlan {
   archiveTool: string | null;
 }
 export interface NativeGuideState {
+  repair: {
+    entryId: string;
+    destination: string;
+    recipeSha256: string;
+    restoreConfiguration: boolean;
+  } | null;
   id: string;
   recipeSha256: string;
   name: string;
