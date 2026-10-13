@@ -19,6 +19,8 @@ The report is **not installable and not publication-approved**. It does not esta
 
 The user chose a documented format and open implementation on 2026-10-13. This is Loadstone's native format, not an opaque replacement for upstream archives. The implementation and specification will be developed together from the real inventories. The project license remains a separate maintainer decision.
 
+The first [native format specification and package compiler](loadstone-format.md) are now available as experimental creator tooling. Inventory reports remain private evidence; they cannot bypass the source and rights work required for a valid recipe.
+
 The target is a versioned, bounded container with a canonical recipe, source lock and content hashes. It must describe:
 
 - Game/storefront/DLC requirements and exact accepted source hashes; TTW requires both owned games while running through the New Vegas engine.
