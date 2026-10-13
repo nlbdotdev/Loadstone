@@ -53,7 +53,7 @@ Settings now prepares a pinned official Wabbajack runtime, with download/cancel/
 
 Settings also validates a Nexus personal API key for private testing, stores it with Windows encryption, and displays account membership and the last verification time. [Account integration notes](docs/nexus.md) describe credential handling and installation requirements. This is not yet a registered public Nexus application.
 
-Creator tooling can [inventory an installed MO2 setup](docs/installed-inventory.md) without changing it and [compile or inspect the documented native `.loadstone` package format](docs/loadstone-format.md). Native packages lock source/output hashes and restrict reconstruction to typed actions. Native desktop installation and publication of the featured lists remain in development.
+Creator tooling can [inventory an installed MO2 setup](docs/installed-inventory.md) without changing it and [compile or inspect the documented native `.loadstone` package format](docs/loadstone-format.md). **Settings → Native package preview** checks a selected package and shows its required games, sources, profile and save guidance. Native packages lock source/output hashes and restrict reconstruction to typed actions. Native desktop installation and publication of the featured lists remain in development.
 
 ## Persistence and desktop behavior
 

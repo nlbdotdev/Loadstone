@@ -88,6 +88,7 @@ export interface Bridge {
   liveInstallRoot(): Promise<string>;
   liveCatalog(): Promise<Manifest[]>;
   importManifest(): Promise<Manifest[] | null>;
+  inspectNativePackage(): Promise<NativePackageSummary | null>;
   discoverGames(): Promise<{ games: DiscoveredGame[]; warnings: string[] }>;
   preflight(options: {
     id: string;
@@ -115,6 +116,24 @@ export interface Bridge {
   exportLogs(): Promise<string | null>;
   window(action: 'minimize' | 'maximize' | 'close'): void;
   onState(callback: (state: AppState) => void): () => void;
+}
+export interface NativePackageSummary {
+  name: string;
+  version: string;
+  author: string;
+  game: { id: 'fnv' | 'skyrimse' | 'fallout4'; variant: 'base' | 'ttw' };
+  profile: string;
+  requiredGames: string[];
+  outputs: number;
+  installBytes: number;
+  downloadSources: number;
+  gameSources: number;
+  payloadSources: number;
+  recipeSha256: string;
+  saveCompatibility: {
+    status: 'unknown' | 'new-save-required' | 'compatible';
+    notes: string;
+  };
 }
 export interface LiveJob {
   outputVerification?: {

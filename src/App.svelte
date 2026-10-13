@@ -40,6 +40,7 @@
   import LiveCatalog from './LiveCatalog.svelte';
   import EngineSettings from './EngineSettings.svelte';
   import NexusSettings from './NexusSettings.svelte';
+  import NativePackagePreview from './NativePackagePreview.svelte';
   import LiveJobs from './LiveJobs.svelte';
   import { catalog } from './data';
   import type { AppState, Page, Setup, Job } from './types';
@@ -876,6 +877,7 @@
             <div class="settings-main">
               <EngineSettings />
               <NexusSettings />
+              <NativePackagePreview />
               <section class="settings-section">
                 <div class="section-heading">
                   <FlaskConical size={20} />

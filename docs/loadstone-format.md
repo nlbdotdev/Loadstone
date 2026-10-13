@@ -1,6 +1,6 @@
 # Native .loadstone format, version 1
 
-Status: experimental creator tooling. This is a documented format with an open implementation planned for the project's open-source release. The project license remains pending. The desktop catalog and installation adapter currently use Wabbajack; successfully compiling or inspecting a native package does not make it installable in the desktop app yet.
+Status: experimental creator tooling. This is a documented format with an open implementation planned for the project's open-source release. The project license remains pending. **Settings → Native package preview** inspects a user-selected package through the Electron bridge and shows a bounded summary. The desktop catalog and installation adapter currently use Wabbajack; successfully compiling or inspecting a native package does not make it installable in the desktop app yet.
 
 ## Purpose and trust boundary
 
