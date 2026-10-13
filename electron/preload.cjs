@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('loadstone', {
   nativeBuilds: () => ipcRenderer.invoke('native:builds'),
   nativeGuide: () => ipcRenderer.invoke('native-guide:get'),
   repairNativeSetup: (id) => ipcRenderer.invoke('native-library:repair', id),
+  updateNativeSetup: (id) => ipcRenderer.invoke('native-library:update', id),
   importNativeSetup: (resumeId) =>
     ipcRenderer.invoke('native-guide:import', resumeId),
   selectNativeInput: (id, kind, key, token) =>

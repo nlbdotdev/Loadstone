@@ -61,6 +61,7 @@ class NativeGuide {
       })),
       parent: d.parent,
       resumeId: d.resumeId || null,
+      update: d.update || null,
       repair: d.repair
         ? {
             ...d.repair,
@@ -106,6 +107,7 @@ class NativeGuide {
         throw new Error(
           'Resume requires the exact recipe from this installation.',
         );
+      const update = this.options.update?.(inspected.recipe);
       const found = await this.discover();
       const detected = found.games
         .slice(0, 100)
@@ -135,7 +137,9 @@ class NativeGuide {
         ? path.dirname(job.destination)
         : repair
           ? path.dirname(repair.destination)
-          : this.options.defaultParent?.();
+          : update
+            ? path.dirname(update.root)
+            : this.options.defaultParent?.();
       try {
         identity(parent, true);
       } catch {
@@ -150,6 +154,7 @@ class NativeGuide {
         detected,
         resumeId,
         repair,
+        update,
       };
       return this.state();
     });
@@ -239,21 +244,39 @@ class NativeGuide {
       );
     this.plan = null;
     this.plan = await this.builder.prepare(
-      async () => ({
-        packageFile: d.packageFile,
-        recipeSha256: d.inspected.recipeSha256,
-        inputs: d.inputs,
-        parent: d.parent,
-      }),
+      async () => {
+        if (d.update) this.options.update(d.inspected.recipe, d.update);
+        return {
+          packageFile: d.packageFile,
+          recipeSha256: d.inspected.recipeSha256,
+          inputs: d.inputs,
+          parent: d.parent,
+        };
+      },
       chooseTool,
       d.resumeId,
     );
+    if (this.plan && d.update) {
+      try {
+        this.options.update(
+          d.inspected.recipe,
+          d.update,
+          this.plan.destination,
+        );
+      } catch (error) {
+        this.plan = null;
+        this.builder.plan = null;
+        throw error;
+      }
+    }
     return this.state();
   }
   start(id, planId) {
-    this.record(id);
+    const d = this.record(id);
     if (!this.plan || this.plan.id !== planId)
       throw new Error('Review this native installation before starting.');
+    if (d.update)
+      this.options.update(d.inspected.recipe, d.update, this.plan.destination);
     const jobs = this.builder.start(planId);
     this.plan = null;
     return jobs;

@@ -26,6 +26,7 @@ const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
 const { NativeBuilder } = require('./native-builder.cjs');
 const { NativeGuide } = require('./native-guide.cjs');
+const { NativeUpdate } = require('./native-update.cjs');
 const { NativeRepair } = require('./native-repair.cjs');
 const { NativeLibrary, nativeLaunchPlan } = require('./native-library.cjs');
 const { NativeMaintenance } = require('./native-maintenance.cjs');
@@ -354,6 +355,16 @@ else {
         const guide = new NativeGuide(repair, {
           discover: async () => discoverGames(await steamRoots()),
           repair: () => repair.context(),
+        });
+        const view = await guide.import(chooseNativePackage);
+        if (view) activeNativeGuide = guide;
+        return view;
+      });
+      handle('native-library:update', async (entryId) => {
+        const update = new NativeUpdate(nativeLibrary, entryId);
+        const guide = new NativeGuide(nativeBuilder, {
+          discover: async () => discoverGames(await steamRoots()),
+          update: (...args) => update.review(...args),
         });
         const view = await guide.import(chooseNativePackage);
         if (view) activeNativeGuide = guide;

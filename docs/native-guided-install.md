@@ -12,6 +12,8 @@ In the live workspace, **Discover → Open .loadstone** imports a native package
 
 Packages without the required portable MO2 layout can reconstruct files but cannot pass library admission. A recipe's declared save compatibility is creator guidance, not a gameplay certification. Complete source permissions, clean-machine/provider acceptance and real game/save/client checks remain release gates.
 
+**My library → Install another version** uses this flow for a [separate version update](native-updates.md). The original setup stays in its folder with its existing saves, settings and shortcuts; the selected version gets fresh recipe settings and a separate library admission.
+
 ## Recovery and privacy
 
 For a cancelled, failed or interrupted installation, **Downloads → Review resume** asks for the same package and returns to the guided selections. Reselect local inputs; the installation parent is fixed to the original job. Review shows matching, missing and conflicting files and the recovery folder, with cancellable retained-file checking. Confirmation uses the existing [build recovery](native-build-recovery.md), retaining conflicts and reusing matching outputs under the same history record and destination.

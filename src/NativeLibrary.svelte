@@ -196,6 +196,15 @@
         >
       {/if}
       {#if entry.status === 'installed'}
+        <button
+          class="secondary"
+          disabled={locked}
+          onclick={() =>
+            action(async () => {
+              if (await window.loadstone.updateNativeSetup(entry.id))
+                onrepair?.();
+            })}>Install another version</button
+        >
         <p>
           Profile {entry.profile} · {entry.fileCount.toLocaleString()} recipe outputs
           checked on {new Date(entry.verifiedAt).toLocaleString()}.
