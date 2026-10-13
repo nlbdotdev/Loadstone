@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Native MO2 recipes can declare a Steam or GOG edition matched to the target game requirement, avoiding MO2's edition-selection dialog. Launch checks protect the declared edition. Legacy recipes retain their original configuration bytes and receipts.
+- The first real TTW Steam-client check verified candidate admission, the running-client safeguard, shortcut preservation and launch to the main menu after manually selecting an edition. Steam produced no recording file; gameplay, save/controller acceptance and an uninterrupted launch from a revised recipe remain open. See [the acceptance record](docs/native-steam-acceptance.md).
+
 ## 0.4.0 — native installation preview
 
 - Guided `.loadstone` installation in Discover: select owned games and local prerequisites, review destination and sources, then follow measured progress in Downloads.
