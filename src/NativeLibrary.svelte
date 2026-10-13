@@ -80,17 +80,28 @@
   {#if libraryState.progress}
     <div class="card" role="status">
       <p>
-        Checking recipe files: {libraryState.progress.completed.toLocaleString()}
-        / {libraryState.progress.total.toLocaleString()}
+        {{
+          verification: 'Checking recipe files',
+          inventory: 'Scanning candidate entries',
+          'removal-review': 'Reviewing removal',
+          removal: 'Processing reviewed files',
+        }[libraryState.progress.phase || 'verification']}:
+        {libraryState.progress.completed.toLocaleString()}
+        {#if libraryState.progress.total}
+          / {libraryState.progress.total.toLocaleString()}{/if}
       </p>
-      <progress
-        max={Math.max(1, libraryState.progress.total)}
-        value={libraryState.progress.completed}
-      ></progress>
+      {#if libraryState.progress.total}
+        <progress
+          max={Math.max(1, libraryState.progress.total)}
+          value={libraryState.progress.completed}
+        ></progress>
+      {:else}<progress aria-label="Scanning candidate entries"></progress>{/if}
       <button
         class="secondary"
         onclick={() => window.loadstone.cancelNativeVerification()}
-        >Cancel verification</button
+        >{libraryState.progress.phase === 'removal'
+          ? 'Stop removal'
+          : 'Cancel verification'}</button
       >
     </div>
   {/if}
@@ -139,48 +150,93 @@
     </p>{/if}
   {#each libraryState.entries as entry (entry.id)}
     <article class="card">
-      <p class="eyebrow">NATIVE CANDIDATE</p>
+      <p class="eyebrow">
+        {entry.status === 'removed'
+          ? 'REMOVED NATIVE SETUP'
+          : 'NATIVE CANDIDATE'}
+      </p>
       <h2>{entry.name} <span>{entry.version}</span></h2>
       <p class="path">{entry.root}</p>
-      <p>
-        Profile {entry.profile} · {entry.fileCount.toLocaleString()} recipe outputs
-        checked on {new Date(entry.verifiedAt).toLocaleString()}.
-      </p>
-      <p>Save guidance: {entry.saveStatus}. {entry.saveNotes}</p>
-      <p>
-        Launch checks the manager, game executable and local profile paths.
-        Gameplay acceptance is still required.
-      </p>
-      <div class="actions">
-        <button
-          class="primary"
-          disabled={locked ||
-            entry.launch?.phase === 'open' ||
-            entry.launch?.phase === 'starting'}
-          onclick={() => action(() => window.loadstone.launchNative(entry.id))}
-          >Launch native setup</button
-        >
+      {#if entry.maintenanceError}<p class="error">
+          {entry.maintenanceError}
+        </p>{/if}
+      {#if entry.status === 'installed'}
+        <p>
+          Profile {entry.profile} · {entry.fileCount.toLocaleString()} recipe outputs
+          checked on {new Date(entry.verifiedAt).toLocaleString()}.
+        </p>
+        <p>Save guidance: {entry.saveStatus}. {entry.saveNotes}</p>
+        <p>
+          Launch checks the manager, game executable and local profile paths.
+          Gameplay acceptance is still required.
+        </p>
+        <div class="actions">
+          <button
+            class="primary"
+            disabled={locked ||
+              entry.launch?.phase === 'open' ||
+              entry.launch?.phase === 'starting'}
+            onclick={() =>
+              action(() => window.loadstone.launchNative(entry.id))}
+            >Launch native setup</button
+          >
+          <button
+            class="secondary"
+            disabled={locked}
+            onclick={() =>
+              action(async () => {
+                await window.loadstone.verifyNativeLibrary(entry.id);
+                message =
+                  'Recipe files and profile isolation verified. No files were changed.';
+              })}>Verify recipe files</button
+          >
+          <button
+            class="secondary"
+            disabled={locked}
+            onclick={() =>
+              action(async () => {
+                message = await window.loadstone.nativeDesktopShortcut(
+                  entry.id,
+                );
+              })}>Add or repair desktop shortcut</button
+          >
+        </div>
+        <SteamShortcut jobId={entry.id} native />
+        {#if entry.launch}<p role="status">{entry.launch.message}</p>{/if}
+      {:else if entry.recoveryRoot}
+        <p role="status">
+          {entry.status === 'removed'
+            ? 'Native setup removed. Retained data is available in the recovery folder.'
+            : 'Native removal is incomplete. Remaining files are retained for recovery.'}
+        </p>
+        <p class="path">Recovery folder: {entry.recoveryRoot}</p>
+        {#if entry.status === 'removed'}
+          {#if entry.shortcutsCleaned}<p>Owned shortcuts cleaned up.</p>
+          {:else}
+            {#if entry.shortcutError}<p class="error">
+                {entry.shortcutError}
+              </p>{/if}
+            <button
+              class="secondary"
+              disabled={locked}
+              onclick={() =>
+                action(() => window.loadstone.cleanupNativeShortcuts(entry.id))}
+              >Clean up native shortcuts</button
+            >
+          {/if}
+        {/if}
+      {/if}
+      {#if entry.status !== 'removed'}
         <button
           class="secondary"
           disabled={locked}
-          onclick={() =>
-            action(async () => {
-              await window.loadstone.verifyNativeLibrary(entry.id);
-              message =
-                'Recipe files and profile isolation verified. No files were changed.';
-            })}>Verify recipe files</button
+          onclick={() => action(() => window.loadstone.removeNative(entry.id))}
         >
-        <button
-          class="secondary"
-          disabled={locked}
-          onclick={() =>
-            action(async () => {
-              message = await window.loadstone.nativeDesktopShortcut(entry.id);
-            })}>Add or repair desktop shortcut</button
-        >
-      </div>
-      <SteamShortcut jobId={entry.id} native />
-      {#if entry.launch}<p role="status">{entry.launch.message}</p>{/if}
+          {entry.status === 'installed'
+            ? 'Remove native setup'
+            : 'Resume native removal'}
+        </button>
+      {/if}
     </article>
   {/each}
 </section>
