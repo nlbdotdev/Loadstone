@@ -15,6 +15,7 @@ const { relativeFile } = require('./manifest.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
 const { renderMo2Config } = require('./native-mo2-config.cjs');
+const { nativeActivity } = require('./native-activity.cjs');
 
 function ordinaryDirectory(folder) {
   const stat = fs.lstatSync(folder);
@@ -26,7 +27,8 @@ function ordinaryDirectory(folder) {
     throw new Error('Native installation refuses redirected directories.');
   return stat;
 }
-async function verifyFile(file, expected, signal) {
+async function verifyFile(file, expected, signal, activity) {
+  activity?.start(expected.bytes);
   const before = ordinaryFile(file, expected.bytes);
   if (before.size !== expected.bytes)
     throw new Error('Native source byte length differs from the recipe.');
@@ -34,12 +36,14 @@ async function verifyFile(file, expected, signal) {
   for await (const chunk of fs.createReadStream(file)) {
     signal?.throwIfAborted();
     hash.update(chunk);
+    activity?.add(chunk.length);
   }
   if (
     hash.digest('hex') !== expected.sha256 ||
     !sameFile(before, ordinaryFile(file, expected.bytes))
   )
     throw new Error('Native source changed or differs from the recipe hash.');
+  activity?.finish();
   return before;
 }
 function zipPath(entry) {
@@ -70,6 +74,16 @@ async function inspectInputs(file, options) {
     throw new Error('Native package changed during input inspection.');
   const gameRoots = new Map(),
     sources = new Map();
+  const archiveSources = recipe.sources.filter((v) =>
+    ['https-archive', 'nexus-archive'].includes(v.type),
+  );
+  const activity = nativeActivity(
+    options.activity,
+    'inputs',
+    recipe.requirements.reduce((sum, v) => sum + v.files.length, 0) +
+      (recipe.prerequisites || []).reduce((sum, v) => sum + v.files.length, 0) +
+      archiveSources.length,
+  );
   for (const required of recipe.requirements) {
     const root = options.games?.[required.id];
     if (typeof root !== 'string' || !path.isAbsolute(root))
@@ -77,7 +91,12 @@ async function inspectInputs(file, options) {
     ordinaryDirectory(root);
     gameRoots.set(required.id, path.resolve(root));
     for (const locked of required.files)
-      await verifyFile(path.join(root, locked.path), locked, options.signal);
+      await verifyFile(
+        path.join(root, locked.path),
+        locked,
+        options.signal,
+        activity,
+      );
   }
   const prerequisiteRoots = new Map();
   for (const prerequisite of recipe.prerequisites || []) {
@@ -87,7 +106,12 @@ async function inspectInputs(file, options) {
     ordinaryDirectory(root);
     prerequisiteRoots.set(prerequisite.id, path.resolve(root));
     for (const locked of prerequisite.files)
-      await verifyFile(path.join(root, locked.path), locked, options.signal);
+      await verifyFile(
+        path.join(root, locked.path),
+        locked,
+        options.signal,
+        activity,
+      );
   }
   for (const source of recipe.sources) {
     if (source.type === 'payload')
@@ -119,7 +143,12 @@ async function inspectInputs(file, options) {
         );
       ordinaryFile(archive, 50_000_000_000);
       if (kind === 'zip') {
-        const snapshot = await verifyFile(archive, source, options.signal);
+        const snapshot = await verifyFile(
+          archive,
+          source,
+          options.signal,
+          activity,
+        );
         sources.set(source.id, { file: archive, archive: true, snapshot });
       } else {
         if (!options.sevenZip)
@@ -131,10 +160,13 @@ async function inspectInputs(file, options) {
           bytes: source.bytes,
           sha256: source.sha256,
         };
+        activity.start(source.bytes);
         const inspectedArchive = await options.sevenZip.inspect(
           candidate,
           options.signal,
+          (bytes) => activity.add(bytes),
         );
+        activity.finish();
         sources.set(source.id, {
           file: archive,
           archive: true,
@@ -213,6 +245,11 @@ async function materializeNative(file, destination, options = {}) {
       groups.set(input.file, group);
     }
   }
+  const archiveActivity = nativeActivity(
+    options.activity,
+    'archives',
+    groups.size,
+  );
   for (const group of groups.values()) {
     if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
       throw new Error('Archive changed after input verification.');
@@ -227,6 +264,7 @@ async function materializeNative(file, destination, options = {}) {
         )
       )
         throw new Error('Archive member size differs from expected output.');
+      archiveActivity.finish();
       continue;
     }
     const zip = await yauzl.openPromise(group.file, {
@@ -274,6 +312,7 @@ async function materializeNative(file, destination, options = {}) {
     }
     if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
       throw new Error('Archive changed during preflight.');
+    archiveActivity.finish();
   }
   options.signal?.throwIfAborted();
   options.sevenZip?.guard();
@@ -289,6 +328,11 @@ async function materializeNative(file, destination, options = {}) {
   fs.mkdirSync(target); // Exclusive directory creation prevents existing-folder reuse.
   const rootIdentity = ordinaryDirectory(target);
   let completed = 0;
+  const outputActivity = nativeActivity(
+    options.activity,
+    'outputs',
+    outputs.length,
+  );
   const receiptFile = path.join(target, '.loadstone-native.json');
   function guard() {
     if (ordinaryDirectory(target).ino !== rootIdentity.ino)
@@ -338,11 +382,13 @@ async function materializeNative(file, destination, options = {}) {
   }
   function completedOutput() {
     completed++;
+    outputActivity.finish();
     if (completed % 100 === 0) receipt('materializing');
     options.progress?.({ completed, total: recipe.outputs.length });
   }
   async function writeOutput(openStream, output) {
     options.signal?.throwIfAborted();
+    outputActivity.start(output.bytes);
     const destinationFile = outputPath(output.path),
       digest = crypto.createHash('sha256');
     let bytes = 0;
@@ -352,6 +398,7 @@ async function materializeNative(file, destination, options = {}) {
         if (bytes > output.bytes)
           return callback(new Error('Output exceeds its declared size.'));
         digest.update(chunk);
+        outputActivity.add(chunk.length);
         callback(null, chunk);
       },
     });
@@ -374,6 +421,7 @@ async function materializeNative(file, destination, options = {}) {
       options.signal?.throwIfAborted();
       if (!current) {
         const output = group.outputs.get(entry.name)[0];
+        outputActivity.start(output.bytes);
         const file = outputPath(output.path);
         current = {
           entry,
@@ -400,6 +448,7 @@ async function materializeNative(file, destination, options = {}) {
             if (item.bytes > item.output.bytes)
               throw new Error('Output exceeds its declared size.');
             item.digest.update(chunk);
+            outputActivity.add(chunk.length);
             let offset = 0;
             while (offset < chunk.length) {
               options.signal?.throwIfAborted();
@@ -488,9 +537,19 @@ async function materializeNative(file, destination, options = {}) {
       if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
         throw new Error('Archive changed during extraction.');
     }
+    const verificationActivity = nativeActivity(
+      options.activity,
+      'verification',
+      outputs.length,
+    );
     for (const output of outputs) {
       guard();
-      await verifyFile(path.join(target, output.path), output, options.signal);
+      await verifyFile(
+        path.join(target, output.path),
+        output,
+        options.signal,
+        verificationActivity,
+      );
     }
     if (generated.size) {
       for (const folder of [

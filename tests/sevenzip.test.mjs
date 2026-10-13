@@ -122,7 +122,11 @@ test(
     const adapter = await createSevenZip(executable),
       candidate = { archive, ...fingerprint(fs.readFileSync(archive)) };
     assert.equal(adapter.batch7z, true);
-    const inspected = await adapter.inspect(candidate);
+    let inspectedBytes = 0;
+    const inspected = await adapter.inspect(candidate, undefined, (bytes) => {
+      inspectedBytes += bytes;
+    });
+    assert.equal(inspectedBytes, candidate.bytes);
     const wanted = new Set(
       [...files.values()].map((data) => {
         const f = fingerprint(data);

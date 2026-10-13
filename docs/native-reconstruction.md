@@ -10,6 +10,10 @@ If the inputs include 7z/RAR archives, select a trusted local **7-Zip x64 26.04 
 
 Progress and cancellation remain in this Settings card. Success says **Files verified · Launch untested**. Native candidates are not added to the playable library or given shortcuts. Native builds, other installations/removal and engine preparation cannot start over one another; the close guard keeps Loadstone open until selection/build/cancellation finishes.
 
+Active builds distinguish source-file checks, archive-structure checks, writing outputs and final-file verification. The display shows completed files within the current stage and bytes in the current file, so large files can show activity before a file-count increment. Writing every output does not finish the build: final hashes must still pass. Byte updates are throttled; these are measured counts, not an overall time estimate. The CLI also reports phase changes and bounded periodic activity without source paths. Reading/validating the package itself still precedes this phase reporting.
+
+Phase activity exists only in memory and is absent from persisted build history and diagnostic exports. Restarted builds keep the existing interrupted-state behavior, rather than presenting stale phase progress as active work. Cancellation and failure still preserve any partial candidate.
+
 `native-builds.json` in the local app-data folder retains up to 100 build records, including destination, recipe fingerprint, progress and status. It contains no credential, source archive paths, local-input map or raw tool output and is excluded from diagnostic exports. Invalid/newer history is preserved and refused, rather than silently reset. Active records become `interrupted` after restart without resuming work. Cancelled, failed and interrupted candidates remain on disk; prepare a new build to retry into a new directory. Automatic resume/repair and build-history management remain unfinished. A failed history write stops the operation and requires restart for recovery.
 
 ## Local command

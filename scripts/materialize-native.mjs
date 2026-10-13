@@ -33,12 +33,26 @@ process.once('SIGINT', () => controller.abort());
 const sevenZip = extra.length
   ? await createSevenZip(extra[1], { signal: controller.signal })
   : undefined;
+let lastActivityPhase,
+  lastActivityLog = 0;
 const result = await materializeNative(file, destination, {
   sevenZip,
   games: inputs.games,
   archives: inputs.archives,
   prerequisites: inputs.prerequisites,
   signal: controller.signal,
+  activity: (value) => {
+    const now = Date.now();
+    if (
+      value.phase !== lastActivityPhase ||
+      value.completed === value.total ||
+      now - lastActivityLog >= 1000
+    ) {
+      lastActivityPhase = value.phase;
+      lastActivityLog = now;
+      console.log(JSON.stringify({ activity: value }));
+    }
+  },
   progress: (value) => {
     if (value.completed % 100 === 0 || value.completed === value.total)
       console.log(JSON.stringify(value));

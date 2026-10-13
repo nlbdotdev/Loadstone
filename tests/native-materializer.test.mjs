@@ -87,6 +87,62 @@ test('native reconstruction copies owned inputs and locked ZIP/payload bytes int
     /new, ordinary destination/,
   );
 });
+
+test('native activity separates input checks, archive checks, writing and final verification without exposing paths', async () => {
+  const f = await fixture(),
+    events = [];
+  let reconstructed = 0;
+  await materializeNative(f.package, f.destination, {
+    ...f.options,
+    progress: (v) => {
+      reconstructed = v.completed;
+    },
+    activity: (v) => {
+      events.push(v);
+      assert.deepEqual(Object.keys(v).sort(), [
+        'bytes',
+        'completed',
+        'phase',
+        'total',
+        'totalBytes',
+      ]);
+      for (const key of ['bytes', 'completed', 'total', 'totalBytes'])
+        assert.ok(Number.isSafeInteger(v[key]) && v[key] >= 0);
+      assert.ok(v.bytes <= v.totalBytes);
+      assert.ok(v.completed <= v.total);
+      if (v.phase === 'inputs' || v.phase === 'archives')
+        assert.equal(fs.existsSync(f.destination), false);
+      if (v.phase === 'verification')
+        assert.equal(reconstructed, f.recipe.outputs.length);
+    },
+  });
+  assert.deepEqual(
+    [...new Set(events.map((v) => v.phase))],
+    ['inputs', 'archives', 'outputs', 'verification'],
+  );
+  for (const phase of ['inputs', 'archives', 'outputs', 'verification']) {
+    const items = events.filter((v) => v.phase === phase);
+    assert.equal(items[0].completed, 0);
+    assert.equal(items.at(-1).completed, items.at(-1).total);
+  }
+  assert.equal(events.findLast((v) => v.phase === 'inputs').total, 2);
+  assert.equal(events.findLast((v) => v.phase === 'archives').total, 2);
+  assert.equal(events.at(-1).total, f.recipe.outputs.length);
+  assert.equal(JSON.stringify(events).includes(f.root), false);
+  const cancelled = await fixture(),
+    controller = new AbortController();
+  await assert.rejects(
+    materializeNative(cancelled.package, cancelled.destination, {
+      ...cancelled.options,
+      signal: controller.signal,
+      activity: (v) => {
+        if (v.phase === 'inputs' && v.bytes > 0) controller.abort();
+      },
+    }),
+    { name: 'AbortError' },
+  );
+  assert.equal(fs.existsSync(cancelled.destination), false);
+});
 test('native preflight rejects wrong game/archive bytes, redirects, source overlap and unsafe ZIP entries before writes', async () => {
   const f = await fixture();
   await assert.rejects(
