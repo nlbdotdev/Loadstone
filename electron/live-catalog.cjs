@@ -28,8 +28,9 @@ function contains(parent, child) {
   );
 }
 class LiveCatalog {
-  constructor(root, applicationRoots = []) {
+  constructor(root, applicationRoots = [], candidateRoots = () => []) {
     this.applicationRoots = applicationRoots;
+    this.candidateRoots = candidateRoots;
     this.file = path.join(root, 'live-catalog.json');
     this.entries = [];
     if (fs.existsSync(this.file)) {
@@ -190,6 +191,7 @@ class LiveCatalog {
         );
       const protectedRoots = [
         ...this.applicationRoots,
+        ...this.candidateRoots(),
         process.env.WINDIR,
         process.env.ProgramFiles,
         process.env['ProgramFiles(x86)'],

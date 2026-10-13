@@ -30,7 +30,13 @@ function protectActiveWork(app, window, dialog, activity) {
   window.once('closed', () => app.removeListener('before-quit', guard));
 }
 
-function currentActivity(installer, runtime, nativeBuilder) {
+function currentActivity(installer, runtime, nativeBuilder, nativeLibrary) {
+  if (nativeLibrary?.busy)
+    return {
+      message: 'A native library operation is still running.',
+      detail:
+        'Finish the selection or cancel file verification in My library before closing. Candidate files are retained.',
+    };
   if (nativeBuilder?.busy)
     return {
       message: 'A native candidate is being prepared or built.',

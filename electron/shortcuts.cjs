@@ -43,12 +43,12 @@ function removeDesktopShortcut(job, desktop, shell) {
     );
   fs.unlinkSync(file);
 }
-function createDesktopShortcut(job, desktop, shell) {
+function createDesktopShortcut(job, desktop, shell, resolvePlan = launchPlan) {
   if (process.platform !== 'win32')
     throw new Error('Desktop shortcuts currently require Windows.');
   if (!/^[a-f0-9-]{36}$/.test(job?.id))
     throw new Error('Invalid installation identity.');
-  const plan = launchPlan(job);
+  const plan = resolvePlan(job);
   const { file, description, root } = desktopIdentity(job, desktop);
   const exists = fs.existsSync(file);
   if (exists) {

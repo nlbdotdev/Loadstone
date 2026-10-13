@@ -145,16 +145,17 @@ class SteamShortcuts {
       this.busy = false;
     }
   }
-  async create(job, accountId) {
+  async create(job, accountId, resolvePlan = launchPlan) {
     if (this.busy) throw new Error('Another Steam shortcut update is running.');
     this.busy = true;
     try {
-      const plan = launchPlan(job);
+      resolvePlan(job);
       const account = (await this.accounts()).find(
         (item) => item.id === accountId,
       );
       if (!account) throw new Error('Select an available local Steam account.');
       await this.closed();
+      const plan = resolvePlan(job);
       const snapshot = this.read(account);
       const { entries } = snapshot;
       const marker = `Loadstone:${job.id}`,

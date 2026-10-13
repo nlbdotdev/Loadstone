@@ -22,6 +22,17 @@ contextBridge.exposeInMainWorld('loadstone', {
   prepareNativeBuild: () => ipcRenderer.invoke('native:prepare'),
   startNativeBuild: (id) => ipcRenderer.invoke('native:start', id),
   cancelNativeBuild: (id) => ipcRenderer.invoke('native:cancel', id),
+  nativeLibrary: () => ipcRenderer.invoke('native-library:list'),
+  prepareNativeLibrary: () => ipcRenderer.invoke('native-library:prepare'),
+  registerNativeLibrary: (id) =>
+    ipcRenderer.invoke('native-library:register', id),
+  verifyNativeLibrary: (id) => ipcRenderer.invoke('native-library:verify', id),
+  cancelNativeVerification: () => ipcRenderer.invoke('native-library:cancel'),
+  launchNative: (id) => ipcRenderer.invoke('native-library:launch', id),
+  nativeDesktopShortcut: (id) =>
+    ipcRenderer.invoke('native-library:desktop', id),
+  nativeSteamShortcut: (id, accountId) =>
+    ipcRenderer.invoke('native-library:steam', id, accountId),
   discoverGames: () => ipcRenderer.invoke('live:games'),
   preflight: (options) => ipcRenderer.invoke('live:preflight', options),
   liveJobs: () => ipcRenderer.invoke('live:jobs'),

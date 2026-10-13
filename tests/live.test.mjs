@@ -469,7 +469,7 @@ test(
         .click();
       await page
         .getByRole('heading', {
-          name: 'No live setups installed yet',
+          name: 'No Wabbajack setups installed yet',
           exact: true,
         })
         .waitFor();
@@ -629,7 +629,8 @@ test('installation preflight rejects setups inside the packaged application dire
   fs.mkdirSync(application);
   const file = path.join(root, 'setup.json');
   fs.writeFileSync(file, JSON.stringify(fixtureManifest()));
-  const catalog = new LiveCatalog(data, [application]);
+  const candidates = [];
+  const catalog = new LiveCatalog(data, [application], () => candidates);
   catalog.import(file);
   const result = await catalog.preflight({
     id: 'test-setup',
@@ -642,4 +643,17 @@ test('installation preflight rejects setups inside the packaged application dire
   assert.equal(location.status, 'fail');
   assert.match(location.detail, /outside system and Loadstone folders/);
   assert.equal(fs.existsSync(path.join(application, 'setup')), false);
+  const candidate = path.join(root, 'native-candidate');
+  fs.mkdirSync(candidate);
+  candidates.push(candidate);
+  const nativeResult = await catalog.preflight({
+    id: 'test-setup',
+    gameFolder: path.join(root, 'game'),
+    destination: path.join(candidate, 'nested-setup'),
+  });
+  assert.equal(
+    nativeResult.checks.find((v) => v.name === 'Installation folder').status,
+    'fail',
+  );
+  assert.equal(fs.existsSync(path.join(candidate, 'nested-setup')), false);
 });

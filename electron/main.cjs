@@ -10,7 +10,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { Store } = require('./store.cjs');
 const { protectActiveWork, currentActivity } = require('./close-guard.cjs');
-const { LiveCatalog } = require('./live-catalog.cjs');
+const { LiveCatalog, contains, canonical } = require('./live-catalog.cjs');
 const { steamRoots, discoverGames } = require('./game-discovery.cjs');
 const { Runtime } = require('./runtime.cjs');
 const { NexusAccount } = require('./nexus.cjs');
@@ -25,6 +25,7 @@ const { diagnostics } = require('./diagnostics.cjs');
 const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
 const { NativeBuilder } = require('./native-builder.cjs');
+const { NativeLibrary, nativeLaunchPlan } = require('./native-library.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -41,11 +42,15 @@ else {
     .whenReady()
     .then(() => {
       store = new Store(app.getPath('userData'));
-      live = new LiveCatalog(app.getPath('userData'), [
-        app.isPackaged
-          ? path.dirname(process.execPath)
-          : path.resolve(__dirname, '..'),
-      ]);
+      live = new LiveCatalog(
+        app.getPath('userData'),
+        [
+          app.isPackaged
+            ? path.dirname(process.execPath)
+            : path.resolve(__dirname, '..'),
+        ],
+        () => nativeLibrary.entries.map((v) => v.root),
+      );
       runtime = new Runtime(app.getPath('userData'));
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
@@ -63,7 +68,8 @@ else {
             installer.starting ||
             installer.running ||
             installer.maintenance ||
-            runtime.controller
+            runtime.controller ||
+            nativeLibrary.busy
           )
             throw new Error(
               'Wait for the current installation, removal or engine preparation.',
@@ -74,12 +80,50 @@ else {
             ? path.dirname(process.execPath)
             : path.resolve(__dirname, '..'),
           ...installer.jobs.map((v) => v.destination).filter(Boolean),
+          ...nativeLibrary.entries.map((v) => v.root),
         ],
       });
+      const nativeLibrary = new NativeLibrary(app.getPath('userData'), {
+        assertAvailable: () => {
+          if (store.state.settings.dummyData)
+            throw new Error(
+              'Switch to the live workspace to manage native setups.',
+            );
+          if (
+            nativeBuilder.busy ||
+            installer.starting ||
+            installer.running ||
+            installer.maintenance ||
+            runtime.controller
+          )
+            throw new Error('Wait for installation or maintenance to finish.');
+        },
+        checkRoot: (root) => {
+          const selected = canonical(root);
+          const protectedRoots = [
+            app.getPath('userData'),
+            app.isPackaged
+              ? path.dirname(process.execPath)
+              : path.resolve(__dirname, '..'),
+            ...installer.jobs.map((v) => v.destination).filter(Boolean),
+            ...nativeLibrary.entries.map((v) => v.root),
+          ];
+          if (
+            protectedRoots.some(
+              (v) =>
+                contains(canonical(v), selected) ||
+                contains(selected, canonical(v)),
+            )
+          )
+            throw new Error(
+              'Choose a separate native candidate outside application data and existing installations.',
+            );
+        },
+      });
       const idleNative = () => {
-        if (nativeBuilder.busy)
+        if (nativeBuilder.busy || nativeLibrary.busy)
           throw new Error(
-            'Wait for the native build or cancel it in Settings.',
+            'Wait for the native build or library operation to finish.',
           );
       };
       const steamShortcuts = new SteamShortcuts();
@@ -167,7 +211,7 @@ else {
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       window.webContents.on('will-navigate', (event) => event.preventDefault());
       protectActiveWork(app, window, dialog, () =>
-        currentActivity(installer, runtime, nativeBuilder),
+        currentActivity(installer, runtime, nativeBuilder, nativeLibrary),
       );
       window.once('ready-to-show', () => window.show());
       window.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -250,6 +294,39 @@ else {
       );
       handle('native:start', (id) => nativeBuilder.start(id));
       handle('native:cancel', (id) => nativeBuilder.cancel(id));
+      handle('native-library:list', () => nativeLibrary.list());
+      handle('native-library:prepare', () =>
+        nativeLibrary.prepare(async () => {
+          const result = await dialog.showOpenDialog(window, {
+            title: 'Choose a completed native candidate',
+            properties: ['openDirectory'],
+          });
+          return result.canceled ? null : result.filePaths[0];
+        }),
+      );
+      handle('native-library:register', (id) => nativeLibrary.register(id));
+      handle('native-library:verify', (id) => nativeLibrary.verify(id));
+      handle('native-library:cancel', () => nativeLibrary.cancel());
+      handle('native-library:launch', (id) => nativeLibrary.launch(id));
+      handle('native-library:desktop', (id) => {
+        const job = nativeLibrary.shortcutJob(id);
+        createDesktopShortcut(
+          job,
+          app.getPath('desktop'),
+          shell,
+          nativeLaunchPlan,
+        );
+        return 'Desktop shortcut created. It opens this candidate’s declared MO2 profile.';
+      });
+      handle('native-library:steam', async (id, accountId) => {
+        const job = nativeLibrary.shortcutJob(id);
+        nativeLibrary.busy = true;
+        try {
+          return await steamShortcuts.create(job, accountId, nativeLaunchPlan);
+        } finally {
+          nativeLibrary.busy = false;
+        }
+      });
       handle('live:install-root', () => {
         const root = store.state.settings.installRoot;
         const relative = path.relative(app.getPath('userData'), root);
