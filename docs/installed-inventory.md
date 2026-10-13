@@ -31,7 +31,21 @@ node scripts/map-zip-sources.mjs private-ledger.json new-private-mapping.json
 
 The first member mapper verifies each candidate ZIP against its locked archive hash, then streams member hashes and compares them with installed size/SHA-256 pairs. It records exact member paths, retains all matching candidates and leaves locally changed files unresolved. It does not extract files or execute content. MO2 `meta.ini` is excluded because it needs privacy-aware regeneration. Each ZIP is accepted as a whole: unsafe paths, duplicate/colliding names, links, changed input or limit violations discard its potential matches. A cancellation aborts the pass.
 
-Limits per archive: 50 GB compressed input, 500,000 entries, 100 GB declared uncompressed content, 1 GB per hashed member and 20 GB of hashed member data. Equivalent member candidates are limited to 128 per size/hash pair; the report accepts at most 500,000 match references. 7z/RAR comparison is not yet implemented and remains explicit in the unresolved-archive list. Exact byte matches still require source/rights review, profile and root reconstruction, and actual installation acceptance.
+Limits per archive: 50 GB compressed input, 500,000 entries, 100 GB declared uncompressed content, 1 GB per hashed member and 20 GB of hashed member data. Equivalent member candidates are limited to 128 per size/hash pair; the report accepts at most 500,000 match references. Exact byte matches still require source/rights review, profile and root reconstruction, and actual installation acceptance.
+
+For optional 7z/RAR comparison, pass an absolute path to a trusted local x64 `7z.exe` (26.04 or newer, with its matching `7z.dll`):
+
+```powershell
+node scripts/map-zip-sources.mjs private-ledger.json new-private-mapping.json C:\Tools\7-Zip\7z.exe
+```
+
+The command retains its original name for existing workflows; this optional argument enables the additional formats. The tool path comes from the operator, never from a recipe. It runs without a shell or visible window, inventories the archive, rejects encrypted/linked/multipart/embedded or ambiguous entries, and reads each selected member into a bounded hashing stream. Nothing is extracted to disk. Literal selectors disable wildcards and list-file expansion. Archive and executable/library identities are checked between reads. Tool diagnostics stay out of reports.
+
+This first adapter launches one process per selected member, so solid archives can be slow. Each archive has a five-minute budget and at most 10,000 selected members; a timeout or limit discards its matches and records an unresolved issue. Large BSA members over 1 GB remain unresolved. The adapter is source comparison only; native reconstruction still accepts ZIP archives. No 7-Zip binary is bundled with Loadstone.
+
+For tests, `scripts/prepare-sevenzip.ps1 -Destination <new-private-directory>` downloads the fixed official 26.04 x64 release, checks its published SHA-256, and unpacks only the command-line tool and notices with an existing 7-Zip. It does not install globally. Set `LOADSTONE_TEST_7ZIP` to the returned executable when running tests. Windows CI performs this setup and runs the real tool fixture; without the variable that optional integration test is skipped.
+
+7-Zip is a separate upstream tool with LGPL, BSD and unRAR terms; a future bundled distribution needs its own notices/source compliance review. See the [official release](https://github.com/ip7z/7zip/releases/tag/26.04) and [license](https://www.7-zip.org/license.txt).
 
 ## Native `.loadstone` format
 

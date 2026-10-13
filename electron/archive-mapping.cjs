@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const yauzl = require('yauzl');
 const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
+const { inspectSevenZipMembers } = require('./sevenzip.cjs');
 
 async function inspectZipMembers(candidate, wanted, signal) {
   signal?.throwIfAborted();
@@ -97,7 +98,7 @@ async function inspectZipMembers(candidate, wanted, signal) {
   return matches;
 }
 
-async function mapZipSources(ledger, options = {}) {
+async function mapArchiveSources(ledger, options = {}) {
   if (
     ledger?.kind !== 'loadstone-source-ledger' ||
     ledger.schemaVersion !== 1 ||
@@ -157,7 +158,11 @@ async function mapZipSources(ledger, options = {}) {
   let matchReferences = 0;
   for (const { candidate, mods } of archiveGroups.values()) {
     options.signal?.throwIfAborted();
-    if (path.extname(candidate.archive).toLowerCase() !== '.zip') {
+    const extension = path.extname(candidate.archive).toLowerCase();
+    if (
+      extension !== '.zip' &&
+      (!options.sevenZip || !['.7z', '.rar'].includes(extension))
+    ) {
       issues.push({
         archive: candidate.archive,
         reason:
@@ -173,11 +178,15 @@ async function mapZipSources(ledger, options = {}) {
       ),
     );
     try {
-      const matched = await inspectZipMembers(
-        candidate,
-        wanted,
-        options.signal,
-      );
+      const matched =
+        extension === '.zip'
+          ? await inspectZipMembers(candidate, wanted, options.signal)
+          : await inspectSevenZipMembers(
+              candidate,
+              wanted,
+              options.sevenZip,
+              options.signal,
+            );
       let proposed = 0;
       for (const mod of mods)
         for (const file of mod.installedFiles) {
@@ -224,7 +233,8 @@ async function mapZipSources(ledger, options = {}) {
   }
   const files = result.mods.flatMap((mod) => mod.installedFiles);
   result.mapping = {
-    kind: 'zip-member-sha256',
+    kind: options.sevenZip ? 'archive-member-sha256' : 'zip-member-sha256',
+    ...(options.sevenZip ? { sevenZipVersion: options.sevenZip.version } : {}),
     inspected,
     issues,
     matchedInstalledFiles: files.filter((file) => file.sourceMatches.length)
@@ -235,11 +245,11 @@ async function mapZipSources(ledger, options = {}) {
   result.installable = false;
   result.publicationApproved = false;
   result.blockers = [
-    'Only exact matches in safely inspected ZIP candidates are recorded; other formats and unmatched files remain unresolved.',
+    'Only exact matches in safely inspected archive candidates are recorded; unsupported archives and unmatched files remain unresolved.',
     'Local MO2 metadata is intentionally excluded from archive matching and needs safe regeneration.',
     'Root/game files, profile reconstruction, local edits and generated content require further mapping.',
     'A byte match does not establish credits, permissions, save compatibility or gameplay acceptance.',
   ];
   return result;
 }
-module.exports = { mapZipSources };
+module.exports = { mapArchiveSources, mapZipSources: mapArchiveSources };
