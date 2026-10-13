@@ -4,6 +4,8 @@ const crypto = require('node:crypto');
 const { inspectNativePackage, ordinaryFile } = require('./native-package.cjs');
 const { materializeNative } = require('./native-materializer.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
+const { archiveKind } = require('./archive-kind.cjs');
+const { createSevenZip } = require('./sevenzip.cjs');
 
 const statuses = new Set([
   'queued',
@@ -196,7 +198,7 @@ class NativeBuilder {
     if (persist) this.save(jobs);
     this.jobs = jobs;
   }
-  async prepare(choose) {
+  async prepare(choose, chooseArchiveTool) {
     if (this.persistenceFailed)
       throw new Error('Restart Loadstone to recover native build history.');
     if (this.busy)
@@ -218,6 +220,19 @@ class NativeBuilder {
         throw new Error('Choose a native package and a local parent folder.');
       const inspected = await inspectNativePackage(selected.packageFile);
       const inputs = readInputs(selected.inputsFile, inspected.recipe);
+      const needsTool = Object.values(inputs.archives).some((file) =>
+        ['7z', 'rar', 'rar5'].includes(archiveKind(file)),
+      );
+      let sevenZip;
+      if (needsTool) {
+        if (!chooseArchiveTool)
+          throw new Error(
+            'Select a trusted local 7z.exe to reconstruct this package.',
+          );
+        const executable = await chooseArchiveTool();
+        if (!executable) return null;
+        sevenZip = await createSevenZip(executable);
+      }
       const id = crypto.randomUUID();
       const summary = {
         id,
@@ -233,8 +248,14 @@ class NativeBuilder {
         requiredGames: inspected.summary.requiredGames,
         prerequisites: inspected.summary.prerequisites,
         archiveCount: Object.keys(inputs.archives).length,
+        archiveTool: sevenZip ? `7-Zip ${sevenZip.version} x64` : null,
       };
-      this.plan = { summary, packageFile: selected.packageFile, inputs };
+      this.plan = {
+        summary,
+        packageFile: selected.packageFile,
+        inputs,
+        sevenZip,
+      };
       return structuredClone(summary);
     } finally {
       this.preparing = false;
@@ -291,6 +312,7 @@ class NativeBuilder {
       this.change(id, { status: 'building' });
       await materializeNative(plan.packageFile, destination, {
         ...plan.inputs,
+        sevenZip: plan.sevenZip,
         expectedRecipeSha256: recipeSha256,
         signal: controller.signal,
         protectedRoots: [

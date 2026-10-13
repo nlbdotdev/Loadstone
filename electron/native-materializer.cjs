@@ -109,17 +109,39 @@ async function inspectInputs(file, options) {
       });
     else {
       const archive = options.archives?.[source.id];
-      if (
-        typeof archive !== 'string' ||
-        !path.isAbsolute(archive) ||
-        archiveKind(archive) !== 'zip'
-      )
+      if (typeof archive !== 'string' || !path.isAbsolute(archive))
+        throw new Error('Select every required local archive.');
+      const kind = archiveKind(archive);
+      if (!['zip', '7z', 'rar', 'rar5'].includes(kind))
         throw new Error(
-          'This native materializer requires verified local ZIP archives; 7z/RAR and downloads are not implemented.',
+          'Native reconstruction supports ZIP, 7z and RAR archives.',
         );
       ordinaryFile(archive, 50_000_000_000);
-      const snapshot = await verifyFile(archive, source, options.signal);
-      sources.set(source.id, { file: archive, archive: true, snapshot });
+      if (kind === 'zip') {
+        const snapshot = await verifyFile(archive, source, options.signal);
+        sources.set(source.id, { file: archive, archive: true, snapshot });
+      } else {
+        if (!options.sevenZip)
+          throw new Error(
+            'Select a trusted 7-Zip x64 26.04 or newer tool to reconstruct 7z/RAR archives.',
+          );
+        const candidate = {
+          archive,
+          bytes: source.bytes,
+          sha256: source.sha256,
+        };
+        const inspectedArchive = await options.sevenZip.inspect(
+          candidate,
+          options.signal,
+        );
+        sources.set(source.id, {
+          file: archive,
+          archive: true,
+          snapshot: inspectedArchive.snapshot,
+          candidate,
+          inspectedArchive,
+        });
+      }
     }
   }
   return { inspected, gameRoots, prerequisiteRoots, sources };
@@ -145,6 +167,7 @@ async function materializeNative(file, destination, options = {}) {
     path.dirname(file),
     ...gameRoots.values(),
     ...prerequisiteRoots.values(),
+    options.sevenZip?.directory,
     ...[...sources.values()]
       .filter((v) => v.archive)
       .map((v) => path.dirname(v.file)),
@@ -160,7 +183,7 @@ async function materializeNative(file, destination, options = {}) {
         'Keep native installation separate from source, game, application and system folders.',
       );
   }
-  // Reject unsupported ZIP structure before creating the destination. Hash
+  // Reject unsupported archive structure before creating the destination. Hash
   // verification already locked each selected archive's exact bytes.
   const groups = new Map();
   for (const output of recipe.outputs) {
@@ -169,6 +192,8 @@ async function materializeNative(file, destination, options = {}) {
       const group = groups.get(input.file) || {
         file: input.file,
         snapshot: input.snapshot,
+        candidate: input.candidate,
+        inspectedArchive: input.inspectedArchive,
         outputs: new Map(),
       };
       const member = input.package ? input.member : output.action.member;
@@ -179,6 +204,19 @@ async function materializeNative(file, destination, options = {}) {
   for (const group of groups.values()) {
     if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
       throw new Error('Archive changed after input verification.');
+    if (group.inspectedArchive) {
+      const { selected } = options.sevenZip.planExtraction(
+        group.inspectedArchive,
+        new Set(group.outputs.keys()),
+      );
+      if (
+        selected.some((entry) =>
+          group.outputs.get(entry.name).some((v) => v.bytes !== entry.bytes),
+        )
+      )
+        throw new Error('Archive member size differs from expected output.');
+      continue;
+    }
     const zip = await yauzl.openPromise(group.file, {
       lazyEntries: true,
       autoClose: false,
@@ -226,6 +264,7 @@ async function materializeNative(file, destination, options = {}) {
       throw new Error('Archive changed during preflight.');
   }
   options.signal?.throwIfAborted();
+  options.sevenZip?.guard();
   const space = fs.statfsSync(path.dirname(target), { bigint: true });
   const needed =
     BigInt(inspected.summary.installBytes) +
@@ -275,6 +314,11 @@ async function materializeNative(file, destination, options = {}) {
     }
     return path.join(target, relative);
   }
+  function completedOutput() {
+    completed++;
+    if (completed % 100 === 0) receipt('materializing');
+    options.progress?.({ completed, total: recipe.outputs.length });
+  }
   async function writeOutput(openStream, output) {
     options.signal?.throwIfAborted();
     const destinationFile = outputPath(output.path),
@@ -298,9 +342,76 @@ async function materializeNative(file, destination, options = {}) {
     );
     if (bytes !== output.bytes || digest.digest('hex') !== output.sha256)
       throw new Error('Reconstructed file does not match the recipe.');
-    completed++;
-    if (completed % 100 === 0) receipt('materializing');
-    options.progress?.({ completed, total: recipe.outputs.length });
+    completedOutput();
+  }
+  async function extractWithTool(group) {
+    // Only Loadstone opens output paths. One file is open at a time, and each
+    // write is awaited before reading more bytes from the archive process.
+    let current;
+    async function begin(entry) {
+      options.signal?.throwIfAborted();
+      if (!current) {
+        const output = group.outputs.get(entry.name)[0];
+        const file = outputPath(output.path);
+        current = {
+          entry,
+          output,
+          file,
+          bytes: 0,
+          digest: crypto.createHash('sha256'),
+          handle: await fs.promises.open(file, 'wx'),
+        };
+      }
+      if (current.entry !== entry)
+        throw new Error('Archive output order changed.');
+      return current;
+    }
+    try {
+      await options.sevenZip.extractMembers(
+        group.candidate,
+        group.inspectedArchive,
+        new Set(group.outputs.keys()),
+        {
+          async consume(entry, chunk) {
+            const item = await begin(entry);
+            item.bytes += chunk.length;
+            if (item.bytes > item.output.bytes)
+              throw new Error('Output exceeds its declared size.');
+            item.digest.update(chunk);
+            let offset = 0;
+            while (offset < chunk.length) {
+              options.signal?.throwIfAborted();
+              const { bytesWritten } = await item.handle.write(
+                chunk,
+                offset,
+                chunk.length - offset,
+              );
+              if (!bytesWritten)
+                throw new Error('Could not write reconstructed output.');
+              offset += bytesWritten;
+            }
+          },
+          async finish(entry) {
+            const item = await begin(entry);
+            await item.handle.sync();
+            await item.handle.close();
+            item.handle = null;
+            if (
+              item.bytes !== item.output.bytes ||
+              item.digest.digest('hex') !== item.output.sha256
+            )
+              throw new Error('Reconstructed file does not match the recipe.');
+            completedOutput();
+            for (const output of group.outputs.get(entry.name).slice(1))
+              await writeOutput(() => fs.createReadStream(item.file), output);
+            current = null;
+          },
+        },
+        options.signal,
+      );
+    } finally {
+      await current?.handle?.close();
+    }
   }
   try {
     receipt('materializing');
@@ -318,6 +429,10 @@ async function materializeNative(file, destination, options = {}) {
     for (const group of groups.values()) {
       if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
         throw new Error('Source archive changed before extraction.');
+      if (group.inspectedArchive) {
+        await extractWithTool(group);
+        continue;
+      }
       const zip = await yauzl.openPromise(group.file, {
         lazyEntries: true,
         autoClose: false,
