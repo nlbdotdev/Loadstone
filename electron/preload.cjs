@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('loadstone', {
   verifyRuntime: () => ipcRenderer.invoke('runtime:verify'),
   cancelRuntime: () => ipcRenderer.invoke('runtime:cancel'),
   importManifest: () => ipcRenderer.invoke('live:import'),
+  inspectNativePackage: () => ipcRenderer.invoke('native:inspect'),
   discoverGames: () => ipcRenderer.invoke('live:games'),
   preflight: (options) => ipcRenderer.invoke('live:preflight', options),
   liveJobs: () => ipcRenderer.invoke('live:jobs'),

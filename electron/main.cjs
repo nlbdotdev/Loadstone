@@ -23,6 +23,7 @@ const {
 const { SteamShortcuts } = require('./steam-shortcuts.cjs');
 const { diagnostics } = require('./diagnostics.cjs');
 const { Maintenance } = require('./maintenance.cjs');
+const { createNativePreview } = require('./native-preview.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -49,6 +50,7 @@ else {
       installer = new Installer(app.getPath('userData'), live, runtime, nexus);
       launcher = new Launcher(installer);
       const maintenance = new Maintenance(installer);
+      const nativePreview = createNativePreview();
       const steamShortcuts = new SteamShortcuts();
       const cleanupShortcuts = async (id) => {
         if (store.state.settings.dummyData)
@@ -163,6 +165,16 @@ else {
       handle('demo:library', (action, id) => store.library(action, id));
       handle('demo:reset', () => store.reset());
       handle('live:catalog', () => live.list());
+      handle('native:inspect', () =>
+        nativePreview(async () => {
+          const result = await dialog.showOpenDialog(window, {
+            title: 'Inspect a native Loadstone package',
+            properties: ['openFile'],
+            filters: [{ name: 'Loadstone package', extensions: ['loadstone'] }],
+          });
+          return result.canceled ? null : result.filePaths[0];
+        }),
+      );
       handle('live:install-root', () => {
         const root = store.state.settings.installRoot;
         const relative = path.relative(app.getPath('userData'), root);
