@@ -35,7 +35,7 @@ function currentActivity(installer, runtime, nativeBuilder, nativeLibrary) {
     return {
       message: 'A native library operation is still running.',
       detail:
-        'Finish the selection or cancel file verification in My library before closing. Candidate files are retained.',
+        'Finish the selection or stop the operation in My library before closing. A stopped removal retains its remaining files for recovery.',
     };
   if (nativeBuilder?.busy)
     return {

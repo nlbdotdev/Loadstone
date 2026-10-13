@@ -23,3 +23,5 @@ Run `pnpm check`, `pnpm test`, then `pnpm package` from a clean commit. Set `LOA
 Use a dedicated `LOADSTONE_DATA_DIR` for manual review. This isolates settings and credentials, but does not redirect Desktop or Steam operations. Automated shortcut tests use explicit temporary targets. Do not point a test workspace at data you need to preserve.
 
 The original [0.1.0 review](review-0.1.md) is historical evidence for the demo-only release. Its screenshots and claims do not certify the newer live installation features. See [Steam depot verification](steam-release.md) for the separate directory build and actual-client acceptance requirements.
+
+For native removal, use synthetic candidates and redirected Desktop/Steam fixtures. Exercise review cancellation, explicit confirmation, modified/untracked-file preservation, failure before the durable record, interrupted removal and restart/resume, blocked shortcut cleanup and retry. Verify source-game and save canaries remain unchanged; never use a live candidate for destructive fixture acceptance.

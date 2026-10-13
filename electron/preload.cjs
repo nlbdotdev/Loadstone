@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld('loadstone', {
   verifyNativeLibrary: (id) => ipcRenderer.invoke('native-library:verify', id),
   cancelNativeVerification: () => ipcRenderer.invoke('native-library:cancel'),
   launchNative: (id) => ipcRenderer.invoke('native-library:launch', id),
+  removeNative: (id) => ipcRenderer.invoke('native-library:remove', id),
+  cleanupNativeShortcuts: (id) =>
+    ipcRenderer.invoke('native-library:cleanup-shortcuts', id),
   nativeDesktopShortcut: (id) =>
     ipcRenderer.invoke('native-library:desktop', id),
   nativeSteamShortcut: (id, accountId) =>

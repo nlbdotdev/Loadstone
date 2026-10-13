@@ -68,6 +68,8 @@ export interface Bridge {
   verifyNativeLibrary(id: string): Promise<NativeLibraryState>;
   cancelNativeVerification(): Promise<void>;
   launchNative(id: string): Promise<NativeLibraryEntry[]>;
+  removeNative(id: string): Promise<NativeLibraryState>;
+  cleanupNativeShortcuts(id: string): Promise<NativeLibraryState>;
   nativeDesktopShortcut(id: string): Promise<string>;
   nativeSteamShortcut(
     id: string,
@@ -133,6 +135,11 @@ export interface Bridge {
   onState(callback: (state: AppState) => void): () => void;
 }
 export interface NativeLibraryEntry {
+  status: 'installed' | 'removing' | 'removal-failed' | 'removed';
+  recoveryRoot: string | null;
+  maintenanceError: string | null;
+  shortcutsCleaned: boolean;
+  shortcutError: string | null;
   id: string;
   name: string;
   version: string;
@@ -147,7 +154,11 @@ export interface NativeLibraryEntry {
 export interface NativeLibraryState {
   entries: NativeLibraryEntry[];
   busy: boolean;
-  progress: { completed: number; total: number } | null;
+  progress: {
+    completed: number;
+    total: number;
+    phase?: 'verification' | 'inventory' | 'removal-review' | 'removal';
+  } | null;
   error: string | null;
 }
 export interface NativeLibraryPlan {

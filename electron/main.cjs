@@ -26,6 +26,7 @@ const { Maintenance } = require('./maintenance.cjs');
 const { createNativePreview } = require('./native-preview.cjs');
 const { NativeBuilder } = require('./native-builder.cjs');
 const { NativeLibrary, nativeLaunchPlan } = require('./native-library.cjs');
+const { NativeMaintenance } = require('./native-maintenance.cjs');
 let window, store, timer, live, runtime, nexus, installer, launcher;
 if (process.env.LOADSTONE_DATA_DIR)
   app.setPath('userData', path.resolve(process.env.LOADSTONE_DATA_DIR));
@@ -41,6 +42,13 @@ else {
   app
     .whenReady()
     .then(() => {
+      const nativeRoots = (except) =>
+        nativeLibrary.entries
+          .filter((v) => v.id !== except)
+          .flatMap((v) => [
+            v.root,
+            ...(v.recoveryRoot ? [v.recoveryRoot] : []),
+          ]);
       store = new Store(app.getPath('userData'));
       live = new LiveCatalog(
         app.getPath('userData'),
@@ -49,7 +57,7 @@ else {
             ? path.dirname(process.execPath)
             : path.resolve(__dirname, '..'),
         ],
-        () => nativeLibrary.entries.map((v) => v.root),
+        () => nativeRoots(),
       );
       runtime = new Runtime(app.getPath('userData'));
       nexus = new NexusAccount(app.getPath('userData'), safeStorage);
@@ -80,7 +88,7 @@ else {
             ? path.dirname(process.execPath)
             : path.resolve(__dirname, '..'),
           ...installer.jobs.map((v) => v.destination).filter(Boolean),
-          ...nativeLibrary.entries.map((v) => v.root),
+          ...nativeRoots(),
         ],
       });
       const nativeLibrary = new NativeLibrary(app.getPath('userData'), {
@@ -106,7 +114,7 @@ else {
               ? path.dirname(process.execPath)
               : path.resolve(__dirname, '..'),
             ...installer.jobs.map((v) => v.destination).filter(Boolean),
-            ...nativeLibrary.entries.map((v) => v.root),
+            ...nativeRoots(),
           ];
           if (
             protectedRoots.some(
@@ -127,6 +135,46 @@ else {
           );
       };
       const steamShortcuts = new SteamShortcuts();
+      const nativeMaintenance = new NativeMaintenance(nativeLibrary, {
+        protectedRoots: (id) => [
+          app.isPackaged
+            ? path.dirname(process.execPath)
+            : path.resolve(__dirname, '..'),
+          ...installer.jobs.map((v) => v.destination).filter(Boolean),
+          ...nativeRoots(id),
+        ],
+      });
+      const cleanupNativeShortcuts = async (id) => {
+        nativeLibrary.available();
+        const entry = nativeLibrary.record(id);
+        if (entry.status !== 'removed')
+          throw new Error('Only removed native setups can clean up shortcuts.');
+        nativeLibrary.busy = true;
+        try {
+          const errors = [];
+          try {
+            removeDesktopShortcut(entry, app.getPath('desktop'), shell);
+          } catch (error) {
+            errors.push(error.message);
+          }
+          try {
+            await steamShortcuts.remove(entry);
+          } catch (error) {
+            errors.push(error.message);
+          }
+          nativeLibrary.change(id, {
+            shortcutsCleaned: !errors.length,
+            shortcutError:
+              errors
+                .join(' ')
+                .replace(/[\x00-\x1f]/g, ' ')
+                .slice(0, 2000) || null,
+          });
+          return nativeLibrary.list();
+        } finally {
+          nativeLibrary.busy = false;
+        }
+      };
       const cleanupShortcuts = async (id) => {
         if (store.state.settings.dummyData)
           throw new Error(
@@ -308,6 +356,23 @@ else {
       handle('native-library:verify', (id) => nativeLibrary.verify(id));
       handle('native-library:cancel', () => nativeLibrary.cancel());
       handle('native-library:launch', (id) => nativeLibrary.launch(id));
+      handle('native-library:cleanup-shortcuts', cleanupNativeShortcuts);
+      handle('native-library:remove', async (id) => {
+        const plan = await nativeMaintenance.preview(id);
+        const result = await dialog.showMessageBox(window, {
+          type: 'warning',
+          title: 'Remove native setup files?',
+          message: `Remove up to ${plan.files} unchanged recipe files (${(plan.bytes / 1e9).toFixed(2)} GB)?`,
+          detail: `Setup: ${plan.destination}\n\n${plan.preserved} other files were found and will be kept, including saves, profiles, configuration, downloads, modified files and untracked content. Files changed after this review will also be kept.\n\nThe candidate will be moved to this recovery folder before deletion:\n${plan.recovery}\n\nKeep games and MO2 closed. Loadstone will clean up its owned shortcuts; exit Steam to permit Steam cleanup, which can be retried afterwards.`,
+          buttons: ['Cancel', 'Remove reviewed files'],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        if (result.response !== 1) return nativeLibrary.list();
+        await nativeMaintenance.remove(plan.id);
+        return cleanupNativeShortcuts(id);
+      });
       handle('native-library:desktop', (id) => {
         const job = nativeLibrary.shortcutJob(id);
         createDesktopShortcut(

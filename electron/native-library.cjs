@@ -81,7 +81,7 @@ function iniEntries(data) {
   }
   return sections;
 }
-function metadata(root, record) {
+function metadata(root, record, configurationRoot = root) {
   root = path.resolve(root);
   const identity = directory(root);
   if (record)
@@ -118,7 +118,7 @@ function metadata(root, record) {
     config,
     'Native library registration requires a generated portable MO2 configuration.',
   );
-  const rendered = renderMo2Config(config, recipe, root);
+  const rendered = renderMo2Config(config, recipe, configurationRoot);
   const generated = receipt.generatedConfigurations;
   demand(
     Array.isArray(generated) &&
@@ -237,6 +237,10 @@ function launchLayout(meta) {
 }
 function nativeLaunchPlan(record) {
   demand(record, 'Choose a registered native setup.');
+  demand(
+    record.status === undefined || record.status === 'installed',
+    'Only installed native setups can be launched.',
+  );
   return launchLayout(metadata(record.root, record));
 }
 async function verifyCandidate(root, options = {}) {
@@ -291,7 +295,7 @@ const text = (v, max = 2000) =>
   !/[\x00-\x1f]/.test(v);
 function validateRegistry(state) {
   demand(
-    state?.schemaVersion === 1 &&
+    [1, 2].includes(state?.schemaVersion) &&
       state.kind === 'loadstone-native-library' &&
       Array.isArray(state.entries) &&
       state.entries.length <= 100,
@@ -312,6 +316,15 @@ function validateRegistry(state) {
     'saveNotes',
     'verifiedAt',
     'fileCount',
+    ...(state.schemaVersion === 2
+      ? [
+          'status',
+          'recoveryRoot',
+          'maintenanceError',
+          'shortcutsCleaned',
+          'shortcutError',
+        ]
+      : []),
   ];
   for (const entry of state.entries) {
     demand(
@@ -342,8 +355,34 @@ function validateRegistry(state) {
     );
     ids.add(entry.id);
     roots.add(entry.root.toLowerCase());
+    if (state.schemaVersion === 2)
+      demand(
+        ['installed', 'removing', 'removal-failed', 'removed'].includes(
+          entry.status,
+        ) &&
+          (entry.status === 'installed'
+            ? entry.recoveryRoot === null
+            : entry.recoveryRoot ===
+              `${entry.root}.loadstone-recovery-${entry.id}`) &&
+          (entry.maintenanceError === null || text(entry.maintenanceError)) &&
+          typeof entry.shortcutsCleaned === 'boolean' &&
+          (entry.shortcutError === null || text(entry.shortcutError)) &&
+          (!entry.shortcutsCleaned || entry.status === 'removed'),
+        'Native library maintenance state is invalid. Preserve it before recovery.',
+      );
   }
-  return state.entries;
+  return state.entries.map((entry) =>
+    state.schemaVersion === 1
+      ? {
+          ...entry,
+          status: 'installed',
+          recoveryRoot: null,
+          maintenanceError: null,
+          shortcutsCleaned: false,
+          shortcutError: null,
+        }
+      : entry,
+  );
 }
 class NativeLibrary {
   constructor(dataDir, options = {}) {
@@ -354,9 +393,22 @@ class NativeLibrary {
     this.busy = false;
     this.progress = null;
     this.pending = null;
+    this.savedHash = null;
     try {
-      if (fs.existsSync(this.file))
-        this.entries = validateRegistry(JSON.parse(read(this.file, 1_000_000)));
+      if (fs.existsSync(this.file)) {
+        const data = read(this.file, 1_000_000);
+        this.savedHash = digest(data);
+        this.entries = validateRegistry(JSON.parse(data)).map((entry) =>
+          entry.status === 'removing'
+            ? {
+                ...entry,
+                status: 'removal-failed',
+                maintenanceError:
+                  'Removal was interrupted. Review the remaining files to resume.',
+              }
+            : entry,
+        );
+      }
     } catch {
       this.error =
         'Native library state cannot be read. Preserve native-library.json before recovery; registration and launch are disabled.';
@@ -401,7 +453,7 @@ class NativeLibrary {
   }
   persist(next) {
     const state = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: 'loadstone-native-library',
       entries: next,
     };
@@ -409,17 +461,17 @@ class NativeLibrary {
     // Detect external changes instead of overwriting unknown or newer state.
     if (fs.existsSync(this.file))
       demand(
-        canonicalJson(JSON.parse(read(this.file, 1_000_000))) ===
-          canonicalJson({ ...state, entries: this.entries }),
+        digest(read(this.file, 1_000_000)) === this.savedHash,
         'Native library state changed outside this session. Restart Loadstone before continuing.',
       );
     else
       demand(
-        this.entries.length === 0,
+        this.savedHash === null,
         'Native library state disappeared. Restart Loadstone before continuing.',
       );
     const temporary = this.file + '.' + crypto.randomUUID() + '.tmp';
-    fs.writeFileSync(temporary, JSON.stringify(state) + '\n', {
+    const data = JSON.stringify(state) + '\n';
+    fs.writeFileSync(temporary, data, {
       flag: 'wx',
       flush: true,
     });
@@ -429,6 +481,13 @@ class NativeLibrary {
       if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
     }
     this.entries = next;
+    this.savedHash = digest(data);
+  }
+  change(id, patch) {
+    this.record(id);
+    this.persist(
+      this.entries.map((v) => (v.id === id ? { ...v, ...patch } : v)),
+    );
   }
   async scan(root, record) {
     this.controller = new AbortController();
@@ -438,7 +497,7 @@ class NativeLibrary {
         record,
         signal: this.controller.signal,
         progress: (value) => {
-          this.progress = value;
+          this.progress = { ...value, phase: 'verification' };
         },
       });
     } catch (error) {
@@ -511,6 +570,11 @@ class NativeLibrary {
       saveNotes: recipe.saveCompatibility.notes,
       verifiedAt: pending.verifiedAt,
       fileCount: recipe.outputs.length,
+      status: 'installed',
+      recoveryRoot: null,
+      maintenanceError: null,
+      shortcutsCleaned: false,
+      shortcutError: null,
     };
     this.persist([...this.entries, entry]);
     this.pending = null;
@@ -523,6 +587,10 @@ class NativeLibrary {
       'Close the launched mod manager before verifying its files.',
     );
     const entry = this.record(id);
+    demand(
+      entry.status === 'installed',
+      'Only installed native setups can be verified.',
+    );
     this.busy = true;
     try {
       await this.scan(entry.root, entry);
@@ -547,6 +615,10 @@ class NativeLibrary {
   shortcutJob(id) {
     this.available();
     const entry = this.record(id);
+    demand(
+      entry.status === 'installed',
+      'Only installed native setups can create shortcuts.',
+    );
     return {
       ...entry,
       status: 'installed',
@@ -559,4 +631,5 @@ module.exports = {
   nativeLaunchPlan,
   verifyCandidate,
   validateRegistry,
+  candidateMetadata: metadata,
 };

@@ -10,7 +10,7 @@ const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
-export async function libraryFixture() {
+export async function libraryFixture({ extraFiles = [] } = {}) {
   const f = createNativeFixture({ mo2Config: true });
   const game = 'MZ synthetic owned game; never execute';
   Object.assign(f.recipe.requirements[0].files[0], fingerprint(game));
@@ -22,6 +22,17 @@ export async function libraryFixture() {
   Object.assign(source, fingerprint(manager));
   Object.assign(output, fingerprint(manager));
   fs.writeFileSync(path.join(f.payloads, source.sha256), manager);
+  for (const [index, [name, content]] of extraFiles.entries()) {
+    const locked = fingerprint(content),
+      id = `extra-${index}`;
+    fs.writeFileSync(path.join(f.payloads, locked.sha256), content);
+    f.recipe.sources.push({ ...source, ...locked, id });
+    f.recipe.outputs.push({
+      path: name,
+      ...locked,
+      action: { type: 'copy', source: id },
+    });
+  }
   const settings = '[General]\nLocalSaves=true\nLocalSettings=true\n';
   const locked = fingerprint(settings);
   fs.writeFileSync(path.join(f.payloads, locked.sha256), settings);

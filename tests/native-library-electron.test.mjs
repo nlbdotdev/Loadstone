@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const { decode, field } = require('../electron/steam-vdf.cjs');
 
 test(
-  'real Electron admits a native candidate, persists it and creates isolated Desktop and Steam shortcuts',
+  'real Electron registers, verifies and removes a native candidate with isolated shortcuts and retained saves',
   { timeout: 60000 },
   async () => {
     const f = await libraryFixture();
@@ -149,6 +149,34 @@ test(
       await instance.close();
       instance = await start();
       page = await instance.firstWindow();
+      await instance.evaluate(
+        ({ app, dialog }, fixture) => {
+          app.setPath('desktop', fixture.desktop);
+          globalThis.removalChoice = 0;
+          globalThis.nativeSteamBlocked = false;
+          dialog.showMessageBox = async (_window, options) => {
+            globalThis.nativeRemovalDialog = options;
+            return { response: globalThis.removalChoice };
+          };
+          const { NativeMaintenance } = process.mainModule.require(
+            app.getAppPath() + '/electron/native-maintenance.cjs',
+          );
+          NativeMaintenance.prototype.ensureIdle = async () => {};
+          const { SteamShortcuts } = process.mainModule.require(
+            app.getAppPath() + '/electron/steam-shortcuts.cjs',
+          );
+          const accounts = SteamShortcuts.prototype.accounts;
+          SteamShortcuts.prototype.accounts = async function () {
+            this.roots = async () => [fixture.steam];
+            this.closed = async () => {
+              if (globalThis.nativeSteamBlocked)
+                throw new Error('fixture Steam running');
+            };
+            return accounts.call(this);
+          };
+        },
+        { desktop, steam },
+      );
       assert.equal(
         (await page.evaluate(() => window.loadstone.nativeLibrary())).entries[0]
           .id,
@@ -165,6 +193,83 @@ test(
         fs.readFileSync(path.join(f.owned, 'FalloutNV.exe'), 'utf8'),
         'MZ synthetic owned game; never execute',
       );
+      fs.mkdirSync(path.join(f.destination, 'profiles/Test/saves'));
+      fs.writeFileSync(
+        path.join(f.destination, 'profiles/Test/saves/test.fos'),
+        'synthetic saved progress',
+      );
+      fs.writeFileSync(
+        path.join(f.destination, 'Game/user.data'),
+        'preserve user data',
+      );
+      await page.evaluate((id) => window.loadstone.removeNative(id), entry.id);
+      assert.equal(fs.existsSync(f.destination), true);
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.nativeLibrary())).entries[0]
+          .status,
+        'installed',
+      );
+      const review = await instance.evaluate(
+        () => globalThis.nativeRemovalDialog,
+      );
+      assert.match(review.message, /3 unchanged recipe files/);
+      assert.match(review.detail, /modified files and untracked content/);
+      assert.equal(review.defaultId, 0);
+      await instance.evaluate(() => {
+        globalThis.removalChoice = 1;
+        globalThis.nativeSteamBlocked = true;
+      });
+      await page
+        .getByRole('button', { name: 'My library', exact: true })
+        .click();
+      await page
+        .getByRole('button', { name: 'Remove native setup', exact: true })
+        .click();
+      await page.getByText('fixture Steam running', { exact: true }).waitFor();
+      const removed = (
+        await page.evaluate(() => window.loadstone.nativeLibrary())
+      ).entries[0];
+      assert.equal(removed.status, 'removed');
+      assert.equal(removed.shortcutsCleaned, false);
+      assert.equal(fs.existsSync(f.destination), false);
+      assert.equal(fs.existsSync(shortcut), false);
+      assert.equal(
+        fs.readFileSync(
+          path.join(removed.recoveryRoot, 'profiles/Test/saves/test.fos'),
+          'utf8',
+        ),
+        'synthetic saved progress',
+      );
+      assert.equal(
+        fs.readFileSync(
+          path.join(removed.recoveryRoot, 'Game/user.data'),
+          'utf8',
+        ),
+        'preserve user data',
+      );
+      await instance.evaluate(() => {
+        globalThis.nativeSteamBlocked = false;
+      });
+      await page
+        .getByRole('button', { name: 'Clean up native shortcuts', exact: true })
+        .click();
+      await page
+        .getByText('Owned shortcuts cleaned up.', { exact: true })
+        .waitFor();
+      assert.equal(
+        decode(fs.readFileSync(path.join(config, 'shortcuts.vdf')))[0].value
+          .length,
+        0,
+      );
+      await page.screenshot({ path: 'test-results/native-removal.png' });
+      await instance.close();
+      instance = await start();
+      page = await instance.firstWindow();
+      const persisted = (
+        await page.evaluate(() => window.loadstone.nativeLibrary())
+      ).entries[0];
+      assert.equal(persisted.status, 'removed');
+      assert.equal(persisted.shortcutsCleaned, true);
     } finally {
       await instance.close();
     }
