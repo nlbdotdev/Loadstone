@@ -104,6 +104,7 @@ export interface Bridge {
   inspectNativePackage(): Promise<NativePackageSummary | null>;
   nativeBuilds(): Promise<NativeBuild[]>;
   prepareNativeBuild(): Promise<NativeBuildPlan | null>;
+  resumeNativeBuild(id: string): Promise<NativeBuildPlan | null>;
   startNativeBuild(id: string): Promise<NativeBuild[]>;
   cancelNativeBuild(id: string): Promise<NativeBuild[]>;
   discoverGames(): Promise<{ games: DiscoveredGame[]; warnings: string[] }>;
@@ -297,6 +298,15 @@ declare global {
 }
 
 export interface NativeBuildPlan {
+  resume?: {
+    jobId: string;
+    reused: number;
+    conflicts: number;
+    missing: number;
+    retained: number;
+    writeBytes: number;
+    recoveryRoot: string;
+  };
   generatedConfigurations: number;
   id: string;
   name: string;
@@ -334,7 +344,13 @@ export interface NativeBuild {
   createdAt: string;
   updatedAt: string;
   activity?: {
-    phase: 'downloads' | 'inputs' | 'archives' | 'outputs' | 'verification';
+    phase:
+      | 'downloads'
+      | 'inputs'
+      | 'archives'
+      | 'outputs'
+      | 'verification'
+      | 'recovery';
     completed: number;
     total: number;
     bytes: number;

@@ -299,9 +299,9 @@ else {
         }),
       );
       handle('native:builds', () => nativeBuilder.list());
-      handle('native:prepare', () =>
+      const prepareNativeBuild = (resumeId) =>
         nativeBuilder.prepare(
-          async () => {
+          async (destination) => {
             const chooseFile = async (title, name, extensions) => {
               const result = await dialog.showOpenDialog(window, {
                 title,
@@ -322,6 +322,7 @@ else {
               ['json'],
             );
             if (!inputsFile) return null;
+            if (destination) return { packageFile, inputsFile };
             const parent = await dialog.showOpenDialog(window, {
               title: 'Choose a parent folder for the new candidate',
               properties: ['openDirectory'],
@@ -338,8 +339,14 @@ else {
             });
             return result.canceled ? null : result.filePaths[0];
           },
-        ),
-      );
+          resumeId,
+        );
+      handle('native:prepare', () => prepareNativeBuild());
+      handle('native:resume', (id) => {
+        if (typeof id !== 'string')
+          throw new Error('Choose a build to resume.');
+        return prepareNativeBuild(id);
+      });
       handle('native:start', (id) => nativeBuilder.start(id));
       handle('native:cancel', (id) => nativeBuilder.cancel(id));
       handle('native-library:list', () => nativeLibrary.list());

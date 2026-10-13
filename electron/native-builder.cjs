@@ -8,6 +8,10 @@ const { archiveKind } = require('./archive-kind.cjs');
 const { createSevenZip } = require('./sevenzip.cjs');
 const { acquireArchives, archiveSource } = require('./native-downloads.cjs');
 const { DownloadError } = require('./native-network.cjs');
+const { reviewBuildRecovery } = require('./native-build-recovery.cjs');
+const { assertGamesClosed } = require('./maintenance.cjs');
+const resumable = new Set(['failed', 'cancelled', 'interrupted']);
+const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 
 const statuses = new Set([
   'queued',
@@ -135,12 +139,13 @@ class NativeBuilder {
     this.controller = null;
     this.plan = null;
     this.persistenceFailed = false;
+    this.savedHash = null;
     fs.mkdirSync(root, { recursive: true });
     if (fs.existsSync(this.file)) {
       ordinaryFile(this.file, 5_000_000);
-      this.jobs = validateHistory(
-        JSON.parse(fs.readFileSync(this.file, 'utf8')),
-      );
+      const data = fs.readFileSync(this.file);
+      this.savedHash = digest(data);
+      this.jobs = validateHistory(JSON.parse(data));
       if (this.jobs.some((v) => active.has(v.status))) {
         this.jobs = this.jobs.map((job) =>
           active.has(job.status)
@@ -149,7 +154,7 @@ class NativeBuilder {
                 status: 'interrupted',
                 updatedAt: new Date().toISOString(),
                 error:
-                  'Loadstone closed before this build finished. Keep the partial folder; prepare a new build to retry.',
+                  'Loadstone closed before this build finished. Review the same recipe and inputs to resume the retained candidate.',
               }
             : job,
         );
@@ -170,6 +175,16 @@ class NativeBuilder {
       })),
     );
   }
+  ensureIdle() {
+    return (this.options.idle || assertGamesClosed)();
+  }
+  recoveryRoots(id) {
+    return [
+      this.root,
+      ...(this.options.protectedRoots?.() || []),
+      ...this.jobs.filter((v) => v.id !== id).map((v) => v.destination),
+    ];
+  }
   save(jobs) {
     validateHistory({
       schemaVersion: 1,
@@ -177,6 +192,12 @@ class NativeBuilder {
       jobs,
     });
     try {
+      if (fs.existsSync(this.file)) {
+        ordinaryFile(this.file, 5_000_000);
+        if (digest(fs.readFileSync(this.file)) !== this.savedHash)
+          throw new Error('Build history changed outside this session.');
+      } else if (this.savedHash !== null)
+        throw new Error('Build history disappeared.');
       const root = fs.lstatSync(this.root);
       if (
         !root.isDirectory() ||
@@ -186,16 +207,15 @@ class NativeBuilder {
       )
         throw new Error('Redirected native history directory.');
       const temporary = `${this.file}.${crypto.randomUUID()}.tmp`;
-      fs.writeFileSync(
-        temporary,
+      const data =
         JSON.stringify({
           schemaVersion: 1,
           kind: 'loadstone-native-builds',
           jobs,
-        }) + '\n',
-        { flag: 'wx', flush: true },
-      );
+        }) + '\n';
+      fs.writeFileSync(temporary, data, { flag: 'wx', flush: true });
       replaceStateFile(temporary, this.file);
+      this.savedHash = digest(data);
     } catch {
       this.persistenceFailed = true;
       throw new Error(
@@ -210,27 +230,43 @@ class NativeBuilder {
     if (persist) this.save(jobs);
     this.jobs = jobs;
   }
-  async prepare(choose, chooseArchiveTool) {
+  async prepare(choose, chooseArchiveTool, resumeId) {
     if (this.persistenceFailed)
       throw new Error('Restart Loadstone to recover native build history.');
     if (this.busy)
       throw new Error('Wait for the current native build or selection.');
     this.options.assertAvailable?.();
-    if (this.jobs.length >= 100)
+    const resumeJob =
+      resumeId === undefined
+        ? null
+        : this.jobs.find((v) => v.id === resumeId && resumable.has(v.status));
+    if (resumeId !== undefined && !resumeJob)
+      throw new Error(
+        'Choose a failed, cancelled or interrupted build to resume.',
+      );
+    if (!resumeJob && this.jobs.length >= 100)
       throw new Error(
         'The native build history is full. Preserve it before recovery.',
       );
     this.preparing = true;
     this.plan = null;
+    if (resumeJob) {
+      this.controller = new AbortController();
+      this.reviewId = resumeJob.id;
+    }
     try {
-      const selected = await choose();
+      const selected = await choose(resumeJob?.destination);
       if (!selected) return null;
+      this.controller?.signal.throwIfAborted();
       if (
         path.extname(selected.packageFile).toLowerCase() !== '.loadstone' ||
-        !path.isAbsolute(selected.parent)
+        (!resumeJob && !path.isAbsolute(selected.parent))
       )
         throw new Error('Choose a native package and a local parent folder.');
       const inspected = await inspectNativePackage(selected.packageFile);
+      this.controller?.signal.throwIfAborted();
+      if (resumeJob && inspected.recipeSha256 !== resumeJob.recipeSha256)
+        throw new Error('Resume requires the exact recipe from this build.');
       const inputs = readInputs(selected.inputsFile, inspected.recipe);
       const needsTool = Object.values(inputs.archives).some(
         (file) =>
@@ -247,6 +283,17 @@ class NativeBuilder {
         sevenZip = await createSevenZip(executable);
       }
       const id = crypto.randomUUID();
+      let resume;
+      if (resumeJob) {
+        this.controller.signal.throwIfAborted();
+        await this.ensureIdle();
+        resume = await reviewBuildRecovery(inspected, resumeJob.destination, {
+          signal: this.controller.signal,
+          activity: (value) => this.activities.set(resumeJob.id, value),
+          protectedRoots: this.recoveryRoots(resumeJob.id),
+        });
+        this.controller.signal.throwIfAborted();
+      }
       const downloads = inspected.recipe.sources.filter(
         (source) =>
           archiveSource(source) && inputs.archives[source.id] === null,
@@ -256,10 +303,12 @@ class NativeBuilder {
         name: inspected.recipe.name,
         version: inspected.recipe.version,
         recipeSha256: inspected.recipeSha256,
-        destination: path.join(
-          selected.parent,
-          `${inspected.recipe.id}-${id.slice(0, 8)}`,
-        ),
+        destination:
+          resumeJob?.destination ??
+          path.join(
+            selected.parent,
+            `${inspected.recipe.id}-${id.slice(0, 8)}`,
+          ),
         outputs: inspected.summary.outputs,
         installBytes: inspected.summary.installBytes,
         generatedConfigurations: inspected.summary.generatedConfigurations,
@@ -282,15 +331,37 @@ class NativeBuilder {
           ? path.join(this.root, 'native-downloads')
           : null,
         archiveTool: sevenZip ? `7-Zip ${sevenZip.version} x64` : null,
+        ...(resume
+          ? {
+              resume: {
+                jobId: resumeJob.id,
+                reused: resume.reused,
+                conflicts: resume.conflicts,
+                missing: resume.missing,
+                retained: resume.retained,
+                writeBytes: resume.writeBytes,
+                recoveryRoot: path.join(
+                  resume.root,
+                  '.loadstone-build-recovery',
+                ),
+              },
+            }
+          : {}),
       };
       this.plan = {
         summary,
         packageFile: selected.packageFile,
         inputs,
         sevenZip,
+        resume,
       };
       return structuredClone(summary);
     } finally {
+      if (resumeJob) {
+        this.activities.delete(resumeJob.id);
+        this.reviewId = null;
+        this.controller = null;
+      }
       this.preparing = false;
     }
   }
@@ -304,8 +375,15 @@ class NativeBuilder {
     const plan = this.plan,
       summary = plan.summary,
       now = new Date().toISOString();
+    const previous = summary.resume
+      ? this.jobs.find(
+          (v) => v.id === summary.resume.jobId && resumable.has(v.status),
+        )
+      : null;
+    if (summary.resume && !previous)
+      throw new Error('Review recovery again before resuming.');
     const job = {
-      id,
+      id: previous?.id ?? id,
       name: summary.name,
       version: summary.version,
       recipeSha256: summary.recipeSha256,
@@ -314,10 +392,12 @@ class NativeBuilder {
       completed: 0,
       total: summary.outputs,
       error: null,
-      createdAt: now,
+      createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     };
-    const jobs = [...this.jobs, job];
+    const jobs = previous
+      ? this.jobs.map((v) => (v.id === previous.id ? job : v))
+      : [...this.jobs, job];
     this.save(jobs);
     this.jobs = jobs;
     this.plan = null;
@@ -326,6 +406,10 @@ class NativeBuilder {
     return this.list();
   }
   cancel(id) {
+    if (this.reviewId === id && this.controller) {
+      this.controller.abort();
+      return this.list();
+    }
     if (
       !uuid(id) ||
       !this.controller ||
@@ -340,12 +424,14 @@ class NativeBuilder {
     return this.list();
   }
   async run(plan, controller) {
-    const { id, destination, recipeSha256 } = plan.summary;
+    const { destination, recipeSha256 } = plan.summary;
+    const id = plan.summary.resume?.jobId ?? plan.summary.id;
     try {
       this.change(id, { status: 'building' });
       const inspected = await inspectNativePackage(plan.packageFile);
       if (inspected.recipeSha256 !== recipeSha256)
         throw new Error('Native package changed after review.');
+      if (plan.resume) await this.ensureIdle();
       const archives = await acquireArchives(
         inspected.recipe,
         plan.inputs.archives,
@@ -357,17 +443,15 @@ class NativeBuilder {
           request: this.options.downloadRequest,
         },
       );
+      if (plan.resume) await this.ensureIdle();
       await materializeNative(plan.packageFile, destination, {
         ...plan.inputs,
         archives,
         sevenZip: plan.sevenZip,
         expectedRecipeSha256: recipeSha256,
         signal: controller.signal,
-        protectedRoots: [
-          this.root,
-          ...(this.options.protectedRoots?.() || []),
-          ...this.jobs.filter((v) => v.id !== id).map((v) => v.destination),
-        ],
+        resume: plan.resume,
+        protectedRoots: this.recoveryRoots(id),
         progress: ({ completed }) =>
           this.change(id, { completed }, completed % 100 === 0),
         activity: (value) => this.activities.set(id, value),
@@ -381,10 +465,10 @@ class NativeBuilder {
         this.change(id, {
           status: controller.signal.aborted ? 'cancelled' : 'failed',
           error: controller.signal.aborted
-            ? 'Build cancelled. Any partial folder is preserved. Prepare a new build to retry.'
+            ? 'Build cancelled. The partial candidate and recovery copies are retained. Review the same recipe and inputs to resume.'
             : error instanceof DownloadError
               ? error.message
-              : 'Build failed. Check the package, local input hashes, destination and free space. Any partial folder is preserved.',
+              : 'Build failed. Check the package, input hashes, destination and free space. The partial candidate and recovery copies are retained; review again to resume.',
         });
       } catch {
         this.persistenceFailed = true;

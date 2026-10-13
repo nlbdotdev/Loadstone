@@ -26,4 +26,4 @@ These shortcuts start MO2 directly. They do not run Loadstone's checks again whe
 
 Registered native entries now offer [reviewed removal and recovery](native-maintenance.md). Only unchanged, reviewed recipe files may be deleted after confirmation; saves, configuration, modified files and untracked content are retained. Interrupted removal and owned-shortcut cleanup can be retried. Schema-1 registrations migrate to schema 2 on the next successful state mutation. Removed entries retain their recovery record.
 
-Native repair, update, build resume and save migration remain unfinished. Wabbajack removal controls apply only to Wabbajack jobs and have their own preservation policy. Real install-to-play acceptance and pack publication remain separate gates.
+Native library repair, update and save migration remain unfinished. [Interrupted creator builds can be reviewed and resumed](native-build-recovery.md) before registration. Wabbajack removal controls apply only to Wabbajack jobs and have their own preservation policy. Real install-to-play acceptance and pack publication remain separate gates.
