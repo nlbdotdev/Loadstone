@@ -12,6 +12,7 @@ const {
   createSevenZip,
   parseListing,
   parseArchiveListing,
+  inspectSevenZipMembers,
 } = require('../electron/sevenzip.cjs');
 const { mapArchiveSources } = require('../electron/archive-mapping.cjs');
 const executable = process.env.LOADSTONE_TEST_7ZIP;
@@ -19,6 +20,84 @@ const fingerprint = (data) => ({
   bytes: data.length,
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
+
+test('fallback member hashing compacts duplicates only after every selected member succeeds', async () => {
+  const data = fingerprint(Buffer.from('identical'));
+  const identity = `${data.bytes}:${data.sha256}`;
+  const entries = Array.from({ length: 257 }, (_, i) => ({
+    name: `${String(i).padStart(3, '0')}.dds`,
+    bytes: data.bytes,
+    directory: false,
+  })).reverse();
+  let reads = 0;
+  const adapter = {
+    inspect: async () => ({ kind: 'rar', entries }),
+    hashMember: async () => {
+      reads++;
+      return identity;
+    },
+  };
+  const found = await inspectSevenZipMembers({}, new Set([identity]), adapter);
+  assert.equal(reads, 257);
+  assert.deepEqual(found.get(identity), {
+    member: '000.dds',
+    equivalentMembers: 257,
+  });
+  reads = 0;
+  adapter.hashMember = async () => {
+    if (++reads === 257) throw new Error('late member failure');
+    return identity;
+  };
+  await assert.rejects(
+    inspectSevenZipMembers({}, new Set([identity]), adapter),
+    /late member failure/,
+  );
+});
+
+test(
+  'real solid 7z mapping retains one verified representative for hundreds of identical members',
+  { skip: !executable || typeof zlib.crc32 !== 'function' },
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-repeated-'));
+    const input = path.join(root, 'input'),
+      archive = path.join(root, 'textures.7z');
+    fs.mkdirSync(input);
+    const data = Buffer.from('same texture bytes'),
+      files = [];
+    for (let i = 0; i < 300; i++) {
+      const name = `${String(i).padStart(3, '0')}.dds`;
+      fs.writeFileSync(path.join(input, name), data);
+      files.push({ path: name, ...fingerprint(data) });
+    }
+    execFileSync(executable, ['a', '-t7z', '-ms=on', '--', archive, '.'], {
+      cwd: input,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    const before = fs.readFileSync(archive),
+      adapter = await createSevenZip(executable);
+    const ledger = {
+      kind: 'loadstone-source-ledger',
+      schemaVersion: 1,
+      mods: [
+        {
+          installedFiles: files,
+          archiveCandidates: [{ archive, ...fingerprint(before) }],
+        },
+      ],
+    };
+    const result = await mapArchiveSources(ledger, { sevenZip: adapter });
+    assert.equal(result.mapping.issues.length, 0);
+    assert.equal(result.mapping.matchedInstalledFiles, 300);
+    for (const file of result.mods[0].installedFiles) {
+      assert.equal(file.sourceMatches.length, 1);
+      assert.equal(file.sourceMatches[0].member, '000.dds');
+      assert.equal(file.sourceMatches[0].equivalentMembers, 300);
+    }
+    assert.deepEqual(fs.readFileSync(archive), before);
+    assert.deepEqual(fs.readdirSync(root).sort(), ['input', 'textures.7z']);
+  },
+);
 
 test(
   'single-pass solid 7z hashing preserves file boundaries and rejects mismatched framing',
@@ -53,11 +132,16 @@ test(
     const mapped = await adapter.hashArchive(candidate, inspected, wanted);
     for (const [name, data] of files) {
       const f = fingerprint(data);
-      assert.ok(mapped.get(`${f.bytes}:${f.sha256}`).includes(name));
+      const match = mapped.get(`${f.bytes}:${f.sha256}`);
+      assert.deepEqual(files.get(match.member), data);
+      assert.equal(
+        match.equivalentMembers,
+        [...files.values()].filter((v) => v.equals(data)).length,
+      );
     }
     const sample = inspected.entries.find((v) => v.bytes > 0);
     const single = await adapter.hashMember(candidate, inspected, sample);
-    assert.ok(mapped.get(single).includes(sample.name));
+    assert.equal(mapped.get(single).member, sample.name);
     const mislabeled = path.join(root, 'solid.zip');
     fs.copyFileSync(archive, mislabeled);
     const mislabeledCandidate = { ...candidate, archive: mislabeled };

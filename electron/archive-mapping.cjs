@@ -6,6 +6,7 @@ const { relativeFile } = require('./manifest.cjs');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
 const { inspectSevenZipMembers } = require('./sevenzip.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
+const { recordArchiveMatch } = require('./archive-matches.cjs');
 
 async function inspectZipMembers(candidate, wanted, signal) {
   signal?.throwIfAborted();
@@ -73,15 +74,7 @@ async function inspectZipMembers(candidate, wanted, signal) {
       }
       scanned += bytes;
       const identity = `${bytes}:${hash.digest('hex')}`;
-      if (wanted.has(identity)) {
-        const members = matches.get(identity) || [];
-        members.push(name);
-        if (members.length > 128)
-          throw new Error(
-            'Too many equivalent archive members; manual disambiguation required.',
-          );
-        matches.set(identity, members);
-      }
+      if (wanted.has(identity)) recordArchiveMatch(matches, identity, name);
     }
     for (const name of paths.keys()) {
       const parts = name.split('/');
@@ -183,25 +176,26 @@ async function mapArchiveSources(ledger, options = {}) {
       for (const mod of mods)
         for (const file of mod.installedFiles) {
           if (file.path.toLowerCase() !== 'meta.ini')
-            proposed +=
-              matched.get(`${file.bytes}:${file.sha256}`)?.length || 0;
+            proposed += matched.has(`${file.bytes}:${file.sha256}`) ? 1 : 0;
         }
       if (matchReferences + proposed > 500000)
         throw new Error('Mapping exceeds the match-reference limit.');
       for (const mod of mods)
         for (const file of mod.installedFiles) {
           if (file.path.toLowerCase() === 'meta.ini') continue;
-          for (const member of matched.get(`${file.bytes}:${file.sha256}`) ||
-            []) {
+          const match = matched.get(`${file.bytes}:${file.sha256}`);
+          if (match) {
             if (
               !file.sourceMatches.some(
                 (v) =>
-                  v.archiveSha256 === candidate.sha256 && v.member === member,
+                  v.archiveSha256 === candidate.sha256 &&
+                  v.member === match.member,
               )
             )
               file.sourceMatches.push({
                 archiveSha256: candidate.sha256,
-                member,
+                member: match.member,
+                equivalentMembers: match.equivalentMembers,
               });
           }
         }
@@ -226,6 +220,7 @@ async function mapArchiveSources(ledger, options = {}) {
   const files = result.mods.flatMap((mod) => mod.installedFiles);
   result.mapping = {
     kind: options.sevenZip ? 'archive-member-sha256' : 'zip-member-sha256',
+    memberSelection: 'lexicographic-representative-per-content',
     ...(options.sevenZip ? { sevenZipVersion: options.sevenZip.version } : {}),
     inspected,
     issues,

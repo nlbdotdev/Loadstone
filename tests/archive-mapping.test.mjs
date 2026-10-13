@@ -77,6 +77,58 @@ test('archive mapping retains disabled state while resolving inventoried optiona
   );
   assert.equal(result.installable, false);
 });
+
+test('ZIP mapping compacts identical content without hiding different candidates or accepting unsafe trailing entries', async () => {
+  const copies = Array.from({ length: 1001 }, (_, i) => [
+    `Textures/${String(i).padStart(4, '0')}.dds`,
+    'repeated texture',
+  ]);
+  const f = await fixture([...copies].reverse());
+  f.ledger.mods[0].installedFiles.push(
+    ...copies.map(([name, data]) => ({ path: name, ...fingerprint(data) })),
+  );
+  f.ledger.mods[0].installedFiles.push({
+    path: 'changed.dds',
+    ...fingerprint('repeated texturE'),
+  });
+  const second = await fixture([['Alternate.dds', 'repeated texture']]);
+  f.ledger.mods[0].archiveCandidates.push(
+    second.ledger.mods[0].archiveCandidates[0],
+  );
+  const before = fs.readFileSync(f.archive);
+  const mapped = await mapZipSources(f.ledger);
+  assert.equal(mapped.mapping.issues.length, 0);
+  assert.equal(mapped.mapping.matchedInstalledFiles, 1002);
+  assert.equal(
+    mapped.mapping.memberSelection,
+    'lexicographic-representative-per-content',
+  );
+  for (const file of mapped.mods[0].installedFiles.slice(3, -1)) {
+    assert.equal(file.sourceMatches.length, 2);
+    assert.deepEqual(
+      file.sourceMatches.map(({ member, equivalentMembers }) => ({
+        member,
+        equivalentMembers,
+      })),
+      [
+        { member: 'Textures/0000.dds', equivalentMembers: 1001 },
+        { member: 'Alternate.dds', equivalentMembers: 1 },
+      ],
+    );
+  }
+  assert.equal(mapped.mods[0].installedFiles.at(-1).sourceMatches.length, 0);
+  assert.equal(mapped.installable, false);
+  assert.equal(mapped.publicationApproved, false);
+  assert.deepEqual(fs.readFileSync(f.archive), before);
+  const invalid = await fixture([
+    ...copies,
+    ['redirect', 'elsewhere', 0o120777],
+  ]);
+  invalid.ledger.mods[0].installedFiles = f.ledger.mods[0].installedFiles;
+  const refused = await mapZipSources(invalid.ledger);
+  assert.equal(refused.mapping.issues.length, 1);
+  assert.equal(refused.mapping.matchedInstalledFiles, 0);
+});
 test('ZIP mapping accepts no partial matches from changed, redirected or ambiguous archives and supports cancellation', async () => {
   for (const extra of [
     [['Data/example.ESP', 'duplicate']],
