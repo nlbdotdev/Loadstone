@@ -39,6 +39,22 @@ function fixture() {
   write('Game/Data/FalloutNV.esm', 'game master');
   return { root, write };
 }
+
+test('inventory records the winning plugin timestamp with its hash without changing inputs', async () => {
+  const f = fixture(),
+    file = path.join(f.root, 'mods/High/Test.esp');
+  const timestamp = 946684800123;
+  fs.utimesSync(file, new Date(timestamp), new Date(timestamp));
+  const report = await inspectMo2(f.root, { hashFiles: true });
+  const plugin = report.plugins.find((v) => v.name === 'Test.esp');
+  assert.equal(plugin.mtimeMs, timestamp);
+  assert.equal(plugin.winner, 'High');
+  assert.equal(
+    plugin.sha256,
+    crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+  );
+  assert.equal(Math.round(fs.statSync(file).mtimeMs), timestamp);
+});
 test('inventory preserves actual priority, hashes installed plugin winners and excludes unapproved metadata', async () => {
   const f = fixture();
   const before = fs.readFileSync(path.join(f.root, 'ModOrganizer.ini'));

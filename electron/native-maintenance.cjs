@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { canonical, contains } = require('./live-catalog.cjs');
 const { candidateMetadata } = require('./native-library.cjs');
 const { assertGamesClosed } = require('./maintenance.cjs');
+const { matchesMtime } = require('./native-file-metadata.cjs');
 
 const same = (a, b) => a.toLowerCase() === b.toLowerCase();
 function demand(value, message) {
@@ -29,6 +30,7 @@ function fileIdentity(file) {
   );
   return {
     bytes: Number(stat.size),
+    mtimeMs: Number(stat.mtimeNs) / 1e6,
     identity: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`,
   };
 }
@@ -56,6 +58,7 @@ async function matching(file, output, expectedIdentity, signal) {
   const before = fileIdentity(file);
   if (
     before.bytes !== output.bytes ||
+    !matchesMtime(before, output) ||
     (expectedIdentity && before.identity !== expectedIdentity)
   )
     return false;
@@ -133,6 +136,7 @@ async function scanNativeRemoval(meta, options = {}) {
           path: relative,
           bytes: output.bytes,
           sha256: output.sha256,
+          ...(output.mtimeMs === undefined ? {} : { mtimeMs: output.mtimeMs }),
           identity: match.identity,
         });
         bytes += output.bytes;

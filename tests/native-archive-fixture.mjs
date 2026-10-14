@@ -61,7 +61,7 @@ export function storedRar5(files) {
 
 export async function createArchiveFixture(
   kind = '7z',
-  { encrypted = false, extraFiles = [] } = {},
+  { encrypted = false, extraFiles = [], timestamps = false } = {},
 ) {
   const f = createNativeFixture();
   f.game = path.join(f.root, 'owned');
@@ -120,6 +120,9 @@ export async function createArchiveFixture(
   );
   f.recipe.outputs.push({ ...repeated, path: 'mods/Second/copy.esp' });
   f.packageFile = path.join(f.packages, 'fixture.loadstone');
+  if (timestamps)
+    for (const [index, output] of f.recipe.outputs.entries())
+      output.mtimeMs = 946684800123 + index * 86400000;
   await packNativeRecipe(f.recipe, f.payloads, f.packageFile);
   f.options = {
     games: { fnv: f.game },

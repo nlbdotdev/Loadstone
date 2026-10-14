@@ -21,6 +21,7 @@ const {
   assertRecoveryFile,
 } = require('./native-build-recovery.cjs');
 const { nativeActivity } = require('./native-activity.cjs');
+const { matchesMtime, applyMtime } = require('./native-file-metadata.cjs');
 
 function ordinaryDirectory(folder) {
   const stat = fs.lstatSync(folder);
@@ -37,6 +38,8 @@ async function verifyFile(file, expected, signal, activity) {
   const before = ordinaryFile(file, expected.bytes);
   if (before.size !== expected.bytes)
     throw new Error('Native source byte length differs from the recipe.');
+  if (!matchesMtime(before, expected))
+    throw new Error(`Recipe file modification time differs: ${expected.path}`);
   const hash = crypto.createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) {
     signal?.throwIfAborted();
@@ -478,6 +481,7 @@ async function materializeNative(file, destination, options = {}) {
     );
     if (bytes !== output.bytes || digest.digest('hex') !== output.sha256)
       throw new Error('Reconstructed file does not match the recipe.');
+    applyMtime(destinationFile, output);
     completedOutput();
   }
   async function extractWithTool(group) {
@@ -539,6 +543,7 @@ async function materializeNative(file, destination, options = {}) {
               item.digest.digest('hex') !== item.output.sha256
             )
               throw new Error('Reconstructed file does not match the recipe.');
+            applyMtime(item.file, item.output);
             completedOutput();
             for (const output of group.outputs.get(entry.name).slice(1))
               await writeOutput(() => fs.createReadStream(item.file), output);

@@ -14,7 +14,7 @@ const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
-async function fixture(unsafe = false) {
+async function fixture(unsafe = false, timestamps = false) {
   const f = createNativeFixture();
   f.game = path.join(f.root, 'owned');
   f.packages = path.join(f.root, 'packages');
@@ -46,6 +46,9 @@ async function fixture(unsafe = false) {
     },
   });
   f.package = path.join(f.packages, 'fixture.loadstone');
+  if (timestamps)
+    for (const [index, output] of f.recipe.outputs.entries())
+      output.mtimeMs = 946684800123 + index * 86400000;
   await packNativeRecipe(f.recipe, f.payloads, f.package);
   f.destination = path.join(f.root, 'installed');
   f.options = {
@@ -54,6 +57,84 @@ async function fixture(unsafe = false) {
   };
   return f;
 }
+test('copy and ZIP reconstruction preserves declared timestamps without retiming inputs', async () => {
+  const f = await fixture(false, true);
+  const inputs = [
+    path.join(f.game, 'FalloutNV.exe'),
+    f.archive,
+    f.package,
+    ...fs.readdirSync(f.payloads).map((v) => path.join(f.payloads, v)),
+  ];
+  const before = inputs.map((v) => [
+    fs.statSync(v).mtimeMs,
+    fingerprint(fs.readFileSync(v)),
+  ]);
+  await materializeNative(f.package, f.destination, f.options);
+  for (const output of f.recipe.outputs) {
+    const file = path.join(f.destination, output.path);
+    assert.equal(Math.round(fs.statSync(file).mtimeMs), output.mtimeMs);
+    assert.equal(fingerprint(fs.readFileSync(file)).sha256, output.sha256);
+  }
+  assert.deepEqual(
+    inputs.map((v) => [
+      fs.statSync(v).mtimeMs,
+      fingerprint(fs.readFileSync(v)),
+    ]),
+    before,
+  );
+});
+
+test('timestamp write failure leaves a failed receipt and never modifies source metadata', async (t) => {
+  const f = await fixture(false, true),
+    input = path.join(f.game, 'FalloutNV.exe');
+  const before = fs.statSync(input).mtimeMs;
+  t.mock.method(fs, 'futimesSync', () => {
+    throw new Error('fixture metadata write failure');
+  });
+  await assert.rejects(
+    materializeNative(f.package, f.destination, f.options),
+    /metadata write failure/,
+  );
+  const receipt = JSON.parse(
+    fs.readFileSync(path.join(f.destination, '.loadstone-native.json')),
+  );
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.completedFiles, 0);
+  assert.equal(fs.statSync(input).mtimeMs, before);
+});
+
+test('timestamped reconstruction still rejects bad inputs before writes and detects metadata drift in final verification', async () => {
+  const f = await fixture(false, true);
+  const input = path.join(f.game, 'FalloutNV.exe');
+  const original = fs.readFileSync(input);
+  fs.writeFileSync(input, Buffer.alloc(original.length, 88));
+  const changedTime = fs.statSync(input).mtimeMs;
+  await assert.rejects(
+    materializeNative(f.package, f.destination, f.options),
+    /recipe hash/,
+  );
+  assert.equal(fs.existsSync(f.destination), false);
+  assert.equal(fs.statSync(input).mtimeMs, changedTime);
+  fs.writeFileSync(input, original);
+  const plugin = path.join(f.destination, 'mods/Example/Example.esp');
+  await assert.rejects(
+    materializeNative(f.package, f.destination, {
+      ...f.options,
+      progress: ({ completed }) => {
+        if (completed === f.recipe.outputs.length)
+          fs.utimesSync(plugin, new Date(946684800000), new Date(946684800000));
+      },
+    }),
+    /modification time differs/,
+  );
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(path.join(f.destination, '.loadstone-native.json')),
+    ).status,
+    'failed',
+  );
+});
+
 test('native reconstruction copies owned inputs and locked ZIP/payload bytes into a fresh isolated folder', async () => {
   const f = await fixture(),
     archiveBefore = fs.readFileSync(f.archive),

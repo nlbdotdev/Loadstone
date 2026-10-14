@@ -310,8 +310,15 @@ function validateRecipe(value) {
       installBytes += configBytes;
       continue;
     }
-    shape(output, ['path', 'sha256', 'bytes', 'action']);
+    shape(output, ['path', 'sha256', 'bytes', 'action', 'mtimeMs']);
     fingerprint(output);
+    if (Object.hasOwn(output, 'mtimeMs'))
+      demand(
+        Number.isSafeInteger(output.mtimeMs) &&
+          output.mtimeMs >= 0 &&
+          output.mtimeMs <= 4102444800000,
+        'output mtimeMs must be integer UTC milliseconds from 1970 through 2100-01-01.',
+      );
     demand(
       !output.path
         .split('/')

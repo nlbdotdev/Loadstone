@@ -12,7 +12,11 @@ test(
   'real Electron registers, verifies and removes a native candidate with isolated shortcuts and retained saves',
   { timeout: 60000 },
   async () => {
-    const f = await libraryFixture();
+    const timestamp = 946684800123;
+    const f = await libraryFixture({
+      extraFiles: [['mods/Test/Test.esp', 'synthetic timestamped plugin']],
+      mtimes: { 'mods/Test/Test.esp': timestamp },
+    });
     const desktop = path.join(f.root, 'fixture-desktop'),
       steam = path.join(f.root, 'fixture-steam');
     const config = path.join(steam, 'userdata', '1234', 'config');
@@ -158,6 +162,27 @@ test(
       );
       assert.match(fs.readFileSync(modlistFile, 'utf8'), /fixture mutation$/);
       fs.writeFileSync(modlistFile, modlist);
+      const pluginFile = path.join(f.destination, 'mods/Test/Test.esp');
+      const changedTime = new Date(timestamp + 86400000);
+      fs.utimesSync(pluginFile, changedTime, changedTime);
+      await page
+        .getByRole('button', { name: 'Verify recipe files', exact: true })
+        .click();
+      await page
+        .getByRole('alert')
+        .filter({
+          hasText: 'Recipe file modification time differs: mods/Test/Test.esp',
+        })
+        .waitFor();
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.nativeLibrary())).entries[0]
+          .verifiedAt,
+        verifiedAt,
+      );
+      assert.equal(
+        Math.round(fs.statSync(pluginFile).mtimeMs),
+        timestamp + 86400000,
+      );
       fs.mkdirSync('test-results', { recursive: true });
       await page.screenshot({ path: 'test-results/native-library.png' });
       // Reject before spawn: no synthetic or real game executable is ever run.

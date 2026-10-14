@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const { matchesMtime } = require('./native-file-metadata.cjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {
@@ -283,6 +284,10 @@ async function verifyCandidate(root, options = {}) {
       demand(
         before.size === output.bytes,
         `Recipe file size differs: ${output.path}`,
+      );
+      demand(
+        matchesMtime(before, output),
+        `Recipe file modification time differs: ${output.path}`,
       );
       const hash = crypto.createHash('sha256');
       const stream = fs.createReadStream(file, { signal: options.signal });

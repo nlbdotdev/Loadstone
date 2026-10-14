@@ -22,6 +22,8 @@ The report is **not installable and not publication-approved**. Even with comple
 
 MO2 instance plugin inventories also exclude CPython `__pycache__` files when their adjacent ordinary `.py` source is present. Each receives the explicit `regenerable-python-bytecode` reason; the source remains inventoried. Standalone bytecode, caches without a source, unknown cache naming and mod/game content remain included. This avoids pinning machine-dependent cache bytes that MO2 regenerates after relocation. Existing inventories, recipes and verification fingerprints are unchanged; use a new reviewed recipe/version to apply this boundary.
 
+Winning loose-plugin records also retain `mtimeMs` (UTC milliseconds, rounded to an integer) alongside their SHA-256, size and winning layer. This is collected from the same stable hash pass. It lets a creator explicitly preserve timestamp-based load order in a new recipe without assigning that metadata to every mod file or silently changing existing reports. Hash-mode file inventories otherwise retain their existing size/hash shape.
+
 ## Private source ledger
 
 ```powershell
