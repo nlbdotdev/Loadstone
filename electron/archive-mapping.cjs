@@ -103,6 +103,8 @@ async function mapArchiveSources(ledger, options = {}) {
     throw new Error('Use a supported source ledger.');
   const result = structuredClone(ledger),
     archiveGroups = new Map();
+  // A fresh direct pass does not revalidate previously recorded nested chains.
+  delete result.bsaMapping;
   let fileCount = 0;
   for (const mod of result.mods) {
     if (
@@ -122,6 +124,7 @@ async function mapArchiveSources(ledger, options = {}) {
       )
         throw new Error('Invalid installed file fingerprint.');
       file.sourceMatches = [];
+      delete file.bsaSourceMatches;
     }
     if (mod.separator || !mod.installedFiles.length) continue;
     for (const candidate of mod.archiveCandidates) {
@@ -240,4 +243,8 @@ async function mapArchiveSources(ledger, options = {}) {
   ];
   return result;
 }
-module.exports = { mapArchiveSources, mapZipSources: mapArchiveSources };
+module.exports = {
+  mapArchiveSources,
+  mapZipSources: mapArchiveSources,
+  inspectZipMembers,
+};
