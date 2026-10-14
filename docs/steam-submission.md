@@ -1,6 +1,6 @@
 # Steam submission draft
 
-Internal preparation for **0.2.0 developer preview**, reviewed against public Steamworks documentation on 2026-10-01. This packet has not been submitted. Store copy below remains gated on real acceptance and the decisions recorded here; do not paste it into a public page as a release announcement.
+Internal preparation for **0.4.0 native installation preview**. Product copy was updated October 13, 2026; linked Steamworks requirements were last reviewed October 1 and must be checked again before submission. This packet has not been submitted. Store copy below remains gated on real acceptance and the decisions recorded here; do not paste it into a public page as a release announcement.
 
 ## Product setup
 
@@ -22,17 +22,19 @@ Propose application type **Software**, category **Player Tools**. Valve lists Pl
 
 ### Short description
 
-Loadstone brings compatible Bethesda modlists into one Windows library. Import a creator setup, check requirements, install through Wabbajack, and launch its Mod Organizer profile. Games, compatible lists and Nexus access are supplied separately.
+Loadstone brings compatible Bethesda setups into one Windows library. Open a .loadstone recipe, select your owned games and original files, then build and manage a separate Mod Organizer setup. Compatible Wabbajack lists use an optional engine.
 
 ### About this software
 
-Give your modded worlds a home. Loadstone is a Windows desktop tool for installing and managing compatible Bethesda game setups from creator manifests and original Wabbajack archives.
+Give your modded worlds a home. Loadstone is a Windows desktop tool for installing and managing compatible Bethesda game setups. Its documented .loadstone format describes required games, original sources, verified output files and the intended Mod Organizer profile. Loadstone's original source is licensed under GPL-3.0-or-later.
 
-Review a setup's game requirements, source archive and storage needs before installation. Follow installation progress, inspect failures, and keep installed profiles together in your library. Launch through the configured Mod Organizer profile and create desktop or local Steam shortcuts for your setup.
+Review a setup's game requirements, original archives and prepared prerequisites before installation. The native guide builds into a separate folder, shows measured progress and verifies the result before you explicitly add it to your library. Launch through the configured Mod Organizer profile and create desktop or local Steam shortcuts for your setup.
 
-Maintenance controls include declared list updates, retry paths and removal that preserves supported save locations in a recovery folder. Keep your own backups: recovery is not a guarantee that every mod stores saves in a recognized location.
+Resume interrupted native builds after a fresh review. Repair missing or damaged recipe files while retaining replaced originals, or install a different version in a separate folder while preserving the previous playthrough. Reviewed native removal retains profiles, saves, configuration, modified files and untracked content. Keep your own backups: new setup versions may require a new game, and unusual mod save locations require individual review.
 
-You must own and install the required game and DLC and obtain a compatible creator manifest and its original archive. Automated Nexus downloads require an eligible Nexus account with Premium access and a locally entered API key. The installation engine is downloaded separately. Availability depends on the list's original download sources.
+You must own and install the required games and DLC and obtain a compatible recipe and its declared original files. TTW requires both Fallout: New Vegas and Fallout 3. Native local-only recipes need no Nexus connection or Wabbajack engine. For declared Nexus files, choose guided browser downloads with local hash verification or automatic downloads with eligible Premium access and a locally protected API key. Browser sign-in and downloading remain user actions. 7z/RAR extraction requires a separately supplied trusted tool; availability depends on the original download sources.
+
+Compatible Wabbajack setups use a separate creator manifest and the original Wabbajack archive, with an optional upstream engine downloaded independently. Wabbajack files, MO2 installations and Nexus collections are not interchangeable .loadstone packages.
 
 Loadstone does not include Bethesda games or a playable mod collection. The bundled demonstration catalog is illustrative. Compatibility is specific to each creator setup; a Wabbajack archive alone is not a promise of complete game preparation. Some lists require additional steps documented by their authors.
 
@@ -41,10 +43,11 @@ Loadstone does not include Bethesda games or a playable mod collection. The bund
 | Claim | Current evidence | Required before release copy is approved |
 | --- | --- | --- |
 | Import and preflight | Real VNV archive, installed game and pinned runtime checked; [acceptance record](vnv-acceptance.md) | Creator-approved supported manifest, clean original game and authenticated source access |
-| Install and launch | Implemented adapter, output verification and fixture tests | Complete real download-to-play session on a clean machine; verify selected profile and game behavior |
+| Native installation | Documented format, real Electron guided installation/resume/admission and full-size private TTW reconstruction of 13,952 outputs | Reproducible permitted original-source recipe; real account downloads and clean Windows install-to-play |
+| Install and launch | Implemented native/engine launch paths; [partial TTW Steam-client evidence](native-steam-acceptance.md) | Resolve direct Steam startup failure; verify recording, disposable gameplay, isolated save/reload and selected-profile behavior |
 | One-click setup | Optional isolated game-root validation implemented | A permitted list that actually produces a self-contained playable setup. Current cached VNV requires manual game preparation; do not advertise one-click VNV |
-| Shortcuts and maintenance | Native desktop and Steam-file fixtures, recovery/update tests | Actual Steam-client launch/restart/update/uninstall and real save-preservation acceptance |
-| Nexus access | Local protected credential storage and membership checks | Public application registration and real authorized authentication; never supply reviewer credentials in Git or public docs |
+| Shortcuts and maintenance | Real Steam shortcut preservation/running-client safeguard; native repair, separate-version and retained-removal Electron fixtures | Complete uninterrupted Steam launch, actual depot update/uninstall and maintenance after real play with save-preservation evidence |
+| Nexus access | Local protected credential storage, membership checks, native automatic acquisition and guided manual verification; browser handoff intercepted in fixtures | Public application registration and real authorized authentication/downloads; never supply reviewer credentials in Git or public docs |
 | Open source | Contributor/privacy/security docs, dependency notices and history audit prepared | GPL-3.0-or-later selected for original source; corresponding-source delivery, distribution/asset review and publication audit decisions remain open; repository remains private |
 
 The current portable build is a local preview, not a Steam depot acceptance result. Record the exact candidate source commit, artifact hashes, depot build ID, test machine and outcomes in a release-specific acceptance report. Valve reviews the store presence and build; local tests do not replace that review. See [Valve review process](https://partner.steamgames.com/doc/store/review_process).
