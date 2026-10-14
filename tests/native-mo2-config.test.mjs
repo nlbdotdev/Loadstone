@@ -74,6 +74,42 @@ test('recipes without an edition retain their pre-extension configuration finger
   );
 });
 
+test('executable Steam app IDs are explicit and tied to the target game storefront', () => {
+  const { recipe } = createNativeFixture({ mo2Config: true });
+  const config = recipe.outputs.find((v) => v.action.type === 'mo2-config');
+  const entry = config.action.executables[0];
+  const render = () => renderMo2Config(config, recipe, 'C:/Loadstone/Steam');
+  const legacy = render();
+  entry.steamAppId = '22380';
+  assert.match(render().data.toString(), /^1\\steamAppID=22380$/m);
+  assert.notEqual(render().sha256, legacy.sha256);
+  recipe.game.variant = 'ttw';
+  recipe.requirements.unshift({ id: 'fallout3', store: 'gog', files: [] });
+  assert.doesNotThrow(render);
+  for (const invalid of [
+    '22490',
+    '489830',
+    22380,
+    '',
+    null,
+    '22380\n[Settings]',
+  ]) {
+    entry.steamAppId = invalid;
+    assert.throws(render, /steamAppId must match/);
+  }
+  entry.steamAppId = '22380';
+  recipe.requirements.find((v) => v.id === 'fnv').store = 'gog';
+  config.action.gameEdition = 'GOG';
+  assert.throws(render, /steamAppId must match/);
+  delete entry.steamAppId;
+  assert.doesNotThrow(render);
+  recipe.game.variant = 'base';
+  recipe.requirements.shift();
+  recipe.requirements[0].store = 'steam';
+  config.action.gameEdition = 'Steam';
+  assert.deepEqual(render(), legacy);
+});
+
 test('one recipe generates isolated MO2 paths at two destinations with exact derived fingerprints', async () => {
   const f = await fixture();
   assert.equal(f.inspected.summary.generatedConfigurations, 1);

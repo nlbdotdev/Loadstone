@@ -83,6 +83,13 @@ test('native checks reject redirected saves, changed executables and unsafe prof
     originalIni.replace('game_edition="Steam"', 'game_edition=Steam'),
   );
   assert.doesNotThrow(() => nativeLaunchPlan(record));
+  for (const replacement of ['1\\steamAppID=22490', '']) {
+    fs.writeFileSync(
+      iniFile,
+      originalIni.replace(/1\\steamAppID=.*/, replacement),
+    );
+    assert.throws(() => nativeLaunchPlan(record), /Steam app ID differs/);
+  }
   fs.writeFileSync(
     iniFile,
     originalIni.replace(/mod_directory=.*/, `mod_directory=${f.owned}`),
@@ -90,9 +97,14 @@ test('native checks reject redirected saves, changed executables and unsafe prof
   assert.throws(() => nativeLaunchPlan(record), /inside this candidate/);
   fs.writeFileSync(
     iniFile,
-    originalIni + '\n[Geometry]\nwindow_state=synthetic\n',
+    originalIni +
+      '\n[Geometry]\nwindow_state=synthetic\n' +
+      '[PluginPersistance]\nPython%20Proxy\\tryInit=false\n' +
+      '[recentDirectories]\nopen%20directory=C:/synthetic\n',
   );
-  await library.verify(record.id); // Unrelated MO2 window state is mutable.
+  await library.verify(record.id); // MO2's unrelated plugin/UI state is mutable.
+  assert.doesNotThrow(() => nativeLaunchPlan(record));
+  assert.match(fs.readFileSync(iniFile, 'utf8'), /Python%20Proxy/);
   fs.writeFileSync(
     iniFile,
     originalIni.replace(/1\\arguments=.*/, '1\\arguments=changed'),
@@ -103,6 +115,14 @@ test('native checks reject redirected saves, changed executables and unsafe prof
     originalIni.replace('[Settings]', '[Settings]\nMOD_DIRECTORY=outside'),
     originalIni + '\n [general]\ngamePath=outside\n',
     originalIni.replace('[General]', '[General]\ngame%50ath=outside'),
+    originalIni.replace('[Settings]', '[Settings]\nmod%5Fdirectory=outside'),
+    originalIni.replace(
+      '[customExecutables]',
+      '[customExecutables]\n1\\steam%41ppID=22490',
+    ),
+    originalIni + '\n[%47eneral]\ngamePath=outside\n',
+    originalIni +
+      '\n[PluginPersistance]\nPython%20Proxy\\tryInit=false\n[general]\ngamePath=outside\n',
   ]) {
     fs.writeFileSync(iniFile, replacement);
     assert.throws(() => nativeLaunchPlan(record), /Duplicate|Encoded/);

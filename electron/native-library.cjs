@@ -42,7 +42,7 @@ function read(file, limit) {
   );
   return data;
 }
-function iniEntries(data) {
+function iniEntries(data, requiredSections) {
   const sections = new Map();
   const sectionNames = new Set();
   let section, keys;
@@ -59,6 +59,12 @@ function iniEntries(data) {
         'Duplicate MO2 configuration section.',
       );
       sectionNames.add(heading[1].toLowerCase());
+      // MO2 adds mutable plugin/UI state, including percent-encoded keys.
+      // Parse launch settings only; section aliases stay rejected above.
+      if (!requiredSections.includes(heading[1])) {
+        section = null;
+        continue;
+      }
       section = new Map();
       keys = new Set();
       sections.set(heading[1], section);
@@ -138,8 +144,9 @@ function launchLayout(meta) {
     'Restore the empty portable marker before launching this candidate.',
   );
   const ini = read(path.join(root, 'ModOrganizer.ini'), 2_000_000);
-  const actual = iniEntries(ini),
-    expected = iniEntries(rendered.data);
+  const requiredSections = ['General', 'Settings', 'customExecutables'];
+  const actual = iniEntries(ini, requiredSections),
+    expected = iniEntries(rendered.data, requiredSections);
   demand(
     actual.get('General')?.get('gameName') ===
       expected.get('General').get('gameName'),
@@ -183,6 +190,11 @@ function launchLayout(meta) {
     (v) => v.title === recipe.launch.executable,
   );
   const declared = config.action.executables[index];
+  if (declared.steamAppId)
+    demand(
+      entries.get(prefix + 'steamAppID') === declared.steamAppId,
+      'The selected MO2 Steam app ID differs from the registered recipe.',
+    );
   for (const key of ['binary', 'workingDirectory', 'arguments']) {
     const configured = entries.get(prefix + key) ?? '';
     const wanted = expected
@@ -207,6 +219,7 @@ function launchLayout(meta) {
   directory(profile);
   const settings = iniEntries(
     read(path.join(profile, 'settings.ini'), 2_000_000),
+    ['General'],
   ).get('General');
   demand(
     settings?.get('LocalSaves') === 'true' &&

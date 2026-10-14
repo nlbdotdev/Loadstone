@@ -1,6 +1,6 @@
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { relativeFile } = require('./manifest.cjs');
+const { relativeFile, games } = require('./manifest.cjs');
 
 const configBytes = 1_000_000;
 const gameNames = {
@@ -81,7 +81,17 @@ function validateMo2Config(output, recipe) {
       'binary',
       'workingDirectory',
       ...(Object.hasOwn(entry || {}, 'arguments') ? ['arguments'] : []),
+      ...(Object.hasOwn(entry || {}, 'steamAppId') ? ['steamAppId'] : []),
     ]);
+    if (Object.hasOwn(entry, 'steamAppId')) {
+      const store = recipe.requirements.find(
+        (v) => v.id === recipe.game.id,
+      )?.store;
+      demand(
+        store === 'steam' && entry.steamAppId === games[recipe.game.id]?.appId,
+        'steamAppId must match the supported target game and its Steam requirement.',
+      );
+    }
     demand(
       typeof entry.title === 'string' &&
         entry.title.trim() === entry.title &&
@@ -226,6 +236,7 @@ function renderMo2Config(output, recipe, destination) {
               entry.arguments.map((v) => '"' + local(v.path) + '"').join(' '),
             )
           : ''),
+      ...(entry.steamAppId ? [prefix + 'steamAppID=' + entry.steamAppId] : []),
     );
   }
   const data = Buffer.from(lines.join('\n') + '\n', 'utf8');
