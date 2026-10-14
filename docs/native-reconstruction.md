@@ -55,6 +55,16 @@ Cancellation or failure retains the candidate directory and receipt. A hard proc
 
 These checks supplement standard Windows access controls; they are not a sandbox for an actively hostile process racing filesystem changes. Keep source files and the new destination settled during reconstruction.
 
+## Nested BSA 104 files
+
+An explicit `extract-bsa104` action can reconstruct loose files from a BSA container inside an original ZIP, 7z or RAR source. The recipe independently locks the outer archive, its BSA member and the final inner file. The installer validates the complete outer archive structure, stages only the declared containers, verifies their full hashes, and checks every BSA member and selected output before creating or changing installation files. Ordinary `extract` actions keep their direct-member meaning.
+
+Staging uses one new directory beneath the operating system's temporary directory and numbered files, never archive-supplied filesystem paths. Up to 64 containers and 20 GB of staging bytes are accepted per recipe. The temporary volume needs the declared container bytes plus a 64 MB reserve; destination space is checked separately. Each container follows the [BSA reader's format and decompression limits](bsa-inspection.md). A compressed or shared member is streamed through an awaited consumer, then the installation writer verifies its exact output bytes/hash and applies any declared timestamp. No archive code runs.
+
+Handled success, cancellation and failure close the readers/writers and remove the operation's ordinary staging files. Cleanup checks directory/file identity, performs no recursive deletion and preserves changed or unfamiliar staging contents. A hard process termination can leave temporary containers behind; restarting builds new staging after a fresh source/recovery review and does not blindly purge earlier temporary folders. Failed installation outputs and user data retain the existing receipt/recovery behavior. Resume reuses verified outputs; repair preserves conflicts and personal configuration through the same review path as other actions.
+
+Synthetic tests cover ZIP, solid 7z and RAR5 outer archives, mixed direct/nested outputs, compressed/empty/shared BSA members, exact timestamps, invalid containers and inner members, unsafe trailing archive entries, resource limits, failed staging writes, cancellation, resume and repair. Actual Electron tests exercise reviewed ZIP and RAR5 reconstruction through the bridge and are also run against the staged executable. The CLI inventory remains evidence only; automatic nested-source ledger mapping is separate work.
+
 ## Acceptance remaining
 
 Complete real provider-download acceptance, conversion, profile/tool configuration reconstruction, real version-update and maintenance acceptance. Creator reconstruction is exercised through real Electron with original synthetic ZIP, solid 7z and stored RAR5 inputs, including cancellation, failed writes and tool replacement. The RAR5 fixture is generated from the [published format](https://www.rarlab.com/technote.htm), without third-party archive contents or encoder code. Clean-machine installation and gameplay acceptance remain unfinished. The separate package inspection card stays read-only.

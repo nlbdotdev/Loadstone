@@ -12,7 +12,9 @@ const {
 } = require('./native-package.cjs');
 const { canonicalJson } = require('./native-format.cjs');
 const { canonical, contains } = require('./live-catalog.cjs');
-const { relativeFile } = require('./manifest.cjs');
+const { zipPath } = require('./native-archive-path.cjs');
+const { NativeBsaWork } = require('./native-bsa.cjs');
+const { extractBsa104 } = require('./bsa104.cjs');
 const { replaceStateFile } = require('./replace-state-file.cjs');
 const { archiveKind } = require('./archive-kind.cjs');
 const {
@@ -53,21 +55,6 @@ async function verifyFile(file, expected, signal, activity) {
     throw new Error('Native source changed or differs from the recipe hash.');
   activity?.finish();
   return before;
-}
-function zipPath(entry) {
-  const directory = entry.fileName.endsWith('/'),
-    name = directory ? entry.fileName.slice(0, -1) : entry.fileName;
-  const type = (entry.externalFileAttributes >>> 16) & 0o170000;
-  if (
-    !relativeFile(name) ||
-    name.includes('\\') ||
-    name !== name.normalize('NFC') ||
-    (type && type !== (directory ? 0o040000 : 0o100000)) ||
-    entry.generalPurposeBitFlag & 1 ||
-    ![0, 8].includes(entry.compressionMethod)
-  )
-    throw new Error('Unsafe or unsupported ZIP entry.');
-  return { name, directory };
 }
 async function inspectInputs(file, options) {
   const packageSnapshot = ordinaryFile(file, 512_000_000);
@@ -187,7 +174,7 @@ async function inspectInputs(file, options) {
   }
   return { inspected, gameRoots, prerequisiteRoots, sources };
 }
-async function materializeNative(file, destination, options = {}) {
+async function materializeNativeImpl(file, destination, options, bsaWork) {
   options.signal?.throwIfAborted();
   file = path.resolve(file);
   if (typeof destination !== 'string' || !path.isAbsolute(destination))
@@ -260,7 +247,8 @@ async function materializeNative(file, destination, options = {}) {
   }
   // Reject unsupported archive structure before creating the destination. Hash
   // verification already locked each selected archive's exact bytes.
-  const groups = new Map();
+  const bsaGroups = await bsaWork.prepare(outputs, sources, target, options);
+  const groups = new Map(bsaGroups.map((group) => [group.file, group]));
   for (const output of outputs) {
     if (generated.has(output.path)) continue;
     const input = sources.get(output.action.source);
@@ -286,6 +274,10 @@ async function materializeNative(file, destination, options = {}) {
   for (const group of groups.values()) {
     if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
       throw new Error('Archive changed after input verification.');
+    if (group.bsa) {
+      archiveActivity.finish();
+      continue;
+    }
     if (group.inspectedArchive) {
       const { selected } = options.sevenZip.planExtraction(
         group.inspectedArchive,
@@ -491,6 +483,18 @@ async function materializeNative(file, destination, options = {}) {
     // Only Loadstone opens output paths. One file is open at a time, and each
     // write is awaited before reading more bytes from the archive process.
     let current;
+    const extract = group.bsa
+      ? (_candidate, _inspected, wanted, consumer, signal) =>
+          extractBsa104(
+            group.file,
+            group.bsa,
+            new Map(
+              [...wanted].map((name) => [name, group.outputs.get(name)[0]]),
+            ),
+            consumer,
+            signal,
+          )
+      : (...args) => options.sevenZip.extractMembers(...args);
     async function begin(entry) {
       options.signal?.throwIfAborted();
       if (!current) {
@@ -511,7 +515,7 @@ async function materializeNative(file, destination, options = {}) {
       return current;
     }
     try {
-      await options.sevenZip.extractMembers(
+      await extract(
         group.candidate,
         group.inspectedArchive,
         new Set(group.outputs.keys()),
@@ -612,7 +616,7 @@ async function materializeNative(file, destination, options = {}) {
     for (const group of groups.values()) {
       if (!sameFile(group.snapshot, ordinaryFile(group.file, 50_000_000_000)))
         throw new Error('Source archive changed before extraction.');
-      if (group.inspectedArchive) {
+      if (group.inspectedArchive || group.bsa) {
         await extractWithTool(group);
         continue;
       }
@@ -683,6 +687,14 @@ async function materializeNative(file, destination, options = {}) {
       /* Preserve the original failure and existing evidence. */
     }
     throw error;
+  }
+}
+async function materializeNative(file, destination, options = {}) {
+  const bsaWork = new NativeBsaWork();
+  try {
+    return await materializeNativeImpl(file, destination, options, bsaWork);
+  } finally {
+    bsaWork.close();
   }
 }
 module.exports = { materializeNative };

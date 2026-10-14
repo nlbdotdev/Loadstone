@@ -84,7 +84,7 @@ For tests, `scripts/prepare-sevenzip.ps1 -Destination <new-private-directory>` d
 
 7-Zip is a separate upstream tool with LGPL, BSD and unRAR terms; a future bundled distribution needs its own notices/source compliance review. See the [official release](https://github.com/ip7z/7zip/releases/tag/26.04) and [license](https://www.7-zip.org/license.txt).
 
-For a separate read-only inventory of files inside a local Fallout 3/New Vegas BSA, see [BSA 104 inspection](bsa-inspection.md). This hashes the internal members but does not yet add nested-container matches to the ledger or native reconstruction.
+For a separate read-only inventory of files inside a local Fallout 3/New Vegas BSA, see [BSA 104 inspection](bsa-inspection.md). This hashes the internal members without adding nested-container matches to the ledger. Reviewed source chains can be declared explicitly for [native BSA reconstruction](native-reconstruction.md#nested-bsa-104-files).
 
 ## Native `.loadstone` format
 
