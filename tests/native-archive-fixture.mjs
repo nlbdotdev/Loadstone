@@ -15,6 +15,47 @@ const uint32 = (value) => {
   buffer.writeUInt32LE(value);
   return buffer;
 };
+// Minimal stored ZIP encoder for synthetic raw names that normal writers
+// sanitize. Local and central names agree; payloads are never executable.
+export function storedZip(files) {
+  const local = [],
+    central = [];
+  let offset = 0;
+  for (const [name, data, mode = 0o100644] of files) {
+    const encoded = Buffer.from(name),
+      content = Buffer.from(data);
+    const header = Buffer.alloc(30),
+      directory = Buffer.alloc(46);
+    header.writeUInt32LE(0x04034b50, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(0x800, 6);
+    header.writeUInt32LE(crc32(content), 14);
+    header.writeUInt32LE(content.length, 18);
+    header.writeUInt32LE(content.length, 22);
+    header.writeUInt16LE(encoded.length, 26);
+    directory.writeUInt32LE(0x02014b50, 0);
+    directory.writeUInt16LE(0x314, 4);
+    directory.writeUInt16LE(20, 6);
+    directory.writeUInt16LE(0x800, 8);
+    directory.writeUInt32LE(crc32(content), 16);
+    directory.writeUInt32LE(content.length, 20);
+    directory.writeUInt32LE(content.length, 24);
+    directory.writeUInt16LE(encoded.length, 28);
+    directory.writeUInt32LE((mode * 65536) >>> 0, 38);
+    directory.writeUInt32LE(offset, 42);
+    local.push(header, encoded, content);
+    central.push(directory, encoded);
+    offset += header.length + encoded.length + content.length;
+  }
+  const table = Buffer.concat(central),
+    end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(table.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...local, table, end]);
+}
 const vint = (number) => {
   const bytes = [];
   do {
@@ -81,7 +122,10 @@ export async function createArchiveFixture(
     ['Data/unused.bin', Buffer.alloc(500000, 88)],
     ...extraFiles,
   ]);
-  f.archive = path.join(f.packages, `source.${kind === '7z' ? '7z' : 'rar'}`);
+  f.archive = path.join(
+    f.packages,
+    `source.${kind === '7z' ? '7z' : kind === 'zip-windows' ? 'zip' : 'rar'}`,
+  );
   if (kind === '7z') {
     const input = path.join(f.root, 'archive-input');
     for (const [name, data] of allFiles) {
@@ -100,6 +144,13 @@ export async function createArchiveFixture(
         '.',
       ],
       { cwd: input, windowsHide: true, stdio: 'ignore' },
+    );
+  } else if (kind === 'zip-windows') {
+    fs.writeFileSync(
+      f.archive,
+      storedZip(
+        [...allFiles].map(([name, data]) => [name.replaceAll('/', '\\'), data]),
+      ),
     );
   } else fs.writeFileSync(f.archive, storedRar5(allFiles));
   f.recipe.sources.push({

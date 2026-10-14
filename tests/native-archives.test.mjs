@@ -75,138 +75,148 @@ test(
   },
 );
 
-test(
-  'real Electron acquires a reviewed archive, displays progress and reconstructs exact outputs through the bridge',
-  options,
-  async () => {
-    const f = await createArchiveFixture('rar5', { timestamps: true });
-    fs.writeFileSync(
-      f.inputsFile,
-      JSON.stringify({
-        games: { fnv: f.game },
-        archives: { 'original-archive': null },
-      }),
-    );
-    const env = { ...process.env, LOADSTONE_DATA_DIR: f.state };
-    delete env.ELECTRON_RUN_AS_NODE;
-    const app = await electron.launch({
-      executablePath: process.env.LOADSTONE_TEST_EXE || require('electron'),
-      args: process.env.LOADSTONE_TEST_EXE ? [] : [path.resolve('.')],
-      env,
-    });
-    try {
-      const page = await app.firstWindow();
-      await page
-        .getByRole('button', { name: 'Explore the demo', exact: true })
-        .click();
-      await page.getByRole('button', { name: 'Settings', exact: true }).click();
-      await page.evaluate(() =>
-        window.loadstone.settings({ dummyData: false }),
+for (const kind of ['rar5', 'zip-windows'])
+  test(
+    `real Electron acquires a reviewed ${kind} archive, displays progress and reconstructs exact outputs through the bridge`,
+    options,
+    async () => {
+      const f = await createArchiveFixture(kind, { timestamps: true });
+      fs.writeFileSync(
+        f.inputsFile,
+        JSON.stringify({
+          games: { fnv: f.game },
+          archives: { 'original-archive': null },
+        }),
       );
-      await app.evaluate(
-        ({ dialog }, fixture) => {
-          const fs = process.getBuiltinModule('fs');
-          const https = process.getBuiltinModule('https');
-          const { Readable } = process.getBuiltinModule('stream');
-          const { EventEmitter } = process.getBuiltinModule('events');
-          const files = [
-            fixture.packageFile,
-            fixture.inputsFile,
-            fixture.parent,
-            fixture.executable,
-          ];
-          dialog.showOpenDialog = async () => ({
-            canceled: false,
-            filePaths: [files.shift()],
-          });
-          https.get = (url, options, callback) => {
-            if (
-              url.href !== 'https://example.org/original' ||
-              options.headers.apikey
-            )
-              throw new Error('Unexpected fixture network request');
-            const bytes = fs.readFileSync(fixture.archive);
-            const stream = Readable.from(
-              (async function* () {
-                yield bytes.subarray(0, 64000);
-                await new Promise((resolve) => setTimeout(resolve, 1700));
-                yield bytes.subarray(64000, 128000);
-                await new Promise((resolve) => setTimeout(resolve, 1700));
-                yield bytes.subarray(128000);
-              })(),
-            );
-            stream.statusCode = 200;
-            stream.headers = {};
-            const request = new EventEmitter();
-            request.setTimeout = () => {};
-            request.destroy = (error) => {
-              stream.destroy(error);
-              request.emit('error', error);
+      const env = { ...process.env, LOADSTONE_DATA_DIR: f.state };
+      delete env.ELECTRON_RUN_AS_NODE;
+      const app = await electron.launch({
+        executablePath: process.env.LOADSTONE_TEST_EXE || require('electron'),
+        args: process.env.LOADSTONE_TEST_EXE ? [] : [path.resolve('.')],
+        env,
+      });
+      try {
+        const page = await app.firstWindow();
+        await page
+          .getByRole('button', { name: 'Explore the demo', exact: true })
+          .click();
+        await page
+          .getByRole('button', { name: 'Settings', exact: true })
+          .click();
+        await page.evaluate(() =>
+          window.loadstone.settings({ dummyData: false }),
+        );
+        await app.evaluate(
+          ({ dialog }, fixture) => {
+            const fs = process.getBuiltinModule('fs');
+            const https = process.getBuiltinModule('https');
+            const { Readable } = process.getBuiltinModule('stream');
+            const { EventEmitter } = process.getBuiltinModule('events');
+            const files = [
+              fixture.packageFile,
+              fixture.inputsFile,
+              fixture.parent,
+              fixture.executable,
+            ];
+            dialog.showOpenDialog = async () => ({
+              canceled: false,
+              filePaths: [files.shift()],
+            });
+            https.get = (url, options, callback) => {
+              if (
+                url.href !== 'https://example.org/original' ||
+                options.headers.apikey
+              )
+                throw new Error('Unexpected fixture network request');
+              const bytes = fs.readFileSync(fixture.archive);
+              const stream = Readable.from(
+                (async function* () {
+                  yield bytes.subarray(0, 64000);
+                  await new Promise((resolve) => setTimeout(resolve, 1700));
+                  yield bytes.subarray(64000, 128000);
+                  await new Promise((resolve) => setTimeout(resolve, 1700));
+                  yield bytes.subarray(128000);
+                })(),
+              );
+              stream.statusCode = 200;
+              stream.headers = {};
+              const request = new EventEmitter();
+              request.setTimeout = () => {};
+              request.destroy = (error) => {
+                stream.destroy(error);
+                request.emit('error', error);
+              };
+              options.signal.addEventListener(
+                'abort',
+                () => request.destroy(new Error('cancelled')),
+                { once: true },
+              );
+              queueMicrotask(() => callback(stream));
+              return request;
             };
-            options.signal.addEventListener(
-              'abort',
-              () => request.destroy(new Error('cancelled')),
-              { once: true },
-            );
-            queueMicrotask(() => callback(stream));
-            return request;
-          };
-        },
-        { ...f, executable },
-      );
-      await page
-        .getByRole('button', { name: 'Choose local build inputs', exact: true })
-        .click();
-      const review = page.getByRole('region', { name: 'Review native build' });
-      await review.waitFor();
-      assert.match(await review.textContent(), /1\s+archive to acquire/);
-      assert.match(await review.textContent(), /example.org/);
-      await review
-        .getByRole('button', { name: 'Build candidate', exact: true })
-        .click();
-      await page
-        .getByText('Acquiring archive files', { exact: true })
-        .waitFor();
-      fs.mkdirSync('test-results', { recursive: true });
-      await page
-        .getByRole('region', { name: 'Native candidate builds' })
-        .screenshot({ path: 'test-results/native-download-progress.png' });
-      await page
-        .getByText('Files verified · Launch untested', { exact: true })
-        .waitFor();
-      const jobs = await page.evaluate(() => window.loadstone.nativeBuilds());
-      assert.equal(jobs[0].status, 'verified');
-      for (const output of f.recipe.outputs)
+          },
+          { ...f, executable },
+        );
+        await page
+          .getByRole('button', {
+            name: 'Choose local build inputs',
+            exact: true,
+          })
+          .click();
+        const review = page.getByRole('region', {
+          name: 'Review native build',
+        });
+        await review.waitFor();
+        assert.match(await review.textContent(), /1\s+archive to acquire/);
+        assert.match(await review.textContent(), /example.org/);
+        await review
+          .getByRole('button', { name: 'Build candidate', exact: true })
+          .click();
+        await page
+          .getByText('Acquiring archive files', { exact: true })
+          .waitFor();
+        fs.mkdirSync('test-results', { recursive: true });
+        await page
+          .getByRole('region', { name: 'Native candidate builds' })
+          .screenshot({
+            path: `test-results/native-download-progress-${kind}.png`,
+          });
+        await page
+          .getByText('Files verified · Launch untested', { exact: true })
+          .waitFor();
+        const jobs = await page.evaluate(() => window.loadstone.nativeBuilds());
+        assert.equal(jobs[0].status, 'verified');
+        for (const output of f.recipe.outputs)
+          assert.equal(
+            Math.round(
+              fs.statSync(path.join(jobs[0].destination, output.path)).mtimeMs,
+            ),
+            output.mtimeMs,
+          );
+        for (const output of f.recipe.outputs)
+          assert.equal(
+            fingerprint(
+              fs.readFileSync(path.join(jobs[0].destination, output.path)),
+            ).sha256,
+            output.sha256,
+          );
+        const history = fs.readFileSync(
+          path.join(f.state, 'native-builds.json'),
+          'utf8',
+        );
+        assert.equal(history.includes('example.org'), false);
+        assert.equal(history.includes('native-downloads'), false);
         assert.equal(
-          Math.round(
-            fs.statSync(path.join(jobs[0].destination, output.path)).mtimeMs,
+          await page.evaluate(
+            async () => (await window.loadstone.liveJobs()).length,
           ),
-          output.mtimeMs,
+          0,
         );
-      for (const output of f.recipe.outputs)
-        assert.equal(
-          fingerprint(
-            fs.readFileSync(path.join(jobs[0].destination, output.path)),
-          ).sha256,
-          output.sha256,
-        );
-      const history = fs.readFileSync(
-        path.join(f.state, 'native-builds.json'),
-        'utf8',
-      );
-      assert.equal(history.includes('example.org'), false);
-      assert.equal(history.includes('native-downloads'), false);
-      assert.equal(
-        await page.evaluate(
-          async () => (await window.loadstone.liveJobs()).length,
-        ),
-        0,
-      );
-    } finally {
-      await app.close();
-    }
-  },
-);
+      } finally {
+        await app.close();
+      }
+    },
+  );
 
 test(
   'native CLI reconstructs a RAR candidate using an explicit operator-selected archive tool',

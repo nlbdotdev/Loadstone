@@ -26,7 +26,8 @@ async function inspectZipMembers(candidate, wanted, signal) {
     lazyEntries: true,
     autoClose: false,
     validateEntrySizes: true,
-    strictFileNames: true,
+    // Normalize upstream Windows separators before the path/collision checks.
+    strictFileNames: false,
   });
   const paths = new Map(),
     matches = new Map();

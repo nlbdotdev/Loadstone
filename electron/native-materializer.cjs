@@ -267,6 +267,7 @@ async function materializeNative(file, destination, options = {}) {
     if (output.action.type === 'extract' || input.package) {
       const group = groups.get(input.file) || {
         file: input.file,
+        package: input.package === true,
         snapshot: input.snapshot,
         candidate: input.candidate,
         inspectedArchive: input.inspectedArchive,
@@ -302,7 +303,9 @@ async function materializeNative(file, destination, options = {}) {
     const zip = await yauzl.openPromise(group.file, {
       lazyEntries: true,
       autoClose: false,
-      strictFileNames: true,
+      // Only upstream archives may use Windows separators; native packages
+      // retain their canonical names. zipPath and collision checks run next.
+      strictFileNames: group.package,
       validateEntrySizes: true,
     });
     const entries = new Map(),
@@ -616,7 +619,7 @@ async function materializeNative(file, destination, options = {}) {
       const zip = await yauzl.openPromise(group.file, {
         lazyEntries: true,
         autoClose: false,
-        strictFileNames: true,
+        strictFileNames: group.package,
         validateEntrySizes: true,
       });
       const produced = new Set();
