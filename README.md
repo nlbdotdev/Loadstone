@@ -57,6 +57,8 @@ Creator tooling can [inventory an installed MO2 setup and compare original archi
 
 Players can now use **Discover → Open .loadstone** for [guided native installation](docs/native-guided-install.md): select owned games, prepared prerequisites and original archives without creating an inputs JSON. Downloads shows measured progress, cancellation and resume, then offers explicit review of the completed folder for My library. This uses the same builder and verification rules as the creator tools. Draft selections last until app restart; gameplay and provider/client acceptance remain open.
 
+The [real TTW acceptance record](docs/native-steam-acceptance.md) now includes direct launch to the main menu and a verified Steam game-recording export after a normal Steam restart. Gameplay, save/reload, controller and clean-machine acceptance remain unfinished. See [Steam startup guidance](docs/native-library.md#steam-game-startup) for the observed load error and recovery steps.
+
 [Manual Nexus downloads](docs/native-manual-downloads.md) open each declared file page in the default browser and verify the downloaded original before selection, with byte progress and cancellation. Browser mode tracks pending files and requires all Nexus selections before installation review; existing cache files can be explicitly checked too. Automatic Nexus downloads still require fresh Premium access. Real account/website acceptance and public API registration remain open.
 
 ## Persistence and desktop behavior

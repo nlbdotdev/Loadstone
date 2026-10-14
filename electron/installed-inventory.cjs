@@ -219,10 +219,41 @@ async function inspectMo2(root, options = {}) {
       throw new Error(
         'Installation inventory requires distinct instance and configured collection roots.',
       );
-    const instanceFiles = await scan(root, 'instance', (relative) => {
-      const full = path.join(root, relative);
-      return separated.find(([folder]) => contains(folder, full))?.[1];
-    });
+    const instanceFiles = await scan(
+      root,
+      'instance',
+      (relative, isDirectory) => {
+        const full = path.join(root, relative);
+        const separate = separated.find(([folder]) =>
+          contains(folder, full),
+        )?.[1];
+        if (separate) return separate;
+        // MO2 recompiles Python plugin caches after relocation. Keep the source
+        // and bytecode-only plugins; exclude only caches with an ordinary source.
+        const parts = relative.replaceAll('\\', '/').split('/');
+        if (
+          !isDirectory &&
+          parts.length >= 3 &&
+          parts[0].toLowerCase() === 'plugins' &&
+          parts.at(-2).toLowerCase() === '__pycache__'
+        ) {
+          const cache = parts
+            .at(-1)
+            .match(/^(.+)\.cpython-\d+(?:\.opt-\d+)?\.pyc$/i);
+          if (cache) {
+            const source = path.join(
+              path.dirname(path.dirname(full)),
+              `${cache[1]}.py`,
+            );
+            if (fs.existsSync(source)) {
+              ordinary(source);
+              return 'regenerable-python-bytecode';
+            }
+          }
+        }
+        return null;
+      },
+    );
     const gameFiles = await scan(game, 'game');
     const profileFiles = await scan(profile, 'profile');
     installation = { schemaVersion: 1, instanceFiles, gameFiles, profileFiles };

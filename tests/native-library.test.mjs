@@ -143,7 +143,12 @@ test('native checks reject redirected saves, changed executables and unsafe prof
     path.join(f.destination, 'profiles/Test/modlist.txt'),
     'changed',
   );
-  await assert.rejects(library.verify(record.id));
+  const verifiedAt = library.entries[0].verifiedAt;
+  await assert.rejects(
+    library.verify(record.id),
+    /Recipe file is missing, larger than expected, redirected or not an ordinary file: profiles\/Test\/modlist\.txt/,
+  );
+  assert.equal(library.entries[0].verifiedAt, verifiedAt);
   assert.match(
     fs.readFileSync(
       path.join(f.destination, 'profiles/Test/modlist.txt'),

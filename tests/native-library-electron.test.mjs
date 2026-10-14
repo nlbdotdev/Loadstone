@@ -135,6 +135,29 @@ test(
         .getByRole('status')
         .filter({ hasText: 'profile isolation verified' })
         .waitFor();
+      const verifiedAt = (
+        await page.evaluate(() => window.loadstone.nativeLibrary())
+      ).entries[0].verifiedAt;
+      const modlistFile = path.join(f.destination, 'profiles/Test/modlist.txt');
+      const modlist = fs.readFileSync(modlistFile);
+      fs.appendFileSync(modlistFile, '\nfixture mutation');
+      await page
+        .getByRole('button', { name: 'Verify recipe files', exact: true })
+        .click();
+      await page
+        .getByRole('alert')
+        .filter({
+          hasText:
+            'Recipe file is missing, larger than expected, redirected or not an ordinary file: profiles/Test/modlist.txt',
+        })
+        .waitFor();
+      assert.equal(
+        (await page.evaluate(() => window.loadstone.nativeLibrary())).entries[0]
+          .verifiedAt,
+        verifiedAt,
+      );
+      assert.match(fs.readFileSync(modlistFile, 'utf8'), /fixture mutation$/);
+      fs.writeFileSync(modlistFile, modlist);
       fs.mkdirSync('test-results', { recursive: true });
       await page.screenshot({ path: 'test-results/native-library.png' });
       // Reject before spawn: no synthetic or real game executable is ever run.
