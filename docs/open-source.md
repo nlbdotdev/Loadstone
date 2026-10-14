@@ -1,6 +1,6 @@
 # Open-source release preparation
 
-The maintainer selected **GPL-3.0-or-later** on October 13, 2026. [LICENSE](../LICENSE) contains the unmodified GNU GPL version 3 text; [COPYRIGHT](../COPYRIGHT) expressly grants the option to use any later version and defines the covered original source and technical documentation. `package.json` uses the SPDX identifier `GPL-3.0-or-later`. The repository remains private pending publication review.
+The maintainer selected **GPL-3.0-or-later** on October 13, 2026. [LICENSE](../LICENSE) contains the unmodified GNU GPL version 3 text; [COPYRIGHT](../COPYRIGHT) expressly grants the option to use any later version and defines the covered original source and technical documentation. `package.json` uses the SPDX identifier `GPL-3.0-or-later`. The source repository is public; the maintainer confirmed that it should remain public on October 13, 2026. Private acceptance artifacts and unpublished binary candidates remain separate.
 
 New Windows packages include `resources/licenses/Loadstone-GPL-3.0.txt` and `Loadstone-COPYRIGHT.txt`; the About screen displays both texts offline. Third-party notices remain separate. The recorded 0.3.0 preview predates this decision and is not silently replaced or relabeled.
 
@@ -34,8 +34,8 @@ The renderer build records the packages whose modules contribute code, including
 - Review tracked files, screenshots, fixtures and the complete Git history for secrets, signed URLs, personal paths and private material. Rotate any exposed credentials before considering history cleanup.
 - Verify the public README against the release artifact, link its exact source tag, and separate developer preview limitations from supported features.
 - Complete Windows install-to-play, Steam shortcut, recovery, save-preservation and removal acceptance; prepare the distinct Steam depot and store materials.
-- Obtain an explicit publication request before changing repository visibility or publishing a public release.
+- Keep the source repository public. Public binary releases, Steam uploads and distribution of third-party payloads require their own completed acceptance and publication authorization.
 
-These gates remain open. This document records preparation, not approval to publish.
+These binary-release gates remain open. Public source availability is already authorized; it does not establish that a binary candidate or featured modlist is ready to publish.
 
 Run `pnpm audit:publication` before proposing public release. See [publication hygiene findings](publication-audit.md) for the scan scope, classified fixtures, historical personal-path findings and outstanding manual review. The command never rewrites history and does not approve publication.
