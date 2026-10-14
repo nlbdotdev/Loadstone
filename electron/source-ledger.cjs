@@ -213,6 +213,7 @@ async function buildSourceLedger(inventory, downloadRoots, options = {}) {
       'credential-or-browser-state',
       'cache-log-or-backup-directory',
       'runtime-log-or-cache',
+      'regenerable-python-bytecode',
       'mod-directory-inventoried-separately',
       'profiles-inventoried-separately',
       'overwrite-inventoried-separately',

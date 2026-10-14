@@ -7,6 +7,8 @@ import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { inspectMo2 } = require('../electron/installed-inventory.cjs');
+const { buildSourceLedger } = require('../electron/source-ledger.cjs');
+const { mapArchiveSources } = require('../electron/archive-mapping.cjs');
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadstone-inventory-'));
   for (const dir of [
@@ -352,6 +354,20 @@ test('instance inventory excludes regenerable Python plugin caches while retaini
       `fixture: ${file}`,
     );
   }
+  const ledger = await buildSourceLedger(report, []);
+  assert.deepEqual(ledger.installation, report.installation);
+  assert.deepEqual(ledger.exclusions, report.exclusions);
+  const mapped = await mapArchiveSources(ledger);
+  assert.deepEqual(mapped.installation, report.installation);
+  assert.deepEqual(mapped.exclusions, report.exclusions);
+  assert.equal(mapped.installable, false);
+  assert.equal(mapped.publicationApproved, false);
+  const unsupported = structuredClone(report);
+  unsupported.exclusions[0].reason = 'unknown-exclusion';
+  await assert.rejects(
+    buildSourceLedger(unsupported, []),
+    /Invalid inventory exclusion record/,
+  );
   await assert.rejects(
     inspectMo2(f.root, {
       hashFiles: true,
