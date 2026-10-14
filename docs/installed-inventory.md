@@ -84,6 +84,8 @@ For tests, `scripts/prepare-sevenzip.ps1 -Destination <new-private-directory>` d
 
 7-Zip is a separate upstream tool with LGPL, BSD and unRAR terms; a future bundled distribution needs its own notices/source compliance review. See the [official release](https://github.com/ip7z/7zip/releases/tag/26.04) and [license](https://www.7-zip.org/license.txt).
 
+For a separate read-only inventory of files inside a local Fallout 3/New Vegas BSA, see [BSA 104 inspection](bsa-inspection.md). This hashes the internal members but does not yet add nested-container matches to the ledger or native reconstruction.
+
 ## Native `.loadstone` format
 
 The user chose a documented format and open implementation on 2026-10-13. This is Loadstone's native format, not an opaque replacement for upstream archives. The implementation and specification will be developed together from the real inventories. The maintainer separately selected GPL-3.0-or-later for the original implementation on October 13, 2026; third-party content retains its own terms.
