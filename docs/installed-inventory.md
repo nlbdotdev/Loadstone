@@ -20,6 +20,8 @@ Neither mode is an atomic filesystem snapshot. File hashing rejects changes whil
 
 The report is **not installable and not publication-approved**. Even with complete hashes for the included files, it does not establish upstream game equivalence, archive contents/conflict resolution, runtime compatibility, source-download reproducibility or redistribution rights. Saves are not read from the profile. No network request or program launch is required to inspect an instance.
 
+MO2 instance plugin inventories also exclude CPython `__pycache__` files when their adjacent ordinary `.py` source is present. Each receives the explicit `regenerable-python-bytecode` reason; the source remains inventoried. Standalone bytecode, caches without a source, unknown cache naming and mod/game content remain included. This avoids pinning machine-dependent cache bytes that MO2 regenerates after relocation. Existing inventories, recipes and verification fingerprints are unchanged; use a new reviewed recipe/version to apply this boundary.
+
 ## Private source ledger
 
 ```powershell

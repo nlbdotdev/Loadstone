@@ -271,8 +271,15 @@ async function verifyCandidate(root, options = {}) {
   for (const output of meta.recipe.outputs) {
     options.signal?.throwIfAborted();
     if (output.action.type !== 'mo2-config') {
-      const file = path.join(meta.root, output.path),
+      const file = path.join(meta.root, output.path);
+      let before;
+      try {
         before = ordinaryFile(file, output.bytes);
+      } catch {
+        throw new Error(
+          `Recipe file is missing, larger than expected, redirected or not an ordinary file: ${output.path}`,
+        );
+      }
       demand(
         before.size === output.bytes,
         `Recipe file size differs: ${output.path}`,

@@ -16,6 +16,12 @@ The review shows the selected folder, profile, output count and the recipe autho
 
 The full comparison is a point-in-time result. Registration rechecks metadata and the launch-critical files after review; launching does not rehash every mod file. Close other MO2/game windows yourself, including windows started outside Loadstone.
 
+### Steam game startup
+
+For a Steam edition, keep the owning Steam client running before **Launch native setup**. If New Vegas displays `Application load error 5:0000065434`, close the game and its MO2 instance, exit Steam normally, reopen Steam, then retry the same setup from Loadstone. A normal client restart resolved this error in our [isolated TTW menu test](native-steam-acceptance.md#direct-launch-after-a-normal-steam-restart). The [Viva New Vegas FAQ](https://vivanewvegas.moddinglinked.com/faq.html) also describes launching the owned game once through Steam as another recovery step. Launching the owned game that way is separate from launching the isolated modded setup.
+
+If the error persists, retain the setup and record the exact error, game edition and Loadstone build before further diagnosis. A full reconstruction or a changed app ID is not established as a remedy by this test. Loadstone does not automatically restart Steam or change its registration. Reaching the menu and verifying a recording still leave new-game, save/reload and controller acceptance outstanding.
+
 ## Shortcuts and local state
 
 Desktop and Steam buttons create or repair shortcuts to the candidate's manager and exact profile. Creation checks the same launch layout. Desktop links use the registered candidate ID as an ownership marker. Steam preserves unrelated entries and existing owned app IDs, backs up its shortcut file, and requires Steam to be completely closed. Choose the intended local account before saving.

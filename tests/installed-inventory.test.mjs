@@ -278,6 +278,77 @@ test('expanded inventory hashes disabled mods, game/tool files and full selected
   );
 });
 
+test('instance inventory excludes regenerable Python plugin caches while retaining sources and bytecode-only content', async () => {
+  const f = fixture();
+  for (const folder of ['plugins/example/__pycache__', 'mods/High/__pycache__'])
+    fs.mkdirSync(path.join(f.root, folder), { recursive: true });
+  const caches = [
+    'plugins/example/__pycache__/tool.cpython-312.opt-2.pyc',
+    'plugins/example/__pycache__/tool.cpython-312.pyc',
+  ];
+  const included = [
+    'plugins/example/tool.py',
+    'plugins/example/standalone.pyc',
+    'plugins/example/__pycache__/orphan.cpython-312.pyc',
+    'plugins/example/__pycache__/tool.pypy-312.pyc',
+    'plugins/example/__pycache__/payload.dat',
+    'mods/High/tool.py',
+    'mods/High/__pycache__/tool.cpython-312.pyc',
+  ];
+  for (const file of [...caches, ...included])
+    f.write(file, `fixture: ${file}`);
+  const stream = fs.createReadStream;
+  fs.createReadStream = (file, ...args) => {
+    assert.equal(
+      caches.some((v) => path.resolve(file) === path.join(f.root, v)),
+      false,
+    );
+    return stream(file, ...args);
+  };
+  let report;
+  try {
+    report = await inspectMo2(f.root, {
+      hashFiles: true,
+      installationFiles: true,
+    });
+  } finally {
+    fs.createReadStream = stream;
+  }
+  const paths = [
+    ...report.installation.instanceFiles.map((v) => v.path),
+    ...report.mods.flatMap((mod) =>
+      (mod.files || []).map((v) => `mods/${mod.name}/${v.path}`),
+    ),
+  ];
+  for (const file of included) assert.ok(paths.includes(file), file);
+  for (const file of caches) {
+    assert.equal(paths.includes(file), false);
+    assert.ok(
+      report.exclusions.some(
+        (v) =>
+          v.scope === 'instance' &&
+          v.path === file &&
+          v.reason === 'regenerable-python-bytecode',
+      ),
+    );
+    assert.equal(
+      fs.readFileSync(path.join(f.root, file), 'utf8'),
+      `fixture: ${file}`,
+    );
+  }
+  await assert.rejects(
+    inspectMo2(f.root, {
+      hashFiles: true,
+      installationFiles: true,
+      progress(value) {
+        if (value.phase === 'stability')
+          f.write('plugins/example/tool.py', 'changed source');
+      },
+    }),
+    /changed/,
+  );
+});
+
 test('final inventory guards reject added, removed and changed files or replaced trees', async () => {
   for (const mutation of ['added', 'removed', 'changed', 'replaced']) {
     const f = fixture();
