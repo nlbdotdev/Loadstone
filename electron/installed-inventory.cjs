@@ -193,7 +193,7 @@ async function inspectMo2(root, options = {}) {
       winner: candidates[0]?.layer || null,
       shadowed: candidates.slice(1).map((v) => v.layer),
       ...(candidates[0]
-        ? await fingerprint(candidates[0].file, options.signal)
+        ? await fingerprint(candidates[0].file, options.signal, { mtime: true })
         : {}),
     });
   }

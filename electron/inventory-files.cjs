@@ -14,7 +14,7 @@ function ordinary(file, directory = false) {
   return stat;
 }
 const identity = (stat) => [stat.size, stat.mtimeMs, stat.ctimeMs, stat.ino];
-async function fingerprint(file, signal) {
+async function fingerprint(file, signal, { mtime = false } = {}) {
   const before = ordinary(file),
     digest = crypto.createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) {
@@ -26,7 +26,11 @@ async function fingerprint(file, signal) {
     throw new Error(
       'A file changed during inventory. Stop active modding or gameplay and retry.',
     );
-  return { bytes: after.size, sha256: digest.digest('hex') };
+  return {
+    bytes: after.size,
+    sha256: digest.digest('hex'),
+    ...(mtime ? { mtimeMs: Math.round(after.mtimeMs) } : {}),
+  };
 }
 
 // Do not open personal state just to decide whether to inventory it. Skipped

@@ -6,6 +6,7 @@ const { canonicalJson, limits } = require('./native-format.cjs');
 const { ordinaryFile } = require('./native-package.cjs');
 const { renderMo2Config } = require('./native-mo2-config.cjs');
 const { nativeActivity } = require('./native-activity.cjs');
+const { matchesMtime } = require('./native-file-metadata.cjs');
 
 const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 function demand(value, message) {
@@ -149,7 +150,8 @@ async function reviewBuildRecovery(inspected, destination, options = {}) {
       reuse = false;
     if (exists(file)) {
       snapshot = identity(file);
-      if (fs.statSync(file).size === output.bytes) {
+      const stat = fs.statSync(file);
+      if (stat.size === output.bytes && matchesMtime(stat, output)) {
         activity.start(output.bytes);
         const hash = crypto.createHash('sha256');
         let bytes = 0;

@@ -79,7 +79,7 @@ test(
   'real Electron acquires a reviewed archive, displays progress and reconstructs exact outputs through the bridge',
   options,
   async () => {
-    const f = await createArchiveFixture('rar5');
+    const f = await createArchiveFixture('rar5', { timestamps: true });
     fs.writeFileSync(
       f.inputsFile,
       JSON.stringify({
@@ -178,6 +178,13 @@ test(
       assert.equal(jobs[0].status, 'verified');
       for (const output of f.recipe.outputs)
         assert.equal(
+          Math.round(
+            fs.statSync(path.join(jobs[0].destination, output.path)).mtimeMs,
+          ),
+          output.mtimeMs,
+        );
+      for (const output of f.recipe.outputs)
+        assert.equal(
           fingerprint(
             fs.readFileSync(path.join(jobs[0].destination, output.path)),
           ).sha256,
@@ -234,9 +241,10 @@ for (const kind of ['7z', 'rar5'])
     `native ${kind} reconstruction verifies literal, empty, Unicode and repeated members without changing inputs`,
     options,
     async () => {
-      const f = await createArchiveFixture(kind),
+      const f = await createArchiveFixture(kind, { timestamps: true }),
         sevenZip = await createSevenZip(executable);
       const before = fs.readFileSync(f.archive);
+      const archiveMtime = fs.statSync(f.archive).mtimeMs;
       const result = await materializeNative(f.packageFile, f.destination, {
         ...f.options,
         sevenZip,
@@ -244,6 +252,14 @@ for (const kind of ['7z', 'rar5'])
       assert.equal(result.status, 'verified');
       assert.equal(result.completedFiles, f.recipe.outputs.length);
       assert.equal(result.launchVerified, false);
+      for (const output of f.recipe.outputs)
+        assert.equal(
+          Math.round(
+            fs.statSync(path.join(f.destination, output.path)).mtimeMs,
+          ),
+          output.mtimeMs,
+        );
+      assert.equal(fs.statSync(f.archive).mtimeMs, archiveMtime);
       for (const output of f.recipe.outputs)
         assert.deepEqual(
           fingerprint(fs.readFileSync(path.join(f.destination, output.path))),

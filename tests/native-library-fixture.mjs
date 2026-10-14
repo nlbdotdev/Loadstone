@@ -10,7 +10,7 @@ const fingerprint = (data) => ({
   bytes: Buffer.byteLength(data),
   sha256: crypto.createHash('sha256').update(data).digest('hex'),
 });
-export async function libraryFixture({ extraFiles = [] } = {}) {
+export async function libraryFixture({ extraFiles = [], mtimes = {} } = {}) {
   const f = createNativeFixture({ mo2Config: true });
   f.recipe.outputs.find(
     (v) => v.action.type === 'mo2-config',
@@ -53,6 +53,9 @@ export async function libraryFixture({ extraFiles = [] } = {}) {
   f.destination = path.join(f.root, 'candidate');
   fs.mkdirSync(path.join(f.root, 'packages'));
   f.packageFile = path.join(f.root, 'packages', 'fixture.loadstone');
+  for (const output of f.recipe.outputs)
+    if (Object.hasOwn(mtimes, output.path))
+      output.mtimeMs = mtimes[output.path];
   await packNativeRecipe(f.recipe, f.payloads, f.packageFile);
   await materializeNative(f.packageFile, f.destination, {
     games: { fnv: f.owned },
