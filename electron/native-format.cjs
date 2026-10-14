@@ -1,5 +1,6 @@
 const { relativeFile } = require('./manifest.cjs');
 const { configBytes, validateMo2Config } = require('./native-mo2-config.cjs');
+const bsaLimits = require('./bsa-limits.cjs');
 
 const limits = Object.freeze({
   recipeBytes: 64_000_000,
@@ -302,7 +303,8 @@ function validateRecipe(value) {
   );
   array(value.outputs, limits.outputs, 1);
   const outputs = uniquePaths(value.outputs),
-    used = new Set();
+    used = new Set(),
+    bsaContainers = new Map();
   let installBytes = 0;
   for (const output of value.outputs) {
     if (output.action?.type === 'mo2-config') {
@@ -347,6 +349,33 @@ function validateRecipe(value) {
           filePath(action.member),
         'extract requires a locked archive and safe member path.',
       );
+    } else if (action.type === 'extract-bsa104') {
+      shape(action, ['type', 'source', 'container', 'member']);
+      shape(action.container, ['member', 'bytes', 'sha256']);
+      fingerprint(action.container);
+      demand(
+        ['nexus-archive', 'https-archive'].includes(source.type) &&
+          filePath(action.container.member) &&
+          filePath(action.member) &&
+          action.container.bytes >= 36 &&
+          action.container.bytes <= bsaLimits.archiveBytes &&
+          output.bytes <= bsaLimits.memberBytes,
+        'BSA extraction requires a locked archive, container fingerprint and safe member paths.',
+      );
+      const key = `${source.id}:${action.container.member.toLowerCase()}`;
+      const prior = bsaContainers.get(key);
+      demand(
+        !prior ||
+          (prior.member === action.container.member &&
+            prior.bytes === action.container.bytes &&
+            prior.sha256 === action.container.sha256),
+        'conflicting BSA container declarations.',
+      );
+      bsaContainers.set(key, action.container);
+      demand(
+        bsaContainers.size <= bsaLimits.containers,
+        'too many BSA containers.',
+      );
     } else
       demand(
         false,
@@ -354,6 +383,13 @@ function validateRecipe(value) {
       );
     installBytes += output.bytes;
   }
+  demand(
+    [...bsaContainers.values()].reduce(
+      (sum, container) => sum + container.bytes,
+      0,
+    ) <= bsaLimits.stagingBytes,
+    'BSA staging exceeds supported bounds.',
+  );
   demand(
     Number.isSafeInteger(installBytes) && bytes(installBytes),
     'output storage exceeds supported bounds.',

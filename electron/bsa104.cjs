@@ -6,15 +6,7 @@ const { createInflate } = require('node:zlib');
 const { ordinaryFile, sameFile } = require('./native-package.cjs');
 const { relativeFile } = require('./manifest.cjs');
 
-const limits = Object.freeze({
-  archiveBytes: 0xffffffff,
-  metadataBytes: 64 * 1024 * 1024,
-  folders: 100000,
-  files: 500000,
-  memberBytes: 1_000_000_000,
-  totalBytes: 20_000_000_000,
-  milliseconds: 300000,
-});
+const limits = require('./bsa-limits.cjs');
 function demand(ok, message) {
   if (!ok) throw new Error(`BSA inspection: ${message}`);
 }
@@ -33,8 +25,9 @@ function normalizedName(bytes, folder = false) {
 }
 
 // Original, deliberately limited BSA 104 reader. See docs/bsa-inspection.md
-// for format references and unsupported variants. No payload is written to disk.
-async function inspectBsa104(file, options = {}) {
+// for format references and unsupported variants. Filesystem destinations belong
+// to the trusted consumer, never to paths supplied by the BSA.
+async function readBsa104(file, options = {}, extraction) {
   const signal = options.signal
     ? AbortSignal.any([
         options.signal,
@@ -79,7 +72,13 @@ async function inspectBsa104(file, options = {}) {
     );
     return bytes;
   }
-  async function digestRange(offset, storedBytes, bytes, compressed = false) {
+  async function digestRange(
+    offset,
+    storedBytes,
+    bytes,
+    compressed = false,
+    consume,
+  ) {
     signal.throwIfAborted();
     const digest = crypto.createHash('sha256');
     let count = 0;
@@ -98,7 +97,11 @@ async function inspectBsa104(file, options = {}) {
               new Error('BSA inspection: output exceeds declared size.'),
             );
           digest.update(chunk);
-          callback();
+          if (consume)
+            Promise.resolve()
+              .then(() => consume(chunk))
+              .then(() => callback(), callback);
+          else callback();
         },
       });
       if (compressed) {
@@ -268,18 +271,40 @@ async function inspectBsa104(file, options = {}) {
     }
     const hashed = new Map(),
       members = [];
+    if (extraction) {
+      const indexed = new Map(entries.map((entry) => [entry.path, entry]));
+      for (const [name, expectedMember] of extraction.selected)
+        demand(
+          indexed.get(name)?.bytes === expectedMember.bytes,
+          'selected member is missing or differs in size.',
+        );
+    }
     for (const entry of entries) {
       signal.throwIfAborted();
+      const selected = extraction?.selected.get(entry.path);
+      if (extraction && !selected) continue;
+      const publicEntry = { name: entry.path, bytes: entry.bytes };
       const key = `${entry.offset}:${entry.storedBytes}:${entry.compressed}`;
-      let memberHash = hashed.get(key);
+      let memberHash = extraction ? undefined : hashed.get(key);
       if (!memberHash) {
         memberHash = await digestRange(
           entry.start,
           entry.length,
           entry.bytes,
           entry.compressed,
+          extraction
+            ? (chunk) => extraction.consumer.consume(publicEntry, chunk)
+            : undefined,
         );
         hashed.set(key, memberHash);
+      }
+      if (extraction) {
+        demand(
+          memberHash === selected.sha256,
+          'selected member differs from expected hash.',
+        );
+        signal.throwIfAborted();
+        await extraction.consumer.finish(publicEntry);
       }
       members.push({
         path: entry.path,
@@ -310,4 +335,33 @@ async function inspectBsa104(file, options = {}) {
     fs.closeSync(fd);
   }
 }
-module.exports = { inspectBsa104, limits };
+async function inspectBsa104(file, options = {}) {
+  return readBsa104(file, options);
+}
+async function extractBsa104(file, expected, wanted, consumer, signal) {
+  demand(
+    expected &&
+      wanted instanceof Map &&
+      wanted.size > 0 &&
+      wanted.size <= limits.files &&
+      typeof consumer?.consume === 'function' &&
+      typeof consumer?.finish === 'function',
+    'invalid extraction request.',
+  );
+  const selected = new Map();
+  for (const [name, value] of wanted) {
+    demand(
+      relativeFile(name) &&
+        !name.includes('\\') &&
+        Number.isSafeInteger(value?.bytes) &&
+        value.bytes >= 0 &&
+        value.bytes <= limits.memberBytes &&
+        typeof value.sha256 === 'string' &&
+        /^[a-f0-9]{64}$/.test(value.sha256),
+      'invalid selected member fingerprint.',
+    );
+    selected.set(name, { bytes: value.bytes, sha256: value.sha256 });
+  }
+  await readBsa104(file, { expected, signal }, { selected, consumer });
+}
+module.exports = { inspectBsa104, extractBsa104, limits };

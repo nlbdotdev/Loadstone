@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { bsaFixture } from './bsa-fixture.mjs';
 const require = createRequire(import.meta.url);
-const { inspectBsa104 } = require('../electron/bsa104.cjs');
+const { inspectBsa104, extractBsa104 } = require('../electron/bsa104.cjs');
 const fingerprint = (bytes) => ({
   bytes: Buffer.byteLength(bytes),
   sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
@@ -252,4 +252,92 @@ test('BSA CLI writes only a new private report after success and protects source
   const failed = path.join(root, 'failed', 'report.json');
   assert.notEqual(run(failed).status, 0);
   assert.equal(fs.existsSync(failed), false);
+});
+
+test('BSA extraction awaits consumers, validates selected hashes and stops writes on cancellation or failure', async (t) => {
+  const data = Buffer.alloc(500000, 81);
+  const encoded = bsaFixture([{ path: 'data.bin', data, compressed: true }]);
+  const { input } = fixture(t, encoded),
+    expected = fingerprint(encoded.bytes);
+  const wanted = new Map([['data.bin', fingerprint(data)]]);
+  const chunks = [];
+  let active = 0,
+    finished = 0;
+  await extractBsa104(input, expected, wanted, {
+    async consume(entry, chunk) {
+      assert.equal(active++, 0);
+      assert.equal(entry.name, 'data.bin');
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      chunks.push(Buffer.from(chunk));
+      active--;
+    },
+    async finish() {
+      assert.equal(active, 0);
+      finished++;
+    },
+  });
+  assert.deepEqual(Buffer.concat(chunks), data);
+  assert.equal(finished, 1);
+  for (const mode of ['cancel', 'failure']) {
+    const controller = new AbortController();
+    let writes = 0,
+      finishes = 0;
+    await assert.rejects(
+      extractBsa104(
+        input,
+        expected,
+        wanted,
+        {
+          async consume() {
+            writes++;
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            if (mode === 'cancel') controller.abort();
+            else throw Error('consumer failed');
+          },
+          async finish() {
+            finishes++;
+          },
+        },
+        controller.signal,
+      ),
+    );
+    const stopped = writes;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(writes, stopped);
+    assert.equal(finishes, 0);
+  }
+  let calls = 0;
+  await assert.rejects(
+    extractBsa104(
+      input,
+      expected,
+      new Map([['missing.bin', fingerprint(data)]]),
+      {
+        consume() {
+          calls++;
+        },
+        finish() {
+          calls++;
+        },
+      },
+    ),
+    /missing/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    extractBsa104(
+      input,
+      expected,
+      new Map([['data.bin', { bytes: data.length, sha256: '0'.repeat(64) }]]),
+      {
+        consume() {},
+        finish() {
+          calls++;
+        },
+      },
+    ),
+    /expected hash/,
+  );
+  assert.equal(calls, 0);
+  assert.deepEqual(fs.readFileSync(input), encoded.bytes);
 });
