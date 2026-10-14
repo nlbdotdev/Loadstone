@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { _electron as electron } from 'playwright';
 const require = createRequire(import.meta.url);
 test(
-  'first run explains live requirements, keeps the demo opt-in and remembers the real workspace',
+  'first run opens native installation without an engine and remembers the real workspace',
   { timeout: 60000 },
   async () => {
     const root = fs.mkdtempSync(
@@ -55,7 +55,7 @@ test(
         .getByRole('button', { name: 'Set up real installations', exact: true })
         .click();
       await page
-        .getByRole('heading', { name: 'Installation engine', exact: true })
+        .getByRole('button', { name: 'Open .loadstone', exact: true })
         .waitFor();
       const state = await page.evaluate(() => window.loadstone.getState());
       assert.equal(state.settings.onboardingComplete, true);
@@ -68,7 +68,7 @@ test(
       app = null;
       page = await start();
       await page
-        .getByRole('heading', { name: 'No live setups imported' })
+        .getByRole('heading', { name: 'No Wabbajack setups imported' })
         .waitFor();
       assert.equal(
         await page

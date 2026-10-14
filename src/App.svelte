@@ -401,7 +401,7 @@
               }),
             )
           )
-            navigate(demo ? 'discover' : 'settings');
+            navigate('discover');
         }}
       />
     {:else}

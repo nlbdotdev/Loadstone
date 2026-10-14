@@ -12,6 +12,9 @@ const fingerprint = (data) => ({
 });
 export async function libraryFixture({ extraFiles = [] } = {}) {
   const f = createNativeFixture({ mo2Config: true });
+  f.recipe.outputs.find(
+    (v) => v.action.type === 'mo2-config',
+  ).action.executables[0].steamAppId = '22380';
   const game = 'MZ synthetic owned game; never execute';
   Object.assign(f.recipe.requirements[0].files[0], fingerprint(game));
   Object.assign(f.recipe.sources[0], fingerprint(game));
