@@ -114,7 +114,10 @@ try {
   await page.getByRole('switch', { name: 'Use dummy data' }).click();
   await page.getByRole('button', { name: 'Discover', exact: true }).click();
   await page
-    .getByRole('heading', { name: 'No live setups imported' })
+    .getByRole('heading', { name: 'No Wabbajack setups imported' })
+    .waitFor();
+  await page
+    .getByRole('button', { name: 'Open .loadstone', exact: true })
     .waitFor();
   assert.deepEqual(
     pageErrors,
@@ -144,6 +147,7 @@ try {
           'complete GPL-3.0-or-later license and scope offline',
           'settings',
           'dummy-data isolation',
+          'native package entry point without Wabbajack',
           'clean shutdown',
         ],
         licenseTextSha256: crypto
