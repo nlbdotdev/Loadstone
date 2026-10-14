@@ -32,20 +32,22 @@
       <ul>
         <li>
           <Gamepad2 size={20} /><span
-            >An installed, supported copy of New Vegas, Skyrim Special Edition,
-            or Fallout 4, with the version and DLC required by your list.</span
+            >Your installed game, with the version and DLC required by the
+            setup. Tale of Two Wastelands requires both New Vegas and Fallout 3.</span
           >
         </li>
         <li>
           <Folder size={20} /><span
-            >A trusted creator’s Loadstone manifest and original Wabbajack
-            archive, plus a separate folder with enough free space.</span
+            >A trusted creator’s .loadstone package and a separate folder with
+            enough free space. The installation guide asks for its required
+            games, original archives and prepared files.</span
           >
         </li>
         <li>
           <Download size={20} /><span
-            >The installation engine and, for automatic Nexus downloads, a Nexus
-            account with Premium access. Connect your key privately in Settings.</span
+            >For Nexus sources, select your manually downloaded originals or
+            connect a Premium account in Settings for automatic downloads.
+            Local-only packages need no Nexus connection.</span
           >
         </li>
       </ul>
@@ -53,8 +55,9 @@
         >Set up real installations <ArrowRight size={18} /></button
       >
       <p class="note">
-        Next: prepare the engine and account, then import a setup in Discover.
-        Nothing downloads until you request it.
+        Next: open your .loadstone package in Discover. Wabbajack setups use the
+        separate manifest import and optional engine in Settings. Nothing
+        downloads until you request it.
       </p>
     </article>
     <article class="demo-choice">

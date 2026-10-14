@@ -280,7 +280,7 @@ test(
       await page.getByRole('switch', { name: 'Use dummy data' }).click();
       await page.getByRole('button', { name: 'Discover', exact: true }).click();
       await page
-        .getByRole('heading', { name: 'No live setups imported' })
+        .getByRole('heading', { name: 'No Wabbajack setups imported' })
         .waitFor();
       assert.equal(
         await page
@@ -303,7 +303,7 @@ test(
       await app.close();
       page = await start();
       await page
-        .getByRole('heading', { name: 'No live setups imported' })
+        .getByRole('heading', { name: 'No Wabbajack setups imported' })
         .waitFor();
       await page.getByRole('button', { name: 'Settings', exact: true }).click();
       assert.equal(

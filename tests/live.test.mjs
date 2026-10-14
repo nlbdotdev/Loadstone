@@ -196,7 +196,7 @@ test(
         window.loadstone.settings({ dummyData: false }),
       );
       await page
-        .getByRole('heading', { name: 'No live setups imported' })
+        .getByRole('heading', { name: 'No Wabbajack setups imported' })
         .waitFor();
       await app.evaluate(({ dialog }, manifestFile) => {
         dialog.showOpenDialog = async () => ({

@@ -48,12 +48,12 @@
   }
 </script>
 
-<section class="engine-settings" aria-label="Installation engine">
+<section class="engine-settings" aria-label="Wabbajack installation engine">
   <div>
-    <h2>Installation engine</h2>
+    <h2>Wabbajack installation engine</h2>
     <p>
-      Loadstone uses Wabbajack to reproduce curated setups from their original
-      sources.
+      Prepare this engine for imported Wabbajack setups. Native .loadstone
+      packages use Loadstone’s built-in installer and do not require it.
     </p>
   </div>
   {#if engine}

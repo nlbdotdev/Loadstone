@@ -70,7 +70,7 @@
 <section class="live-catalog" aria-label="Live setups">
   <div class="live-toolbar">
     <div>
-      <h2>Your setup manifests</h2>
+      <h2>Your Wabbajack setup manifests</h2>
       <p>
         Import a creator’s manifest and its original Wabbajack archive to check
         compatibility.
@@ -92,11 +92,12 @@
   {#if error}<p class="live-error" role="alert">{error}</p>{/if}
   {#if !lists.length}<div class="empty-state">
       <FileText size={32} />
-      <h2>No live setups imported</h2>
+      <h2>No Wabbajack setups imported</h2>
       <p>
-        Live installations need a versioned manifest with game hashes, storage
-        requirements, launch settings, and author credits. Prepare the engine
-        and connect your Nexus account in Settings before installing.
+        Wabbajack installations need a creator’s manifest and original archive.
+        Prepare the Wabbajack engine in Settings, then import the manifest to
+        check its game and source requirements. For a .loadstone package, use
+        Open .loadstone above.
       </p>
     </div>{/if}
   <div class="live-list-grid">

@@ -59,7 +59,7 @@
   <div class="page-heading">
     <div>
       <p class="eyebrow">YOUR LIVE WORKSPACE</p>
-      <h1>{library ? 'Wabbajack setups.' : 'Your installations.'}</h1>
+      <h1>{library ? 'Wabbajack setups.' : 'Wabbajack installations.'}</h1>
       <p>Real installation activity and saved recovery state.</p>
     </div>
   </div>
@@ -68,7 +68,7 @@
       <h2>
         {library
           ? 'No Wabbajack setups installed yet'
-          : 'No live installations started'}
+          : 'No Wabbajack installations started'}
       </h2>
       <p>
         Import a setup in Discover and check its compatibility to get started.
