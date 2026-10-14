@@ -19,10 +19,22 @@ Visual review found a personal Windows path in the old `docs/screenshots/setting
 
 The five current PNG assets were inspected for chunk types. Discovery, Library, Settings and the icon contain image chunks only. `public/worlds.png` also contains a `caBX` provenance container; it is retained and still needs provenance-metadata review. The icon ICO container, release assets, commit messages and author identities need separate review. Visual inspection and a small rule set cannot prove absence of sensitive material.
 
-## Before publishing
+## Public-source review, 2026-10-13
 
-Resolve how to handle the historical report and screenshot before making existing history public: retain them with explicit acceptance of the personal-path disclosure, or prepare a separately reviewed sanitized publication history. No history rewrite or force push has been performed by this audit. Do not assume deleting a file in a new commit removes the older contents.
+The maintainer confirmed that this source repository should remain public. The review at `f6e399cc0523c988375fd4996cde8af9a7197be7` fetched remote branches, tags and all 60 pull-request heads. The available refs contained 147 commits and 744 unique file blobs: 737 UTF-8 text blobs and seven binary assets.
+
+The scanner reported 27 matches, seven in the current tree. Twenty-six are synthetic test inputs across revisions of the live-manifest, installer, download, source-ledger and diagnostic tests. The remaining text match is the historical executable path described above. No actual credential was identified by this review.
+
+An additional review covered tracked path inventories, internal-workspace identifiers, commit messages and identities, the 60 public pull-request titles/descriptions, and the available issue/review comments. No unrelated project implementation was identified. The current acceptance-plan document contained internal workflow references; these are removed from the current tree. Their historical versions remain reachable. Commit identities contain the maintainer's existing name/email; this change does not rewrite them.
+
+The three current screenshots and both standalone PNG artwork files were visually inspected. The historical Settings screenshot still displays a personal Windows path. The current screenshot and other displayed artwork showed no private workspace content. PNG chunk inspection found only image chunks except for the existing `worlds.png` C2PA provenance container. Its readable metadata describes the image-generation service, timestamps, content hashes and signing certificates; no personal installation path or unrelated project content was identified. The ICO contains seven PNG images with image chunks only and no trailing bytes. This inspection does not validate the provenance signature or rule out every possible binary encoding.
+
+GitHub lists one public release, `v0.1.0`, with an executable and checksum. The downloaded executable matched the published checksum and was inspected as an archive without running it. Its application archive contained 4,891 files; 4,889 UTF-8 files were scanned without credential-pattern or internal-workspace matches. All three packaged main-process source files matched the release tag byte for byte. This is a bounded content review, not a security certification of the executable or its dependencies. Newer private candidate packages remain outside Git and were not uploaded.
+
+## Ongoing publication hygiene
+
+The historical report, screenshot and internal workflow references are already in public history. Removing their current versions does not remove that disclosure. A history rewrite would need a separate reviewed plan covering branches, tags, pull-request refs, release source snapshots and downstream clones; no rewrite or force push was performed. The maintainer's decision to keep the repository public is not evidence that these older disclosures have disappeared.
 
 Review commit identities/messages, generated provenance metadata, release packages, untracked material proposed for publication, and any refs not present locally. Re-run the audit after changes and investigate new findings individually. If an actual credential is found, revoke it at its provider before considering history cleanup. The current matches were classified as fixtures or personal-path material; this is not a general credential-free certification.
 
-The source-code license has since been selected as GPL-3.0-or-later. This audit does not settle distribution compliance, attribution gaps, security-reporting contacts, Nexus registration, real installation acceptance, or approval to change repository visibility. See [open-source preparation](open-source.md).
+The source-code license is GPL-3.0-or-later and public source availability is authorized. This audit does not settle distribution compliance, attribution gaps, security-reporting contacts, Nexus registration, real installation acceptance, or approval to upload a binary release. See [open-source preparation](open-source.md).

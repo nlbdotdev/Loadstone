@@ -1,10 +1,10 @@
 # Security reporting
 
-Loadstone is an unreleased private preview. Only current `main` is being developed; there is no supported public stable release or guaranteed response time yet.
+Loadstone is under active development. Only current `main` is being developed; there is no supported public stable release or guaranteed response time yet. The published v0.1.0 demo is historical.
 
-For a suspected vulnerability, contact the repository owner through the private channel used to obtain access. Do not post secrets or exploit details in public issues. Before publication, the maintainer must enable GitHub private vulnerability reporting or publish a monitored private contact. That public reporting gate is still open.
+This source repository is public. GitHub private vulnerability reporting is not currently enabled, and a monitored confidential contact has not yet been published. Until a private reporting route is listed here, open an issue requesting a private contact without including vulnerability details. Do not post secrets, personal files or exploit details in public issues. Establishing the confidential reporting channel remains a release requirement.
 
-Include the affected commit/version, Windows version, reproducible steps using synthetic data, expected and observed behavior, and impact. Do not include Nexus keys, encrypted credential files, personal Steam files, game assets or unreviewed logs. If a credential was exposed, revoke it at its provider rather than relying on deletion from a report.
+Once a confidential channel is established, include the affected commit/version, Windows version, reproducible steps using synthetic data, expected and observed behavior, and impact in the private report. Do not include Nexus keys, encrypted credential files, personal Steam files, game assets or unreviewed logs. If a credential was exposed, revoke it at its provider rather than relying on deletion from a report.
 
 ## Boundaries
 

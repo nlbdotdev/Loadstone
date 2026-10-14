@@ -1,6 +1,10 @@
 # Contributing to Loadstone
 
-Loadstone is a private preview under active development, with original source licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) for the terms and scope. By submitting a contribution to the covered code or documentation, you agree to license that contribution under the same terms and confirm that you have the right to do so. Preserve third-party attribution and identify externally sourced material. No copyright assignment is required. Coordinate contributions with the maintainer while public reporting channels and publication review are finalized.
+Loadstone is a public source project under active development, with original source licensed under **GPL-3.0-or-later**. See [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT) for the terms and scope. By submitting a contribution to the covered code or documentation, you agree to license that contribution under the same terms and confirm that you have the right to do so. Preserve third-party attribution and identify externally sourced material. No copyright assignment is required. Release acceptance and a monitored confidential security-reporting channel remain unfinished.
+
+## Public repository boundary
+
+Commit only Loadstone source, reusable synthetic fixtures and reviewed public documentation. Keep private workspace orchestration, unrelated project code, operational account details, personal installation inventories and raw acceptance evidence outside this repository. Review changes to files, screenshots, commit messages, pull-request descriptions and release attachments for that boundary before pushing. Sanitizing the current tree does not remove earlier public versions; see the [history audit](docs/publication-audit.md).
 
 ## Development on Windows
 

@@ -13,7 +13,7 @@ Propose application type **Software**, category **Player Tools**. Valve lists Pl
 | Launch | `Loadstone.exe` in the directory depot; see [depot instructions](steam-release.md) |
 | Developer / publisher | Maintainer must supply the actual legal/account identity |
 | Price / release date | Undecided; do not infer either from open-source plans |
-| Support / privacy | Publish reviewed support and privacy destinations; repository is currently private |
+| Support / privacy | Publish reviewed support and privacy destinations; source repository is public; confidential security reporting remains unfinished |
 | Minimum requirements | Establish on clean Windows hardware; development-host success is not a certified minimum OS, RAM or GPU specification |
 | Storage | Measure the final directory build and engine overhead separately; every list additionally needs its own downloads, installed files and recovery space |
 | Steam feature claims | No Workshop, Cloud, achievements, controller, Deck or Linux claims. Local non-Steam shortcuts are a separate app feature |
@@ -48,7 +48,7 @@ Loadstone does not include Bethesda games or a playable mod collection. The bund
 | One-click setup | Optional isolated game-root validation implemented | A permitted list that actually produces a self-contained playable setup. Current cached VNV requires manual game preparation; do not advertise one-click VNV |
 | Shortcuts and maintenance | Real Steam shortcut preservation/running-client safeguard; native repair, separate-version and retained-removal Electron fixtures | Complete uninterrupted Steam launch, actual depot update/uninstall and maintenance after real play with save-preservation evidence |
 | Nexus access | Local protected credential storage, membership checks, native automatic acquisition and guided manual verification; browser handoff intercepted in fixtures | Public application registration and real authorized authentication/downloads; never supply reviewer credentials in Git or public docs |
-| Open source | Contributor/privacy/security docs, dependency notices and history audit prepared | GPL-3.0-or-later selected for original source; corresponding-source delivery, distribution/asset review and publication audit decisions remain open; repository remains private |
+| Open source | Contributor/privacy/security docs, dependency notices and history audit prepared | GPL-3.0-or-later selected for original source; corresponding-source delivery, distribution/asset review and publication audit decisions remain open; source repository is public; binary release acceptance remains open |
 
 The current portable build is a local preview, not a Steam depot acceptance result. Record the exact candidate source commit, artifact hashes, depot build ID, test machine and outcomes in a release-specific acceptance report. Valve reviews the store presence and build; local tests do not replace that review. See [Valve review process](https://partner.steamgames.com/doc/store/review_process).
 
