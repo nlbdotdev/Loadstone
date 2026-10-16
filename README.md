@@ -8,6 +8,8 @@ A Windows developer preview of a curated Bethesda modlist installer, built with 
 
 The screenshot records an earlier preview. Current source uses the refined [shared brand mark](handbook/pages/brand.md).
 
+Picking up development later? Read [HANDOFF.md](HANDOFF.md) for the verified checkpoint, remaining implementation work and manual human-testing checklist.
+
 ## Windows preview
 
 Build the current **0.4.0 native installation preview** with `pnpm package`, then run `release/Loadstone-0.4.0-Windows.exe`. The portable executable needs no Node.js, pnpm or installation wizard to run. It is unsigned and has not been published as a new hosted release. The existing private v0.1.0 release is the older demo-only build. See [private preview packaging](docs/private-preview.md) for isolated output folders, exact source archives and verification.

@@ -233,6 +233,13 @@ export const pages = [
     'Implemented behavior and remaining acceptance gates.',
   ),
   page(
+    'handoff',
+    'Development handoff',
+    'HANDOFF.md',
+    'Release & trust',
+    'The resumable checkpoint, remaining work and manual human tests.',
+  ),
+  page(
     'changelog',
     'Changelog',
     'CHANGELOG.md',

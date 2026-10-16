@@ -4,6 +4,8 @@ Loadstone is a Windows Svelte 5, TypeScript and Electron application for reviewe
 
 ## Start with the right reference
 
+- [Development handoff](HANDOFF.md) for the latest checkpoint, unfinished release work and deferred human tests. Revalidate current repository state before resuming.
+
 - [Product concepts](handbook/pages/concepts.md), [development](handbook/pages/development.md) and [acceptance plan](docs/1.0-plan.md).
 - [Native format](docs/loadstone-format.md), [reconstruction](docs/native-reconstruction.md) and [source inventory](docs/installed-inventory.md) for creator work.
 - [Brand system](handbook/pages/brand.md) for visual changes.
