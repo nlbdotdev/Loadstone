@@ -7,33 +7,19 @@ import { _electron as electron } from 'playwright';
 const repo = path.resolve(import.meta.dirname, '..');
 const output = path.join(repo, 'release', 'steam-artwork');
 fs.mkdirSync(output, { recursive: true });
-// Reuse the original native mark, without compiling or executing the component.
-const component = fs.readFileSync(path.join(repo, 'src/Logo.svelte'), 'utf8');
-const mark = component.slice(
-  component.indexOf('  <path'),
-  component.lastIndexOf('</svg>'),
+const source = fs.readFileSync(
+  path.join(repo, 'public/brand/mark.svg'),
+  'utf8',
 );
-// Original geometric lettering: no font files or third-party artwork are embedded.
-const glyphs = {
-  L: 'M4 2V54H38',
-  O: 'M12 2H30L38 10V46L30 54H12L4 46V10Z',
-  A: 'M2 54L20 2H24L42 54M10 34H34',
-  D: 'M4 2H25L40 17V39L25 54H4Z',
-  S: 'M39 2H12L4 10V20L12 28H30L38 36V46L30 54H3',
-  T: 'M2 2H42M22 2V54',
-  N: 'M4 54V2L40 54V2',
-  E: 'M38 2H4V54H38M4 27H31',
-};
-const title = [...'LOADSTONE']
-  .map(
-    (letter, i) =>
-      `<path transform="translate(${i * 56} 0)" d="${glyphs[letter]}"/>`,
-  )
-  .join('');
-const wordmark = (x, y, width) =>
-  `<g transform="translate(${x} ${y}) scale(${width / 494})" fill="none" stroke="#f4e9db" stroke-width="5" stroke-linejoin="round" stroke-linecap="square">${title}</g>`;
-const compass = (x, y, size) =>
-  `<g transform="translate(${x} ${y}) scale(${size / 72})">${mark}</g>`;
+const mark = source.slice(
+  source.indexOf('>') + 1,
+  source.lastIndexOf('</svg>'),
+);
+// Render the installed Windows UI typeface; no font files are redistributed.
+const wordmark = (x, y, size, anchor = 'middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Segoe UI, sans-serif" font-size="${size}" font-weight="600" letter-spacing="${-size * 0.045}" fill="#F4EDE3">Loadstone</text>`;
+const symbol = (x, y, size) =>
+  `<g transform="translate(${x} ${y}) scale(${size / 64})">${mark}</g>`;
 const assets = [
   ['header', 920, 430],
   ['small', 462, 174],
@@ -48,24 +34,29 @@ function artwork(name, w, h) {
   const transparent = name === 'library-logo',
     hero = name === 'library-hero';
   const portrait = h > w;
-  const symbol = transparent ? 200 : hero ? 500 : portrait ? w * 0.5 : h * 0.47;
   let body = '';
   if (!transparent) {
-    body += `<defs><radialGradient id="glow"><stop stop-color="#354443"/><stop offset="1" stop-color="#111819"/></radialGradient></defs><rect width="${w}" height="${h}" fill="url(#glow)"/>`;
-    const cx = w * (hero ? 0.6 : 0.5),
-      cy = h * 0.45;
-    for (let i = 1; i <= 7; i++)
-      body += `<circle cx="${cx}" cy="${cy}" r="${h * (0.16 + i * 0.105)}" fill="none" stroke="#b68058" stroke-opacity="${0.17 - i * 0.015}" stroke-width="${Math.max(1, h / 900)}"/>`;
-    body += `<path d="M0 ${h * 0.87}L${w * 0.28} ${h * 0.64}L${w * 0.49} ${h * 0.88}L${w * 0.78} ${h * 0.6}L${w} ${h * 0.81}V${h}H0Z" fill="#101718" opacity=".65"/>`;
+    body += `<defs><radialGradient id="glow" cx="65%" cy="25%" r="85%"><stop stop-color="#394449"/><stop offset=".55" stop-color="#232C31"/><stop offset="1" stop-color="#141B20"/></radialGradient><linearGradient id="edge" x2="1" y2="1"><stop stop-color="#D9AD87" stop-opacity=".04"/><stop offset=".5" stop-color="#D9AD87" stop-opacity=".22"/><stop offset="1" stop-color="#D9AD87" stop-opacity=".02"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#glow)"/>`;
+    // Two quiet mineral planes leave space for the identity at every crop.
+    body += `<path d="M${w * 0.56} 0H${w}V${h * 0.57}L${w * 0.26} ${h}H0V${h * 0.69}Z" fill="#768183" opacity=".035"/><path d="M0 ${h * 0.88}L${w} ${h * 0.23}" stroke="url(#edge)" stroke-width="${Math.max(1, h / 700)}"/>`;
   }
-  if (transparent) body += compass(25, 40, symbol) + wordmark(250, 95, 990);
-  else if (hero)
-    body += compass(w * 0.6 - (symbol * 32) / 72, (h - symbol) / 2, symbol);
-  else {
-    const y = portrait ? h * 0.19 : h * 0.12;
-    body += compass(w / 2 - (symbol * 32) / 72, y, symbol);
-    const width = w * (portrait ? 0.82 : 0.75);
-    body += wordmark((w - width) / 2, h * 0.72, width);
+  if (transparent)
+    body += symbol(24, 10, 256) + wordmark(304, 200, 190, 'start');
+  else if (hero) body += symbol(w * 0.65 - 260, (h - 520) / 2, 520);
+  else if (portrait) {
+    const size = w * 0.58;
+    body +=
+      symbol((w - size) / 2, h * 0.19, size) +
+      wordmark(w / 2, h * 0.76, w * 0.151);
+  } else if (name === 'small') {
+    body +=
+      symbol(w * 0.064, h * 0.12, h * 0.76) +
+      wordmark(w * 0.375, h * 0.62, h * 0.29, 'start');
+  } else {
+    const size = h * 0.49;
+    body +=
+      symbol((w - size) / 2, h * 0.1, size) +
+      wordmark(w / 2, h * 0.79, w * 0.112);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
 }
@@ -77,7 +68,9 @@ fs.writeFileSync(
 );
 let app;
 try {
-  app = await electron.launch({ args: [entry] });
+  const env = { ...process.env };
+  delete env.ELECTRON_RUN_AS_NODE;
+  app = await electron.launch({ args: [entry], env });
   const page = await app.firstWindow();
   const inventory = [];
   for (const [name, width, height] of assets) {

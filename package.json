@@ -17,26 +17,34 @@
     "notices": "pnpm build && pnpm licenses list --prod --json | node scripts/generate-notices.mjs",
     "package:steam": "pnpm notices && electron-builder --win --x64 --dir -c.directories.output=release/steam-unpacked && node scripts/steam-depot.mjs release/steam-unpacked/win-unpacked",
     "audit:publication": "node scripts/audit-publication.mjs",
-    "assets:steam": "node scripts/steam-artwork.mjs"
+    "assets:steam": "node scripts/steam-artwork.mjs",
+    "assets:icon": "node scripts/create-icon.mjs",
+    "handbook:sync": "node scripts/handbook.mjs sync",
+    "handbook:dev": "node scripts/handbook.mjs && vite --config handbook/vite.config.ts",
+    "handbook:check": "node scripts/handbook.mjs check && svelte-check --tsconfig handbook/tsconfig.json",
+    "handbook:build": "node scripts/handbook.mjs && vite build --config handbook/vite.config.ts",
+    "handbook:preview": "vite preview --config handbook/vite.config.ts",
+    "handbook:test": "pnpm handbook:build && node --test handbook/tests/*.test.mjs"
   },
   "dependencies": {
     "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
+    "@lucide/svelte": "^1.0.0",
     "@sveltejs/vite-plugin-svelte": "^6.0.0",
     "@types/node": "^22.0.0",
     "electron": "^40.0.0",
     "electron-builder": "^26.0.0",
+    "marked": "18.1.1",
     "playwright": "^1.58.0",
     "prettier": "^3.9.9",
     "prettier-plugin-svelte": "^4.1.1",
+    "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.0.0",
     "vite": "^7.0.0",
-    "yazl": "^3.3.1",
-    "svelte": "^5.0.0",
-    "@lucide/svelte": "^1.0.0"
+    "yazl": "^3.3.1"
   },
   "build": {
     "appId": "dev.nlb.loadstone",

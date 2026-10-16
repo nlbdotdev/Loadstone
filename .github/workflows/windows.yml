@@ -20,6 +20,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm handbook:check
+      - run: pnpm handbook:test
       - name: Prepare pinned archive test tool
         shell: pwsh
         run: |
