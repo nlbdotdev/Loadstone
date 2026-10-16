@@ -2,9 +2,11 @@
 
 **Your next playthrough, ready.**
 
-A Windows developer preview of a curated Bethesda modlist installer, built with Svelte 5, TypeScript, and Electron. Charcoal panels, copper accents, and original cinematic artwork carry the approved Loadstone visual direction into an interactive app.
+A Windows developer preview of a curated Bethesda modlist installer, built with Svelte 5, TypeScript, and Electron. A carved copper mark, charcoal panels and original illustrative artwork carry Loadstone's visual identity.
 
 ![Loadstone Discover](docs/screenshots/discover.png)
+
+The screenshot records an earlier preview. Current source uses the refined [shared brand mark](handbook/pages/brand.md).
 
 ## Windows preview
 
@@ -36,6 +38,12 @@ node scripts/verify-portable.mjs
 
 See [the review checklist and verification notes](docs/review.md).
 
+## Handbook
+
+Run `pnpm handbook:dev` and open **http://127.0.0.1:4174** for the local Svelte handbook. It includes player setup and recovery guides, creator workflows, the native format, architecture, release status and contribution guidance, with local search and mobile navigation. `pnpm handbook:build` creates a static site in `handbook/dist/`; `pnpm handbook:preview` serves it locally. These commands do not publish it.
+
+The site reads canonical Markdown directly. Start with [the handbook](handbook/pages/welcome.md), [the repository agent guide](AGENTS.md), or the [complete generated agent edition](handbook/agents.md). After documentation changes, run `pnpm handbook:sync`, then `pnpm handbook:check` and `pnpm handbook:test`. See [handbook maintenance](handbook/pages/documentation.md).
+
 ## Review the MVP
 
 1. Browse Discover; filter by game or search for a setup.
@@ -61,7 +69,7 @@ The [real TTW acceptance record](docs/native-steam-acceptance.md) now includes d
 
 [Manual Nexus downloads](docs/native-manual-downloads.md) open each declared file page in the default browser and verify the downloaded original before selection, with byte progress and cancellation. Browser mode tracks pending files and requires all Nexus selections before installation review; existing cache files can be explicitly checked too. Automatic Nexus downloads still require fresh Premium access. Real account/website acceptance and public API registration remain open.
 
-Recipes can also [reconstruct exact loose files from BSA 104 containers](docs/native-reconstruction.md#nested-bsa-104-files) inside original ZIP/7z/RAR downloads. Each archive, container and inner file has an explicit fingerprint; temporary staging, cancellation, resume and repair preserve the existing installation checks. Automatic nested-source mapping and generated-content reproduction remain unfinished.
+Recipes can also [reconstruct exact loose files from BSA 104 containers](docs/native-reconstruction.md#nested-bsa-104-files) inside original ZIP/7z/RAR downloads. Each archive, container and inner file has an explicit fingerprint; temporary staging, cancellation, resume and repair preserve the existing installation checks. The [BSA mapper](docs/bsa-inspection.md) records exact nested-source chains in private creator ledgers. Generated-content reproduction and complete featured recipes remain unfinished.
 
 ## Persistence and desktop behavior
 
@@ -81,7 +89,9 @@ For isolated automated testing, set `LOADSTONE_DATA_DIR` to a dedicated director
 - `electron/installer.cjs`: durable live jobs, engine process control, credential handoff, and structural profile verification.
 - `tests/electron.test.mjs`: real Electron workflows and backend invariants.
 - `public/worlds.png`: original AI-generated triptych for the three fictional setups.
-- `scripts/create-icon.py`: geometric app icon generator (Pillow needed only to regenerate artwork).
+- `public/brand/mark.svg`: shared editable mark for the app, handbook and generated artwork.
+- `scripts/create-icon.mjs`: desktop SVG/PNG/ICO generator using the locked Electron renderer.
+- `handbook/`: local Svelte documentation site and generated agent edition.
 
 Real install-to-play, Steam-client and save-preservation acceptance remain necessary before a public installer release. [The 1.0 acceptance plan](docs/1.0-plan.md) tracks the complete release requirements, including open-source documentation, license review and notices.
 

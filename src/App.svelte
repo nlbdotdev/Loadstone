@@ -308,7 +308,7 @@
       onclick={() => navigate('discover')}
       aria-label="Loadstone home"
       ><Logo /><span
-        ><strong>Loadstone</strong><small>GREATER WORLDS AWAIT</small></span
+        ><strong>Loadstone</strong><small>Your next playthrough, ready.</small></span
       ></button
     >
     <div class="titlebar-search">

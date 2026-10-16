@@ -27,6 +27,12 @@ Use a feature branch and a focused pull request. Explain the user-visible proble
 
 Keep filesystem/process access in the main process. Validate IPC input, preserve unrelated files and entries, and keep secrets out of renderer state and diagnostics. Manifest imports must not add arbitrary shell recipes. Use original upstream downloads and retain attribution; do not commit game files, downloaded mods, personal manifests, keys, signed URLs or raw user logs.
 
+## Documentation
+
+The local Svelte handbook reads the canonical documents in this repository. Run `pnpm handbook:dev` to browse it. Keep behavior, support status, examples and recovery guidance current in the same change as the implementation. Add new documentation to `handbook/catalog.mjs`, then run `pnpm handbook:sync` and commit the regenerated `handbook/agents.md`. Run `pnpm handbook:check` and `pnpm handbook:test` before merging. CI checks coverage, links, agent-edition freshness and the built site's navigation/search behavior. See [the documentation guide](handbook/pages/documentation.md) and [AGENTS.md](AGENTS.md).
+
+The handbook uses an explicit public-source allowlist. Never expand it to scan parent workspaces or publish private operational evidence. Building the static site does not authorize deployment.
+
 ## Notices and packaging
 
 ```powershell

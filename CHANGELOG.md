@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refine the shared Loadstone mark, Windows app icon, header typography and draft Steam artwork. The app, handbook and asset generators use one editable SVG source.
+- Add a local Svelte handbook with 43 source-backed pages, full-text search, responsive navigation, section links and code copying. A concise root `AGENTS.md` and generated complete agent edition keep contributor guidance aligned with the documentation; CI checks freshness, coverage, links and browser workflows. No site is hosted or published by these commands.
+
 - First-run setup opens Discover directly for native .loadstone installation. Welcome, engine settings and Wabbajack empty states now explain which prerequisites belong to each installation path.
 - Native MO2 executable declarations can retain the target game's Steam app ID without changing legacy receipts. Relaunch validation accepts unrelated plugin persistence keys written by MO2 while retaining checks on launch paths, profile isolation and declared executable settings.
 - Native MO2 recipes can declare a Steam or GOG edition matched to the target game requirement, avoiding MO2's edition-selection dialog. Launch checks protect the declared edition. Legacy recipes retain their original configuration bytes and receipts.

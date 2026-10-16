@@ -128,16 +128,16 @@ h4 {
   text-align: left;
 }
 .brand strong {
-  font-size: 29px;
+  font-size: 27px;
   font-weight: 600;
   letter-spacing: -0.7px;
 }
 .brand small {
   display: block;
-  font-size: 8px;
-  letter-spacing: 3px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
   color: #b2a898;
-  margin-top: 7px;
+  margin-top: 4px;
 }
 .titlebar-search {
   display: flex;
