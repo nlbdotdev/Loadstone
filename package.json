@@ -21,7 +21,7 @@
     "assets:icon": "node scripts/create-icon.mjs",
     "handbook:sync": "node scripts/handbook.mjs sync",
     "handbook:dev": "node scripts/handbook.mjs && vite --config handbook/vite.config.ts",
-    "handbook:check": "node scripts/handbook.mjs check && svelte-check --tsconfig handbook/tsconfig.json",
+    "handbook:check": "node scripts/handbook.mjs check && node scripts/handbook.mjs && svelte-check --tsconfig handbook/tsconfig.json",
     "handbook:build": "node scripts/handbook.mjs && vite build --config handbook/vite.config.ts",
     "handbook:preview": "vite preview --config handbook/vite.config.ts",
     "handbook:test": "pnpm handbook:build && node --test handbook/tests/*.test.mjs"

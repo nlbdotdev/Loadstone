@@ -40,6 +40,8 @@ pnpm handbook:check
 
 The check verifies catalog coverage, unique routes, local documentation links and headings, and exact agreement with the committed agent edition. `pnpm handbook:test` builds the site and exercises actual browser navigation, search, deep links, keyboard access, code copying and all pages at desktop/mobile widths. CI runs both commands. After changing documentation, commit the regenerated edition with the source edits. Do not edit it by hand.
 
+`handbook:check` prepares the ignored page data before Svelte diagnostics, so it works on a fresh checkout without a preceding site build. A stale committed agent edition still fails before preparation; the command does not silently update that committed file.
+
 ## Public-source boundary
 
 Only catalog-listed files from this repository are eligible. Do not scan parent workspaces, include acceptance logs or copy personal inventories into a page. Keep credentials and game/mod payloads outside both Git and the handbook output. Building or updating the site does not publish it.

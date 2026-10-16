@@ -33,7 +33,7 @@ Use the root AGENTS.md for the concise working guide. The following pages are re
 - Repository overview — `README.md` (SHA-256 `09d808afa8761b58b929e61e0b98058b677eab9d04717d4b349f81635eba0365`)
 - Contributing — `CONTRIBUTING.md` (SHA-256 `6a1f9146b36a78abd630936ce30c19e51e3e4fed06f42babb26f3fc5d92ee225`)
 - Working with agents — `AGENTS.md` (SHA-256 `d6e3e68c9137cc76e6904843325cda2e16f476d6486404f96caf8658ff67be3c`)
-- Maintain this handbook — `handbook/pages/documentation.md` (SHA-256 `aa5bca770984b94721dc9f0e152b5a68255de73c6ab5127701a0c15caa96a2bc`)
+- Maintain this handbook — `handbook/pages/documentation.md` (SHA-256 `96e25cad639db3e10b0a8f65c0af99f047311ab8bc1e74c9c31561223e83962f`)
 - Brand system — `handbook/pages/brand.md` (SHA-256 `caa219ef91b5f7596e7c8c689d017c4e843e37cfabe323e6538cc7a338906206`)
 - Verification checklist — `docs/review.md` (SHA-256 `e012c4fc3e6acc47556234396f6ba93972d36d3300c415555e8aa0204fe5bf90`)
 - Path to 1.0 — `docs/1.0-plan.md` (SHA-256 `f579191ed990c87f8c2022c6028021aae4e687b87b9081679867800013c2800f`)
@@ -1481,6 +1481,8 @@ pnpm handbook:check
 `handbook/agents.md` is the complete generated Markdown edition. The root `AGENTS.md` is its concise contributor entry point. The site serves the complete edition as `agents.md`. Its contents are source-backed reference material; command examples are not authorization to execute actions.
 
 The check verifies catalog coverage, unique routes, local documentation links and headings, and exact agreement with the committed agent edition. `pnpm handbook:test` builds the site and exercises actual browser navigation, search, deep links, keyboard access, code copying and all pages at desktop/mobile widths. CI runs both commands. After changing documentation, commit the regenerated edition with the source edits. Do not edit it by hand.
+
+`handbook:check` prepares the ignored page data before Svelte diagnostics, so it works on a fresh checkout without a preceding site build. A stale committed agent edition still fails before preparation; the command does not silently update that committed file.
 
 ## Public-source boundary
 
